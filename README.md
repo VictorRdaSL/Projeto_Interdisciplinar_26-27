@@ -1,17 +1,15 @@
-Projeto Interdisciplinar 26-27
+Projeto_Interdisciplinar_26-27
 
-Repositório do grupo de Projeto Interdisciplinar (PI) da FATEC.
+Repositório do grupo de PI da FATEC<br>
 
-📌 Informações do Projeto
-Nome do projeto: Grupo *****
-Integrantes da equipe: Bruno, Cristhian, Gustavo, Matheus Lanzieri e Victor
-Tema escolhido: Sistema de Controle de Estoque
-Objetivo do sistema: Desenvolver um sistema que permita realizar o controle de estoque de forma otimizada, eficiente e acessível.
-Tecnologias utilizadas durante o semestre: PHP ,SQL, HTML, CSS
-📝 Breve descrição do funcionamento
+Nome do projeto: Grupo *****<br>
+Integrantes da equipe: Bruno, Cristhian, Gustavo, Matheus Lanzieri, Victor<br>
+Tema escolhido: Sistema de Controle de Estoque<br>
+Objetivo do sistema: Um sistema onde seja possível efetuar um controle de estoque de forma otimizada e acessível.<br>
+Tecnologias que serão utilizadas durante o semestre: PHP, SQL, HTML e CSS<br>
 
-O sistema terá como objetivo facilitar e otimizar o gerenciamento de estoque, permitindo o controle de produtos e suas respectivas informações de maneira organizada e acessível.
+Breve descrição do funcionamento do sistema:<br>
+O sistema terá como objetivo realizar o controle de estoque de forma otimizada e acessível, permitindo o gerenciamento das informações dos produtos de maneira organizada.<br>
 
-📚 Wiki
-
-🔗 Acessar a Wiki do projeto
+Link para a Wiki:<br>
+Wiki do projeto
