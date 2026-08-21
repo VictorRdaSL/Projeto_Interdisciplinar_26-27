@@ -12,4 +12,4 @@ Breve descrição do funcionamento do sistema:<br>
 O sistema terá como objetivo realizar o controle de estoque de forma otimizada e acessível, permitindo o gerenciamento das informações dos produtos de maneira organizada.<br>
 
 Link para a Wiki:<br>
-Wiki do projeto
+Wiki do projeto:
