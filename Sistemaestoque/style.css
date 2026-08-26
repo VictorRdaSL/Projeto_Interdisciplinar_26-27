@@ -1,0 +1,41 @@
+@import url('style_base.css');
+
+:root{
+  --verde-50:#edf7e9;
+  --verde-100:#d4ebcf;
+  --verde-200:#a7d39e;
+  --verde-300:#7bc46f;
+  --verde-400:#48b84b;
+  --verde-500:#29aa49;
+  --verde-600:#159447;
+  --verde-700:#137d42;
+  --verde-800:#116b3b;
+  --verde-900:#1d4f2d;
+}
+body{background:var(--verde-50);color:#244331}
+.logo-icon,.avatar{background:var(--verde-200);color:var(--verde-800)}
+.logo h1,.topo h2,.painel-topo h2,.secao-simples h2,.modal-topo h2{color:var(--verde-900)}
+.logo h1 span{color:var(--verde-500)}
+nav a.ativo{background:var(--verde-100);color:var(--verde-800)}
+nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde-700)}
+.btn-principal,.btn-salvar{background:var(--verde-600)}
+.btn-principal:hover,.btn-salvar:hover{background:var(--verde-700)}
+.card-icon,.produto-icon{background:var(--verde-50)}
+.positivo{color:var(--verde-600)}
+.disponivel{background:var(--verde-100);color:var(--verde-800)}
+.pesquisa{background:#f6fbf5;border:1px solid var(--verde-100)}
+.flash{padding:14px 18px;border-radius:12px;margin-bottom:22px;font-size:14px;font-weight:600}
+.flash.sucesso{background:#dff4dd;color:#145d35;border:1px solid #bfe6ba}
+.flash.erro{background:#fff1e3;color:#955d15;border:1px solid #f0d2a6}
+.grid-mov{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.form-mov{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.full{grid-column:1/-1}
+.form-mov .btn-salvar{width:100%}
+.vazio{text-align:center;padding:30px;color:#819488}
+.badge-tipo{display:inline-block;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:bold}
+.badge-tipo.entrada{background:#dff4dd;color:#146337}
+.badge-tipo.saida{background:#e9f0e5;color:#315a36}
+.historico{margin-top:18px}
+.versao{font-size:11px;color:#8a9b91;padding:13px 15px}
+@media(max-width:950px){.grid-mov{grid-template-columns:1fr}}
+@media(max-width:600px){.form-mov{grid-template-columns:1fr}.full{grid-column:auto}}
