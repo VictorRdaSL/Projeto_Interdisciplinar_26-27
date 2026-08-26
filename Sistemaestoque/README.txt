@@ -23,5 +23,3 @@ FUNÇÕES:
 - pesquisar produto
 - mostrar estoque baixo
 - histórico das últimas movimentações
-
-Tailwind é carregado por CDN. O CSS local mantém o layout mesmo sem o CDN.
