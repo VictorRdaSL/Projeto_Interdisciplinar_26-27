@@ -12,7 +12,7 @@ LOGIN DO MYSQL PADRÃO DO XAMPP:
 Usuário: root
 Senha: vazia
 
-Se o MySQL da faculdade tiver senha, altere config/database.php.
+Se o MySQL tiver senha, altere config/database.php.
 
 FUNÇÕES:
 - cadastrar produto
