@@ -2,6 +2,7 @@
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/permissoes.php';
+require_once __DIR__ . '/includes/log.php';
 
 function voltar(string $tipo, string $mensagem, string $ancora='dashboard'): never {
     $_SESSION['flash'] = ['type'=>$tipo, 'message'=>$mensagem];
@@ -11,6 +12,13 @@ function voltar(string $tipo, string $mensagem, string $ancora='dashboard'): nev
 
 function codigoProduto(int $id): string {
     return str_pad((string)$id, 4, '0', STR_PAD_LEFT);
+}
+
+function avisoEstoqueBaixo(int $depois, int $minimo, bool $jaEstavaBaixo): string {
+    if (!$jaEstavaBaixo && $depois <= $minimo) {
+        return ' ⚠ Atenção: o produto ficou com estoque baixo ('.$depois.' un., mínimo '.$minimo.').';
+    }
+    return '';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -44,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $m=$conn->prepare('INSERT INTO entradas_estoque (produto_id,usuario_id,quantidade,observacao) VALUES (?,?,?,?)');
                 $m->bind_param('iiis',$produtoId,$usuarioId,$quantidade,$obs); $m->execute();
             }
-            voltar('sucesso','Produto cadastrado com sucesso! Código '.$codigo.' gerado automaticamente.','produtos');
+            $aviso = avisoEstoqueBaixo($quantidade, $minimo, false);
+            voltar('sucesso','Produto cadastrado com sucesso! Código '.$codigo.' gerado automaticamente.'.$aviso,'produtos');
         } catch (mysqli_sql_exception $e) {
             voltar('erro','Não foi possível cadastrar o produto. Tente novamente.','novo-produto');
         }
@@ -62,11 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $conn->begin_transaction();
         try {
-            $s=$conn->prepare('SELECT quantidade FROM produtos WHERE id=? FOR UPDATE');
+            $s=$conn->prepare('SELECT quantidade, estoque_minimo FROM produtos WHERE id=? FOR UPDATE');
             $s->bind_param('i',$produtoId); $s->execute();
             $produto=$s->get_result()->fetch_assoc();
             if (!$produto) throw new Exception('Produto não encontrado.');
             $atual=(int)$produto['quantidade'];
+            $minimo=(int)$produto['estoque_minimo'];
             if ($tipo==='saida' && $quantidade>$atual) throw new Exception('Saída maior que o estoque disponível.');
             $nova=$tipo==='entrada' ? $atual+$quantidade : $atual-$quantidade;
             $u=$conn->prepare('UPDATE produtos SET quantidade=? WHERE id=?');
@@ -76,7 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $m=$conn->prepare("INSERT INTO $tabela (produto_id,usuario_id,quantidade,observacao) VALUES (?,?,?,?)");
             $m->bind_param('iiis',$produtoId,$usuarioId,$quantidade,$observacao); $m->execute();
             $conn->commit();
-            voltar('sucesso',ucfirst($tipo).' registrada com sucesso!',$tipo==='entrada'?'entradas':'saidas');
+            $aviso=avisoEstoqueBaixo($nova,$minimo,$atual<=$minimo);
+            voltar('sucesso',ucfirst($tipo).' registrada com sucesso!'.$aviso,$tipo==='entrada'?'entradas':'saidas');
         } catch (Throwable $e) {
             $conn->rollback(); voltar('erro',$e->getMessage(),$tipo==='saida'?'saidas':'entradas');
         }
@@ -90,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nome = trim($_POST['nome'] ?? '');
         $categoria = trim($_POST['categoria'] ?? 'Outros');
         $quantidadeNova = max(0, (int)($_POST['quantidade'] ?? 0));
+        $minimoNovo = max(0, (int)($_POST['minimo'] ?? 0));
         $motivo = trim($_POST['motivo'] ?? '');
         if ($nome === '') voltar('erro','Informe o nome do produto.','produtos');
         if ($categoria === '') $categoria = 'Outros';
@@ -97,18 +109,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $conn->begin_transaction();
         try {
-            $s=$conn->prepare('SELECT quantidade FROM produtos WHERE id=? FOR UPDATE');
+            $s=$conn->prepare('SELECT nome, categoria, quantidade, estoque_minimo FROM produtos WHERE id=? FOR UPDATE');
             $s->bind_param('i',$produtoId); $s->execute();
             $produto=$s->get_result()->fetch_assoc();
             if (!$produto) throw new Exception('Produto não encontrado.');
             $atual=(int)$produto['quantidade'];
+            $minimoAntigo=(int)$produto['estoque_minimo'];
             $diferenca=$quantidadeNova-$atual;
+            $usuarioId=(int)$_SESSION['usuario_id'];
 
-            $u=$conn->prepare('UPDATE produtos SET nome=?, categoria=?, quantidade=? WHERE id=?');
-            $u->bind_param('ssii',$nome,$categoria,$quantidadeNova,$produtoId); $u->execute();
+            $u=$conn->prepare('UPDATE produtos SET nome=?, categoria=?, quantidade=?, estoque_minimo=? WHERE id=?');
+            $u->bind_param('ssiii',$nome,$categoria,$quantidadeNova,$minimoNovo,$produtoId); $u->execute();
+
+            if ($nome !== $produto['nome']) {
+                registrarLog($conn,$usuarioId,'produto.nome','produto',$produtoId,$produto['nome'],$nome);
+            }
+            if ($categoria !== $produto['categoria']) {
+                registrarLog($conn,$usuarioId,'produto.categoria','produto',$produtoId,$produto['categoria'],$categoria);
+            }
 
             if ($diferenca !== 0) {
-                $usuarioId=(int)$_SESSION['usuario_id'];
                 $observacao='Ajuste manual: '.$motivo;
                 $tabela=$diferenca>0 ? 'entradas_estoque' : 'saidas_estoque';
                 $qtdMov=abs($diferenca);
@@ -116,7 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $m->bind_param('iiis',$produtoId,$usuarioId,$qtdMov,$observacao); $m->execute();
             }
             $conn->commit();
-            voltar('sucesso','Produto ajustado com sucesso!','produtos');
+            $aviso=avisoEstoqueBaixo($quantidadeNova,$minimoNovo,$atual<=$minimoAntigo);
+            voltar('sucesso','Produto ajustado com sucesso!'.$aviso,'produtos');
         } catch (Throwable $e) {
             $conn->rollback(); voltar('erro',$e->getMessage(),'produtos');
         }
@@ -125,6 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $produtos=[];
 $r=$conn->query('SELECT * FROM produtos ORDER BY nome'); while($row=$r->fetch_assoc()) $produtos[]=$row;
+$produtosBaixo=array_values(array_filter($produtos, fn($p)=>(int)$p['quantidade'] <= (int)$p['estoque_minimo']));
 $categoriasExistentes=[];
 $r=$conn->query('SELECT DISTINCT categoria FROM produtos ORDER BY categoria'); while($row=$r->fetch_assoc()) $categoriasExistentes[]=$row['categoria'];
 $movimentacoes=[];
@@ -146,7 +168,7 @@ $r=$conn->query($sqlHistorico); while($row=$r->fetch_assoc()) $movimentacoes[]=$
 $flash=$_SESSION['flash'] ?? null; unset($_SESSION['flash']);
 $totalProdutos=(int)$conn->query('SELECT COUNT(*) total FROM produtos')->fetch_assoc()['total'];
 $totalUnidades=(int)$conn->query('SELECT COALESCE(SUM(quantidade),0) total FROM produtos')->fetch_assoc()['total'];
-$estoqueBaixo=(int)$conn->query('SELECT COUNT(*) total FROM produtos WHERE quantidade <= estoque_minimo')->fetch_assoc()['total'];
+$estoqueBaixo=count($produtosBaixo);
 $movHoje=(int)$conn->query("
     SELECT
         (SELECT COUNT(*) FROM entradas_estoque WHERE DATE(criado_em)=CURDATE()) +
@@ -176,6 +198,9 @@ $ultimasMov=$movimentacoes;
         <a href="#saidas"><span>↑</span>Saídas</a>
         <a href="#estoque-baixo"><span>⚠</span>Estoque Baixo</a>
         <a href="#historico"><span>📊</span>Histórico</a>
+        <?php if (usuarioTemPermissao('relatorios.ver')): ?>
+        <a href="relatorios.php"><span>📄</span>Relatórios</a>
+        <?php endif; ?>
         <?php if (usuarioTemPermissao('config.acessar')): ?>
         <a href="configuracoes.php"><span>⚙</span>Configurações</a>
         <?php endif; ?>
@@ -186,10 +211,29 @@ $ultimasMov=$movimentacoes;
 <main id="dashboard">
     <header class="topo">
         <div><p class="bem-vindo">Bem-vindo ao</p><h2>Controle de Almoxarifado</h2></div>
-        <div class="perfil">
-            <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
-            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
-            <a href="logout.php" class="btn btn-sair">Sair</a>
+        <div class="topo-direita">
+            <div class="notificacoes-wrap">
+                <button type="button" class="notificacao-btn" onclick="toggleNotificacoes()" title="Notificações">
+                    🔔
+                    <?php if ($produtosBaixo): ?><span class="notificacao-badge"><?= count($produtosBaixo) ?></span><?php endif; ?>
+                </button>
+                <div id="painel-notificacoes" class="painel-notificacoes">
+                    <h4>Estoque baixo</h4>
+                    <?php if (!$produtosBaixo): ?>
+                        <div class="notificacao-vazio">Nenhum produto com estoque baixo. ✓</div>
+                    <?php else: foreach ($produtosBaixo as $p): ?>
+                        <a href="#estoque-baixo" class="notificacao-item" onclick="document.getElementById('painel-notificacoes').classList.remove('aberto')">
+                            <span><strong><?= htmlspecialchars($p['nome']) ?></strong><br><?= (int)$p['quantidade'] ?> un. (mín. <?= (int)$p['estoque_minimo'] ?>)</span>
+                            <span>⚠</span>
+                        </a>
+                    <?php endforeach; endif; ?>
+                </div>
+            </div>
+            <div class="perfil">
+                <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
+                <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
+                <a href="logout.php" class="btn btn-sair">Sair</a>
+            </div>
         </div>
     </header>
 
@@ -240,6 +284,7 @@ $ultimasMov=$movimentacoes;
                                 data-nome="<?= htmlspecialchars($p['nome'], ENT_QUOTES) ?>"
                                 data-categoria="<?= htmlspecialchars($p['categoria'], ENT_QUOTES) ?>"
                                 data-quantidade="<?= (int)$p['quantidade'] ?>"
+                                data-minimo="<?= (int)$p['estoque_minimo'] ?>"
                                 onclick="abrirAjuste(this)">✏️</button>
                         </td>
                         <?php endif; ?>
@@ -320,6 +365,7 @@ $ultimasMov=$movimentacoes;
             <div class="campo full"><label for="ajuste_nome">Nome do Produto</label><input type="text" id="ajuste_nome" name="nome" required></div>
             <div class="campo"><label for="ajuste_categoria">Categoria</label><input type="text" id="ajuste_categoria" name="categoria" list="lista-categorias" required></div>
             <div class="campo"><label for="ajuste_quantidade">Quantidade em estoque</label><input type="number" id="ajuste_quantidade" name="quantidade" min="0" required></div>
+            <div class="campo"><label for="ajuste_minimo">Estoque Mínimo</label><input type="number" id="ajuste_minimo" name="minimo" min="0" required></div>
             <div class="campo full"><label for="ajuste_motivo">Motivo do ajuste</label><textarea id="ajuste_motivo" name="motivo" placeholder="Ex: contagem de inventário, produto danificado, correção de lançamento..." required></textarea></div>
             <div class="form-botoes"><a href="javascript:void(0)" class="btn-cancelar" onclick="fecharAjuste()">Cancelar</a><button type="submit" class="btn-salvar">Salvar Ajuste</button></div>
         </form>
@@ -333,12 +379,23 @@ function abrirAjuste(botao){
   document.getElementById('ajuste_nome').value = botao.dataset.nome;
   document.getElementById('ajuste_categoria').value = botao.dataset.categoria;
   document.getElementById('ajuste_quantidade').value = botao.dataset.quantidade;
+  document.getElementById('ajuste_minimo').value = botao.dataset.minimo;
   document.getElementById('ajuste_motivo').value = '';
   document.getElementById('modal-ajustar').style.display = 'flex';
 }
 function fecharAjuste(){
   document.getElementById('modal-ajustar').style.display = 'none';
 }
+
+function toggleNotificacoes(){
+  document.getElementById('painel-notificacoes').classList.toggle('aberto');
+}
+document.addEventListener('click', function(e){
+  const wrap = document.querySelector('.notificacoes-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('painel-notificacoes').classList.remove('aberto');
+  }
+});
 
 function filtrarProdutos(){
   const termo=document.getElementById('busca').value.toLowerCase();
