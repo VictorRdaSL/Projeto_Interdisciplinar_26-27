@@ -81,10 +81,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $conn->rollback(); voltar('erro',$e->getMessage(),$tipo==='saida'?'saidas':'entradas');
         }
     }
+
+    if ($acao === 'ajustar_produto') {
+        if (!usuarioTemPermissao('produtos.ajustar')) {
+            voltar('erro','Você não tem permissão para ajustar produtos. Fale com um gerente ou administrador.','produtos');
+        }
+        $produtoId = (int)($_POST['produto_id'] ?? 0);
+        $nome = trim($_POST['nome'] ?? '');
+        $categoria = trim($_POST['categoria'] ?? 'Outros');
+        $quantidadeNova = max(0, (int)($_POST['quantidade'] ?? 0));
+        $motivo = trim($_POST['motivo'] ?? '');
+        if ($nome === '') voltar('erro','Informe o nome do produto.','produtos');
+        if ($categoria === '') $categoria = 'Outros';
+        if ($motivo === '') voltar('erro','Informe o motivo do ajuste.','produtos');
+
+        $conn->begin_transaction();
+        try {
+            $s=$conn->prepare('SELECT quantidade FROM produtos WHERE id=? FOR UPDATE');
+            $s->bind_param('i',$produtoId); $s->execute();
+            $produto=$s->get_result()->fetch_assoc();
+            if (!$produto) throw new Exception('Produto não encontrado.');
+            $atual=(int)$produto['quantidade'];
+            $diferenca=$quantidadeNova-$atual;
+
+            $u=$conn->prepare('UPDATE produtos SET nome=?, categoria=?, quantidade=? WHERE id=?');
+            $u->bind_param('ssii',$nome,$categoria,$quantidadeNova,$produtoId); $u->execute();
+
+            if ($diferenca !== 0) {
+                $usuarioId=(int)$_SESSION['usuario_id'];
+                $observacao='Ajuste manual: '.$motivo;
+                $tabela=$diferenca>0 ? 'entradas_estoque' : 'saidas_estoque';
+                $qtdMov=abs($diferenca);
+                $m=$conn->prepare("INSERT INTO $tabela (produto_id,usuario_id,quantidade,observacao) VALUES (?,?,?,?)");
+                $m->bind_param('iiis',$produtoId,$usuarioId,$qtdMov,$observacao); $m->execute();
+            }
+            $conn->commit();
+            voltar('sucesso','Produto ajustado com sucesso!','produtos');
+        } catch (Throwable $e) {
+            $conn->rollback(); voltar('erro',$e->getMessage(),'produtos');
+        }
+    }
 }
 
 $produtos=[];
 $r=$conn->query('SELECT * FROM produtos ORDER BY nome'); while($row=$r->fetch_assoc()) $produtos[]=$row;
+$categoriasExistentes=[];
+$r=$conn->query('SELECT DISTINCT categoria FROM produtos ORDER BY categoria'); while($row=$r->fetch_assoc()) $categoriasExistentes[]=$row['categoria'];
 $movimentacoes=[];
 $sqlHistorico = "
     SELECT e.criado_em AS data_movimentacao, 'entrada' AS tipo, e.quantidade, e.observacao,
@@ -175,12 +217,13 @@ $ultimasMov=$movimentacoes;
             <div><h2>Produtos em Estoque</h2><p>Consulte as quantidades disponíveis</p></div>
             <div class="pesquisa"><span>🔍</span><input id="busca" type="text" placeholder="Pesquisar produto..." oninput="filtrarProdutos()"></div>
         </div>
+        <?php $podeAjustar = usuarioTemPermissao('produtos.ajustar'); ?>
         <div class="tabela-container">
             <table id="tabela-produtos">
-                <thead><tr><th>Produto</th><th>Código</th><th>Categoria</th><th>Quantidade</th><th>Mínimo</th><th>Localização</th><th>Status</th></tr></thead>
+                <thead><tr><th>Produto</th><th>Código</th><th>Categoria</th><th>Quantidade</th><th>Mínimo</th><th>Localização</th><th>Status</th><?php if ($podeAjustar): ?><th>Ações</th><?php endif; ?></tr></thead>
                 <tbody>
                 <?php if (!$produtos): ?>
-                    <tr><td colspan="7" class="vazio">Nenhum produto cadastrado.</td></tr>
+                    <tr><td colspan="<?= $podeAjustar ? 8 : 7 ?>" class="vazio">Nenhum produto cadastrado.</td></tr>
                 <?php else: foreach ($produtos as $p): $baixo=(int)$p['quantidade'] <= (int)$p['estoque_minimo']; ?>
                     <tr>
                         <td class="produto"><div class="produto-icon">📦</div><div><strong><?= htmlspecialchars($p['nome']) ?></strong><p><?= htmlspecialchars($p['observacao'] ?: 'Produto cadastrado') ?></p></div></td>
@@ -190,6 +233,16 @@ $ultimasMov=$movimentacoes;
                         <td><?= (int)$p['estoque_minimo'] ?></td>
                         <td><?= htmlspecialchars($p['localizacao'] ?: '—') ?></td>
                         <td><span class="status <?= $baixo ? 'baixo' : 'disponivel' ?>"><?= $baixo ? 'Estoque Baixo' : 'Disponível' ?></span></td>
+                        <?php if ($podeAjustar): ?>
+                        <td>
+                            <button type="button" class="acao-btn" title="Ajustar produto"
+                                data-id="<?= (int)$p['id'] ?>"
+                                data-nome="<?= htmlspecialchars($p['nome'], ENT_QUOTES) ?>"
+                                data-categoria="<?= htmlspecialchars($p['categoria'], ENT_QUOTES) ?>"
+                                data-quantidade="<?= (int)$p['quantidade'] ?>"
+                                onclick="abrirAjuste(this)">✏️</button>
+                        </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; endif; ?>
                 </tbody>
@@ -252,7 +305,41 @@ $ultimasMov=$movimentacoes;
 </form></div></div>
 <?php endif; ?>
 
+<datalist id="lista-categorias">
+    <?php foreach ($categoriasExistentes as $c): ?><option value="<?= htmlspecialchars($c) ?>"><?php endforeach; ?>
+</datalist>
+
+<?php if ($podeAjustar): ?>
+<div class="modal" id="modal-ajustar" style="display:none;">
+    <div class="modal-box">
+        <a href="javascript:void(0)" class="fechar" onclick="fecharAjuste()">×</a>
+        <div class="modal-topo"><h2>Ajustar Produto</h2><p>Corrija o cadastro e a quantidade em estoque diretamente.</p></div>
+        <form method="post">
+            <input type="hidden" name="acao" value="ajustar_produto">
+            <input type="hidden" name="produto_id" id="ajuste_produto_id">
+            <div class="campo full"><label for="ajuste_nome">Nome do Produto</label><input type="text" id="ajuste_nome" name="nome" required></div>
+            <div class="campo"><label for="ajuste_categoria">Categoria</label><input type="text" id="ajuste_categoria" name="categoria" list="lista-categorias" required></div>
+            <div class="campo"><label for="ajuste_quantidade">Quantidade em estoque</label><input type="number" id="ajuste_quantidade" name="quantidade" min="0" required></div>
+            <div class="campo full"><label for="ajuste_motivo">Motivo do ajuste</label><textarea id="ajuste_motivo" name="motivo" placeholder="Ex: contagem de inventário, produto danificado, correção de lançamento..." required></textarea></div>
+            <div class="form-botoes"><a href="javascript:void(0)" class="btn-cancelar" onclick="fecharAjuste()">Cancelar</a><button type="submit" class="btn-salvar">Salvar Ajuste</button></div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
+function abrirAjuste(botao){
+  document.getElementById('ajuste_produto_id').value = botao.dataset.id;
+  document.getElementById('ajuste_nome').value = botao.dataset.nome;
+  document.getElementById('ajuste_categoria').value = botao.dataset.categoria;
+  document.getElementById('ajuste_quantidade').value = botao.dataset.quantidade;
+  document.getElementById('ajuste_motivo').value = '';
+  document.getElementById('modal-ajustar').style.display = 'flex';
+}
+function fecharAjuste(){
+  document.getElementById('modal-ajustar').style.display = 'none';
+}
+
 function filtrarProdutos(){
   const termo=document.getElementById('busca').value.toLowerCase();
   document.querySelectorAll('#tabela-produtos tbody tr').forEach(linha=>{

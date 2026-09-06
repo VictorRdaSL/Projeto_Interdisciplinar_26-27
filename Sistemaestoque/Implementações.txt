@@ -2,3 +2,6 @@ Atualizações
 Configurações no painel -  uma para admin e uma para usuário
 Tema escuro
 Filtro nas movimentações
+aba vista pelo administrador quem fez determinada movimentação no sisteam,
+sistema separado de login, empresa - funcionário
+redefinir senha
