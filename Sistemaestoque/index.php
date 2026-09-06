@@ -98,7 +98,7 @@ $sqlHistorico = "
     FROM saidas_estoque s
     LEFT JOIN produtos p ON p.id = s.produto_id
     LEFT JOIN usuarios u ON u.id = s.usuario_id
-    ORDER BY data_movimentacao DESC LIMIT 8
+    ORDER BY data_movimentacao DESC LIMIT 50
 ";
 $r=$conn->query($sqlHistorico); while($row=$r->fetch_assoc()) $movimentacoes[]=$row;
 $flash=$_SESSION['flash'] ?? null; unset($_SESSION['flash']);
@@ -222,10 +222,17 @@ $ultimasMov=$movimentacoes;
     </section>
 
     <section class="secao-simples" id="historico">
-        <h2>Últimas movimentações</h2><p>Histórico simplificado das entradas e saídas.</p>
-        <div class="tabela-container historico"><table><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Observação</th></tr></thead><tbody>
+        <div class="painel-topo">
+            <div><h2>Movimentações</h2><p>Histórico de entradas e saídas de estoque.</p></div>
+            <div class="tabs-historico">
+                <button type="button" class="tab-btn ativo" data-filtro="todas" onclick="filtrarHistorico('todas',this)">Entrada e Saída</button>
+                <button type="button" class="tab-btn" data-filtro="entrada" onclick="filtrarHistorico('entrada',this)">Entrada</button>
+                <button type="button" class="tab-btn" data-filtro="saida" onclick="filtrarHistorico('saida',this)">Saída</button>
+            </div>
+        </div>
+        <div class="tabela-container historico"><table id="tabela-historico"><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Observação</th></tr></thead><tbody>
         <?php if (!$ultimasMov): ?><tr><td colspan="6" class="vazio">Nenhuma movimentação registrada.</td></tr>
-        <?php else: foreach($ultimasMov as $m): ?><tr><td><?= date('d/m/Y H:i', strtotime($m['data_movimentacao'])) ?></td><td><?= htmlspecialchars($m['produto_nome']) ?></td><td><span class="badge-tipo <?= $m['tipo'] ?>"><?= strtoupper($m['tipo']) ?></span></td><td><?= (int)$m['quantidade'] ?></td><td><?= htmlspecialchars($m['usuario_nome'] ?: '—') ?></td><td><?= htmlspecialchars($m['observacao'] ?: '—') ?></td></tr><?php endforeach; endif; ?>
+        <?php else: foreach($ultimasMov as $m): ?><tr data-tipo="<?= htmlspecialchars($m['tipo']) ?>"><td><?= date('d/m/Y H:i', strtotime($m['data_movimentacao'])) ?></td><td><?= htmlspecialchars($m['produto_nome']) ?></td><td><span class="badge-tipo <?= $m['tipo'] ?>"><?= strtoupper($m['tipo']) ?></span></td><td><?= (int)$m['quantidade'] ?></td><td><?= htmlspecialchars($m['usuario_nome'] ?: '—') ?></td><td><?= htmlspecialchars($m['observacao'] ?: '—') ?></td></tr><?php endforeach; endif; ?>
         </tbody></table></div>
     </section>
 
@@ -250,6 +257,14 @@ function filtrarProdutos(){
   const termo=document.getElementById('busca').value.toLowerCase();
   document.querySelectorAll('#tabela-produtos tbody tr').forEach(linha=>{
     linha.style.display=linha.innerText.toLowerCase().includes(termo)?'':'none';
+  });
+}
+
+function filtrarHistorico(tipo, botao){
+  document.querySelectorAll('.tabs-historico .tab-btn').forEach(b=>b.classList.remove('ativo'));
+  botao.classList.add('ativo');
+  document.querySelectorAll('#tabela-historico tbody tr[data-tipo]').forEach(linha=>{
+    linha.style.display=(tipo==='todas' || linha.dataset.tipo===tipo)?'':'none';
   });
 }
 </script>
