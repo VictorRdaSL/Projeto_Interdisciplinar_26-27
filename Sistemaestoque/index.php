@@ -1,6 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/permissoes.php';
 
 function voltar(string $tipo, string $mensagem, string $ancora='dashboard'): never {
     $_SESSION['flash'] = ['type'=>$tipo, 'message'=>$mensagem];
@@ -8,37 +9,51 @@ function voltar(string $tipo, string $mensagem, string $ancora='dashboard'): nev
     exit;
 }
 
+function codigoProduto(int $id): string {
+    return str_pad((string)$id, 4, '0', STR_PAD_LEFT);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
 
     if ($acao === 'novo_produto') {
+        if (!usuarioTemPermissao('produtos.criar')) {
+            voltar('erro','Você não tem permissão para cadastrar produtos. Fale com um gerente ou administrador.','produtos');
+        }
         $nome = trim($_POST['nome'] ?? '');
-        $codigo = trim($_POST['codigo'] ?? '');
         $categoria = trim($_POST['categoria'] ?? 'Outros');
         $quantidade = max(0, (int)($_POST['quantidade'] ?? 0));
         $minimo = max(0, (int)($_POST['minimo'] ?? 0));
         $localizacao = trim($_POST['localizacao'] ?? '');
         $observacao = trim($_POST['observacao'] ?? '');
         if ($nome === '') voltar('erro','Informe o nome do produto.','novo-produto');
-        if ($codigo === '') $codigo = 'P'.date('ymdHis');
 
-        $stmt=$conn->prepare('INSERT INTO produtos (nome,codigo,categoria,quantidade,estoque_minimo,localizacao,observacao) VALUES (?,?,?,?,?,?,?)');
-        $stmt->bind_param('sssiiss',$nome,$codigo,$categoria,$quantidade,$minimo,$localizacao,$observacao);
         try {
+            $codigoTemp = 'TMP'.bin2hex(random_bytes(6));
+            $stmt=$conn->prepare('INSERT INTO produtos (nome,codigo,categoria,quantidade,estoque_minimo,localizacao,observacao) VALUES (?,?,?,?,?,?,?)');
+            $stmt->bind_param('sssiiss',$nome,$codigoTemp,$categoria,$quantidade,$minimo,$localizacao,$observacao);
             $stmt->execute();
             $produtoId=$conn->insert_id;
+
+            $codigo = codigoProduto($produtoId);
+            $upd=$conn->prepare('UPDATE produtos SET codigo=? WHERE id=?');
+            $upd->bind_param('si',$codigo,$produtoId); $upd->execute();
+
             if ($quantidade > 0) {
-                $tipo='entrada'; $obs='Estoque inicial';
-                $m=$conn->prepare('INSERT INTO movimentacoes (produto_id,tipo,quantidade,observacao) VALUES (?,?,?,?)');
-                $m->bind_param('isis',$produtoId,$tipo,$quantidade,$obs); $m->execute();
+                $obs='Estoque inicial'; $usuarioId=(int)$_SESSION['usuario_id'];
+                $m=$conn->prepare('INSERT INTO entradas_estoque (produto_id,usuario_id,quantidade,observacao) VALUES (?,?,?,?)');
+                $m->bind_param('iiis',$produtoId,$usuarioId,$quantidade,$obs); $m->execute();
             }
-            voltar('sucesso','Produto cadastrado com sucesso!','produtos');
+            voltar('sucesso','Produto cadastrado com sucesso! Código '.$codigo.' gerado automaticamente.','produtos');
         } catch (mysqli_sql_exception $e) {
-            voltar('erro','Não foi possível cadastrar. Verifique se o código já existe.','novo-produto');
+            voltar('erro','Não foi possível cadastrar o produto. Tente novamente.','novo-produto');
         }
     }
 
     if ($acao === 'movimentar') {
+        if (!usuarioTemPermissao('movimentacoes.criar')) {
+            voltar('erro','Você não tem permissão para registrar movimentações.');
+        }
         $produtoId=(int)($_POST['produto_id'] ?? 0);
         $tipo=$_POST['tipo'] ?? '';
         $quantidade=max(0,(int)($_POST['quantidade'] ?? 0));
@@ -56,8 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nova=$tipo==='entrada' ? $atual+$quantidade : $atual-$quantidade;
             $u=$conn->prepare('UPDATE produtos SET quantidade=? WHERE id=?');
             $u->bind_param('ii',$nova,$produtoId); $u->execute();
-            $m=$conn->prepare('INSERT INTO movimentacoes (produto_id,tipo,quantidade,observacao) VALUES (?,?,?,?)');
-            $m->bind_param('isis',$produtoId,$tipo,$quantidade,$observacao); $m->execute();
+            $usuarioId=(int)$_SESSION['usuario_id'];
+            $tabela=$tipo==='entrada' ? 'entradas_estoque' : 'saidas_estoque';
+            $m=$conn->prepare("INSERT INTO $tabela (produto_id,usuario_id,quantidade,observacao) VALUES (?,?,?,?)");
+            $m->bind_param('iiis',$produtoId,$usuarioId,$quantidade,$observacao); $m->execute();
             $conn->commit();
             voltar('sucesso',ucfirst($tipo).' registrada com sucesso!',$tipo==='entrada'?'entradas':'saidas');
         } catch (Throwable $e) {
@@ -69,12 +86,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $produtos=[];
 $r=$conn->query('SELECT * FROM produtos ORDER BY nome'); while($row=$r->fetch_assoc()) $produtos[]=$row;
 $movimentacoes=[];
-$r=$conn->query('SELECT m.*, p.nome AS produto_nome FROM movimentacoes m LEFT JOIN produtos p ON p.id=m.produto_id ORDER BY m.data_movimentacao DESC, m.id DESC LIMIT 8'); while($row=$r->fetch_assoc()) $movimentacoes[]=$row;
+$sqlHistorico = "
+    SELECT e.criado_em AS data_movimentacao, 'entrada' AS tipo, e.quantidade, e.observacao,
+           p.nome AS produto_nome, u.nome AS usuario_nome
+    FROM entradas_estoque e
+    LEFT JOIN produtos p ON p.id = e.produto_id
+    LEFT JOIN usuarios u ON u.id = e.usuario_id
+    UNION ALL
+    SELECT s.criado_em, 'saida', s.quantidade, s.observacao,
+           p.nome, u.nome
+    FROM saidas_estoque s
+    LEFT JOIN produtos p ON p.id = s.produto_id
+    LEFT JOIN usuarios u ON u.id = s.usuario_id
+    ORDER BY data_movimentacao DESC LIMIT 8
+";
+$r=$conn->query($sqlHistorico); while($row=$r->fetch_assoc()) $movimentacoes[]=$row;
 $flash=$_SESSION['flash'] ?? null; unset($_SESSION['flash']);
 $totalProdutos=(int)$conn->query('SELECT COUNT(*) total FROM produtos')->fetch_assoc()['total'];
 $totalUnidades=(int)$conn->query('SELECT COALESCE(SUM(quantidade),0) total FROM produtos')->fetch_assoc()['total'];
 $estoqueBaixo=(int)$conn->query('SELECT COUNT(*) total FROM produtos WHERE quantidade <= estoque_minimo')->fetch_assoc()['total'];
-$movHoje=(int)$conn->query('SELECT COUNT(*) total FROM movimentacoes WHERE DATE(data_movimentacao)=CURDATE()')->fetch_assoc()['total'];
+$movHoje=(int)$conn->query("
+    SELECT
+        (SELECT COUNT(*) FROM entradas_estoque WHERE DATE(criado_em)=CURDATE()) +
+        (SELECT COUNT(*) FROM saidas_estoque WHERE DATE(criado_em)=CURDATE()) AS total
+")->fetch_assoc()['total'];
 $ultimasMov=$movimentacoes;
 ?>
 <!DOCTYPE html>
@@ -82,7 +117,7 @@ $ultimasMov=$movimentacoes;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Soft.Ware | Controle de Almoxarifado</title>
+    <title>WareSys | Controle de Almoxarifado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -90,7 +125,7 @@ $ultimasMov=$movimentacoes;
 <aside class="sidebar">
     <div class="logo">
         <div class="logo-icon">S</div>
-        <div><h1>Soft<span>.Ware</span></h1><p>Controle Inteligente</p></div>
+        <div><h1>Ware<span>Sys</span></h1><p>Controle Inteligente</p></div>
     </div>
     <nav>
         <a href="#dashboard" class="ativo"><span>⌂</span>Dashboard</a>
@@ -99,6 +134,9 @@ $ultimasMov=$movimentacoes;
         <a href="#saidas"><span>↑</span>Saídas</a>
         <a href="#estoque-baixo"><span>⚠</span>Estoque Baixo</a>
         <a href="#historico"><span>📊</span>Histórico</a>
+        <?php if (usuarioTemPermissao('config.acessar')): ?>
+        <a href="configuracoes.php"><span>⚙</span>Configurações</a>
+        <?php endif; ?>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
 </aside>
@@ -106,7 +144,11 @@ $ultimasMov=$movimentacoes;
 <main id="dashboard">
     <header class="topo">
         <div><p class="bem-vindo">Bem-vindo ao</p><h2>Controle de Almoxarifado</h2></div>
-        <div class="perfil"><div class="avatar">A</div><div><strong>Administrador</strong><p>Execução local</p></div></div>
+        <div class="perfil">
+            <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
+            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
+            <a href="logout.php" class="btn btn-sair">Sair</a>
+        </div>
     </header>
 
     <?php if ($flash): ?>
@@ -121,7 +163,9 @@ $ultimasMov=$movimentacoes;
     </section>
 
     <section class="acoes">
+        <?php if (usuarioTemPermissao('produtos.criar')): ?>
         <a href="#novo-produto" class="btn btn-principal">+ Novo Produto</a>
+        <?php endif; ?>
         <a href="#entradas" class="btn">↓ Registrar Entrada</a>
         <a href="#saidas" class="btn">↑ Registrar Saída</a>
     </section>
@@ -179,19 +223,19 @@ $ultimasMov=$movimentacoes;
 
     <section class="secao-simples" id="historico">
         <h2>Últimas movimentações</h2><p>Histórico simplificado das entradas e saídas.</p>
-        <div class="tabela-container historico"><table><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Observação</th></tr></thead><tbody>
-        <?php if (!$ultimasMov): ?><tr><td colspan="5" class="vazio">Nenhuma movimentação registrada.</td></tr>
-        <?php else: foreach($ultimasMov as $m): ?><tr><td><?= date('d/m/Y H:i', strtotime($m['data_movimentacao'])) ?></td><td><?= htmlspecialchars($m['produto_nome']) ?></td><td><span class="badge-tipo <?= $m['tipo'] ?>"><?= strtoupper($m['tipo']) ?></span></td><td><?= (int)$m['quantidade'] ?></td><td><?= htmlspecialchars($m['observacao'] ?: '—') ?></td></tr><?php endforeach; endif; ?>
+        <div class="tabela-container historico"><table><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Observação</th></tr></thead><tbody>
+        <?php if (!$ultimasMov): ?><tr><td colspan="6" class="vazio">Nenhuma movimentação registrada.</td></tr>
+        <?php else: foreach($ultimasMov as $m): ?><tr><td><?= date('d/m/Y H:i', strtotime($m['data_movimentacao'])) ?></td><td><?= htmlspecialchars($m['produto_nome']) ?></td><td><span class="badge-tipo <?= $m['tipo'] ?>"><?= strtoupper($m['tipo']) ?></span></td><td><?= (int)$m['quantidade'] ?></td><td><?= htmlspecialchars($m['usuario_nome'] ?: '—') ?></td><td><?= htmlspecialchars($m['observacao'] ?: '—') ?></td></tr><?php endforeach; endif; ?>
         </tbody></table></div>
     </section>
 
-    <footer><p>Soft.Ware © 2026 — Sistema acadêmico de Controle de Almoxarifado</p></footer>
+    <footer><p>WareSys © 2026 — Sistema acadêmico de Controle de Almoxarifado</p></footer>
 </main>
 
+<?php if (usuarioTemPermissao('produtos.criar')): ?>
 <div class="modal" id="novo-produto"><div class="modal-box"><a href="#" class="fechar">×</a><div class="modal-topo"><h2>Novo Produto</h2><p>Cadastre um novo item no estoque.</p></div>
 <form method="post"><input type="hidden" name="acao" value="novo_produto">
-    <div class="campo"><label for="nome">Nome do Produto</label><input type="text" id="nome" name="nome" required></div>
-    <div class="campo"><label for="codigo">Código</label><input type="text" id="codigo" name="codigo" placeholder="Ex: 0005"></div>
+    <div class="campo full"><label for="nome">Nome do Produto</label><input type="text" id="nome" name="nome" required></div>
     <div class="campo"><label for="categoria">Categoria</label><select id="categoria" name="categoria"><option>Informática</option><option>Escritório</option><option>Limpeza</option><option>Equipamento</option><option>Outros</option></select></div>
     <div class="campo"><label for="quantidade">Quantidade inicial</label><input type="number" id="quantidade" name="quantidade" min="0" value="0" required></div>
     <div class="campo"><label for="minimo">Estoque Mínimo</label><input type="number" id="minimo" name="minimo" min="0" value="0"></div>
@@ -199,6 +243,7 @@ $ultimasMov=$movimentacoes;
     <div class="campo full"><label for="observacao">Observações</label><textarea id="observacao" name="observacao"></textarea></div>
     <div class="form-botoes"><a href="#" class="btn-cancelar">Cancelar</a><button type="submit" class="btn-salvar">Salvar Produto</button></div>
 </form></div></div>
+<?php endif; ?>
 
 <script>
 function filtrarProdutos(){
