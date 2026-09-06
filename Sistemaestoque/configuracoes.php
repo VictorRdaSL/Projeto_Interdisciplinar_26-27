@@ -3,6 +3,7 @@ require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/log.php';
 
 exigirPapel(['admin']);
 
@@ -29,9 +30,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar
             } elseif ($usuarioAtualLinha['role'] === 'admin' && $novoPapel !== 'admin' && $totalAdmins <= 1) {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não é possível remover o último administrador do sistema.'];
             } else {
+                $papelAnterior = $usuarioAtualLinha['role'];
                 $stmt = $conn->prepare('UPDATE usuarios SET role = ? WHERE id = ?');
                 $stmt->bind_param('si', $novoPapel, $usuarioId);
                 $stmt->execute();
+                if ($novoPapel !== $papelAnterior) {
+                    registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.alterar_papel', 'usuario', $usuarioId, $papelAnterior, $novoPapel);
+                }
                 $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Papel do usuário atualizado com sucesso.'];
             }
         }
@@ -43,6 +48,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar
 $usuarios = [];
 $r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
 while ($row = $r->fetch_assoc()) $usuarios[] = $row;
+
+$filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
+$filtroAcao = trim($_GET['filtro_acao'] ?? '');
+$filtroDe = trim($_GET['filtro_de'] ?? '');
+$filtroAte = trim($_GET['filtro_ate'] ?? '');
+
+$condicoes = [];
+$parametros = [];
+$tipos = '';
+if ($filtroUsuario > 0) { $condicoes[]='l.usuario_id = ?'; $parametros[]=$filtroUsuario; $tipos.='i'; }
+if ($filtroAcao !== '') { $condicoes[]='l.acao = ?'; $parametros[]=$filtroAcao; $tipos.='s'; }
+if ($filtroDe !== '') { $condicoes[]='DATE(l.criado_em) >= ?'; $parametros[]=$filtroDe; $tipos.='s'; }
+if ($filtroAte !== '') { $condicoes[]='DATE(l.criado_em) <= ?'; $parametros[]=$filtroAte; $tipos.='s'; }
+$whereSql = $condicoes ? 'WHERE '.implode(' AND ', $condicoes) : '';
+
+$sqlLog = "
+    SELECT l.*, ator.nome AS ator_nome,
+           CASE WHEN l.entidade_tipo='produto' THEN p.nome ELSE ue.nome END AS entidade_nome
+    FROM log_alteracoes l
+    JOIN usuarios ator ON ator.id = l.usuario_id
+    LEFT JOIN produtos p ON l.entidade_tipo='produto' AND p.id = l.entidade_id
+    LEFT JOIN usuarios ue ON l.entidade_tipo='usuario' AND ue.id = l.entidade_id
+    $whereSql
+    ORDER BY l.criado_em DESC
+    LIMIT 100
+";
+$stmtLog = $conn->prepare($sqlLog);
+if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
+$stmtLog->execute();
+$logs = [];
+$rl = $stmtLog->get_result();
+while ($row = $rl->fetch_assoc()) $logs[] = $row;
 
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
@@ -67,6 +104,7 @@ unset($_SESSION['flash']);
         <a href="index.php#entradas"><span>↓</span>Entradas</a>
         <a href="index.php#saidas"><span>↑</span>Saídas</a>
         <a href="index.php#historico"><span>📊</span>Histórico</a>
+        <a href="relatorios.php"><span>📄</span>Relatórios</a>
         <a href="configuracoes.php" class="ativo"><span>⚙</span>Configurações</a>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
@@ -115,6 +153,63 @@ unset($_SESSION['flash']);
                         </td>
                     </tr>
                 <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="painel" style="margin-top:30px;">
+        <div class="painel-topo">
+            <div><h2>Log de Alterações</h2><p>Auditoria de edições de produtos e ações de controle de acesso.</p></div>
+        </div>
+        <form method="get" class="form-filtro-log">
+            <div class="campo">
+                <label for="filtro_usuario">Usuário</label>
+                <select id="filtro_usuario" name="filtro_usuario">
+                    <option value="0">Todos</option>
+                    <?php foreach ($usuarios as $u): ?>
+                        <option value="<?= (int)$u['id'] ?>" <?= $filtroUsuario === (int)$u['id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="filtro_acao">Tipo de ação</label>
+                <select id="filtro_acao" name="filtro_acao">
+                    <option value="">Todas</option>
+                    <?php foreach (NOMES_ACOES_LOG as $valor => $rotulo): ?>
+                        <option value="<?= htmlspecialchars($valor) ?>" <?= $filtroAcao === $valor ? 'selected' : '' ?>><?= htmlspecialchars($rotulo) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="filtro_de">De</label>
+                <input type="date" id="filtro_de" name="filtro_de" value="<?= htmlspecialchars($filtroDe) ?>">
+            </div>
+            <div class="campo">
+                <label for="filtro_ate">Até</label>
+                <input type="date" id="filtro_ate" name="filtro_ate" value="<?= htmlspecialchars($filtroAte) ?>">
+            </div>
+            <div class="campo campo-botao">
+                <button type="submit" class="btn-salvar">Filtrar</button>
+                <a href="configuracoes.php" class="btn-cancelar">Limpar</a>
+            </div>
+        </form>
+        <div class="tabela-container">
+            <table>
+                <thead><tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Item afetado</th><th>Valor anterior</th><th>Valor novo</th></tr></thead>
+                <tbody>
+                <?php if (!$logs): ?>
+                    <tr><td colspan="6" class="vazio">Nenhum registro encontrado.</td></tr>
+                <?php else: foreach ($logs as $l): ?>
+                    <tr>
+                        <td><?= date('d/m/Y H:i', strtotime($l['criado_em'])) ?></td>
+                        <td><?= htmlspecialchars($l['ator_nome']) ?></td>
+                        <td><?= htmlspecialchars(nomeAcaoLog($l['acao'])) ?></td>
+                        <td><?= htmlspecialchars($l['entidade_nome'] ?: '#'.$l['entidade_id']) ?></td>
+                        <td><?= htmlspecialchars($l['valor_anterior'] ?: '—') ?></td>
+                        <td><?= htmlspecialchars($l['valor_novo'] ?: '—') ?></td>
+                    </tr>
+                <?php endforeach; endif; ?>
                 </tbody>
             </table>
         </div>
