@@ -45,5 +45,10 @@ nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde
 .form-papel{display:flex;gap:8px;align-items:center}
 .form-papel select{padding:8px 10px;border:1px solid #dfe9e2;border-radius:8px;font-size:13px;color:#53645a;background:#fafcfb}
 .form-papel .btn-salvar{padding:8px 14px;font-size:13px}
+.tabs-historico{display:flex;gap:8px;background:#f5f8f6;padding:5px;border-radius:12px}
+.tab-btn{border:none;background:transparent;padding:9px 16px;border-radius:8px;font-size:13px;color:#6d7d73;cursor:pointer;transition:.2s}
+.tab-btn:hover{color:var(--verde-700)}
+.tab-btn.ativo{background:#ffffff;color:var(--verde-700);font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+@media(max-width:800px){.tabs-historico{width:100%}.tab-btn{flex:1}}
 @media(max-width:950px){.grid-mov{grid-template-columns:1fr}}
 @media(max-width:600px){.form-mov{grid-template-columns:1fr}.full{grid-column:auto}}
