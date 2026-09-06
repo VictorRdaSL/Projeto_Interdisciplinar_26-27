@@ -6,8 +6,8 @@ if (session_status() === PHP_SESSION_NONE) {
 const PAPEIS_VALIDOS = ['admin', 'gerente', 'usuario'];
 
 const PERMISSOES_POR_PAPEL = [
-    'admin'   => ['produtos.criar', 'movimentacoes.criar', 'relatorios.ver', 'config.acessar'],
-    'gerente' => ['produtos.criar', 'movimentacoes.criar', 'relatorios.ver'],
+    'admin'   => ['produtos.criar', 'produtos.ajustar', 'movimentacoes.criar', 'relatorios.ver', 'config.acessar'],
+    'gerente' => ['produtos.criar', 'produtos.ajustar', 'movimentacoes.criar', 'relatorios.ver'],
     'usuario' => ['movimentacoes.criar'],
 ];
 
