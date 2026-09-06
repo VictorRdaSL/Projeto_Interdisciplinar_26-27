@@ -13,14 +13,40 @@ CREATE TABLE IF NOT EXISTS produtos (
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS movimentacoes (
+CREATE TABLE IF NOT EXISTS usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(120) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    senha_hash VARCHAR(255) NOT NULL,
+    role ENUM('admin','gerente','usuario') NOT NULL DEFAULT 'usuario',
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role ENUM('admin','gerente','usuario') NOT NULL DEFAULT 'usuario';
+
+CREATE TABLE IF NOT EXISTS entradas_estoque (
     id INT AUTO_INCREMENT PRIMARY KEY,
     produto_id INT NOT NULL,
-    tipo ENUM('entrada','saida') NOT NULL,
+    usuario_id INT NOT NULL,
     quantidade INT NOT NULL,
     observacao VARCHAR(255) NULL,
-    data_movimentacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_mov_produto FOREIGN KEY (produto_id) REFERENCES produtos(id)
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_entrada_produto FOREIGN KEY (produto_id) REFERENCES produtos(id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_entrada_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS saidas_estoque (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    produto_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    quantidade INT NOT NULL,
+    observacao VARCHAR(255) NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_saida_produto FOREIGN KEY (produto_id) REFERENCES produtos(id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_saida_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
@@ -29,3 +55,7 @@ INSERT IGNORE INTO produtos (id,nome,codigo,categoria,quantidade,estoque_minimo,
 (2,'Toner HP','0002','Impressão',4,5,'Prateleira B','Suprimento'),
 (3,'Mouse USB','0003','Informática',38,10,'Prateleira A','Periférico'),
 (4,'Papel A4','0004','Escritório',120,20,'Prateleira C','Material de escritório');
+
+-- Usuário admin semente (login inicial). Senha: admin123 — troque depois de entrar!
+INSERT IGNORE INTO usuarios (nome,email,senha_hash,role) VALUES
+('Administrador','admin@waresys.com','$2y$10$eEsJGiUXKpevnHy5Rrqt.el1tR3JmCJwSkCJj6LwiZE7rG31M3K06','admin');

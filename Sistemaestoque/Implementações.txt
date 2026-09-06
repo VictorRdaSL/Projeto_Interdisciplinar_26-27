@@ -1,0 +1,4 @@
+Atualizações
+Configurações no painel -  uma para admin e uma para usuário
+Tema escuro
+Filtro nas movimentações

@@ -37,5 +37,13 @@ nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde
 .badge-tipo.saida{background:#e9f0e5;color:#315a36}
 .historico{margin-top:18px}
 .versao{font-size:11px;color:#8a9b91;padding:13px 15px}
+.btn-sair{padding:9px 16px;font-size:13px}
+.papel-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:.03em}
+.papel-admin{background:#fde9d0;color:#a85c1b}
+.papel-gerente{background:var(--verde-100);color:var(--verde-800)}
+.papel-usuario{background:#e8eef0;color:#4d6470}
+.form-papel{display:flex;gap:8px;align-items:center}
+.form-papel select{padding:8px 10px;border:1px solid #dfe9e2;border-radius:8px;font-size:13px;color:#53645a;background:#fafcfb}
+.form-papel .btn-salvar{padding:8px 14px;font-size:13px}
 @media(max-width:950px){.grid-mov{grid-template-columns:1fr}}
 @media(max-width:600px){.form-mov{grid-template-columns:1fr}.full{grid-column:auto}}
