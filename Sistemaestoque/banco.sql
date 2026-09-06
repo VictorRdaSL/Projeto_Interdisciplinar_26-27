@@ -50,6 +50,19 @@ CREATE TABLE IF NOT EXISTS saidas_estoque (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS log_alteracoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    acao VARCHAR(60) NOT NULL,
+    entidade_tipo VARCHAR(30) NOT NULL,
+    entidade_id INT NOT NULL,
+    valor_anterior VARCHAR(255) NULL,
+    valor_novo VARCHAR(255) NULL,
+    criado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_log_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
 INSERT IGNORE INTO produtos (id,nome,codigo,categoria,quantidade,estoque_minimo,localizacao,observacao) VALUES
 (1,'Notebook Dell','0001','Informática',15,5,'Prateleira A','Equipamento'),
 (2,'Toner HP','0002','Impressão',4,5,'Prateleira B','Suprimento'),

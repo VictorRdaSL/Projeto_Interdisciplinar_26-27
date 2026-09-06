@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/csrf.php';
+require_once __DIR__ . '/includes/log.php';
 
 if (!empty($_SESSION['usuario_id'])) {
     header('Location: index.php');
@@ -46,7 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $insert->bind_param('ssss', $nome, $email, $senhaHash, $papelPadrao);
                     $insert->execute();
 
-                    $_SESSION['usuario_id'] = $conn->insert_id;
+                    $novoUsuarioId = $conn->insert_id;
+                    registrarLog($conn, $novoUsuarioId, 'usuario.criar', 'usuario', $novoUsuarioId, null, $papelPadrao);
+
+                    $_SESSION['usuario_id'] = $novoUsuarioId;
                     $_SESSION['usuario_nome'] = $nome;
                     $_SESSION['usuario_role'] = $papelPadrao;
                     header('Location: index.php');
