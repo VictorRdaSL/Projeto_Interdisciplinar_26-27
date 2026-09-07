@@ -10,7 +10,7 @@ if (empty($_SESSION['usuario_id'])) {
 
 require_once __DIR__ . '/config/database.php';
 
-$stmt = $conn->prepare('SELECT nome, role FROM usuarios WHERE id = ?');
+$stmt = $conn->prepare('SELECT nome, role, tema FROM usuarios WHERE id = ?');
 $stmt->bind_param('i', $_SESSION['usuario_id']);
 $stmt->execute();
 $usuarioAtual = $stmt->get_result()->fetch_assoc();
@@ -24,3 +24,4 @@ if (!$usuarioAtual) {
 
 $_SESSION['usuario_nome'] = $usuarioAtual['nome'];
 $_SESSION['usuario_role'] = $usuarioAtual['role'];
+$_SESSION['usuario_tema'] = $usuarioAtual['tema'];
