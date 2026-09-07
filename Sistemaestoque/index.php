@@ -235,8 +235,6 @@ $ultimasMov=$movimentacoes;
     </div>
     <nav>
         <a href="#dashboard" class="ativo"><span>⌂</span>Dashboard</a>
-        <a href="#produtos"><span>📦</span>Produtos</a>
-        <a href="#estoque-baixo"><span>⚠</span>Estoque Baixo</a>
         <a href="#historico"><span>📊</span>Histórico</a>
         <?php if (usuarioTemPermissao('relatorios.ver')): ?>
         <a href="relatorios.php"><span>📄</span>Relatórios</a>
