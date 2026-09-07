@@ -3,6 +3,7 @@ require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/log.php';
+require_once __DIR__ . '/includes/periodo.php';
 
 function voltar(string $tipo, string $mensagem, string $ancora='dashboard'): never {
     $_SESSION['flash'] = ['type'=>$tipo, 'message'=>$mensagem];
@@ -149,6 +150,38 @@ $r=$conn->query('SELECT * FROM produtos ORDER BY nome'); while($row=$r->fetch_as
 $produtosBaixo=array_values(array_filter($produtos, fn($p)=>(int)$p['quantidade'] <= (int)$p['estoque_minimo']));
 $categoriasExistentes=[];
 $r=$conn->query('SELECT DISTINCT categoria FROM produtos ORDER BY categoria'); while($row=$r->fetch_assoc()) $categoriasExistentes[]=$row['categoria'];
+$movDe = trim($_GET['mov_de'] ?? '');
+$movAte = trim($_GET['mov_ate'] ?? '');
+$movPeriodoAtivo = $movDe !== '' || $movAte !== '';
+
+$hojeStr = date('Y-m-d');
+$periodoAtivoPreset = 'tudo';
+if ($movPeriodoAtivo) {
+    $presets = [
+        'hoje' => [$hojeStr, $hojeStr],
+        '7dias' => [date('Y-m-d', strtotime('-7 days')), $hojeStr],
+        '30dias' => [date('Y-m-d', strtotime('-30 days')), $hojeStr],
+        'mes' => [date('Y-m-01'), $hojeStr],
+    ];
+    $periodoAtivoPreset = 'custom';
+    foreach ($presets as $nome => [$de, $ate]) {
+        if ($movDe === $de && $movAte === $ate) { $periodoAtivoPreset = $nome; break; }
+    }
+}
+
+$paramsMovE = []; $tiposMovE = '';
+$condMovE = condicaoPeriodo('e', $movDe, $movAte, $paramsMovE, $tiposMovE);
+$whereMovE = $condMovE ? 'WHERE ' . implode(' AND ', $condMovE) : '';
+
+$paramsMovS = []; $tiposMovS = '';
+$condMovS = condicaoPeriodo('s', $movDe, $movAte, $paramsMovS, $tiposMovS);
+$whereMovS = $condMovS ? 'WHERE ' . implode(' AND ', $condMovS) : '';
+
+// Sem filtro de data: só as 50 mais recentes (visão rápida). Com filtro de
+// data, sem limite — a resposta precisa refletir o período todo, não só
+// o que couber nas 50 mais recentes.
+$limiteHistorico = $movPeriodoAtivo ? '' : 'LIMIT 50';
+
 $movimentacoes=[];
 $sqlHistorico = "
     SELECT e.criado_em AS data_movimentacao, 'entrada' AS tipo, e.quantidade, e.observacao,
@@ -156,15 +189,23 @@ $sqlHistorico = "
     FROM entradas_estoque e
     LEFT JOIN produtos p ON p.id = e.produto_id
     LEFT JOIN usuarios u ON u.id = e.usuario_id
+    $whereMovE
     UNION ALL
     SELECT s.criado_em, 'saida', s.quantidade, s.observacao,
            p.nome, u.nome
     FROM saidas_estoque s
     LEFT JOIN produtos p ON p.id = s.produto_id
     LEFT JOIN usuarios u ON u.id = s.usuario_id
-    ORDER BY data_movimentacao DESC LIMIT 50
+    $whereMovS
+    ORDER BY data_movimentacao DESC $limiteHistorico
 ";
-$r=$conn->query($sqlHistorico); while($row=$r->fetch_assoc()) $movimentacoes[]=$row;
+$stmtHistorico = $conn->prepare($sqlHistorico);
+$paramsMov = array_merge($paramsMovE, $paramsMovS);
+$tiposMov = $tiposMovE . $tiposMovS;
+if ($paramsMov) $stmtHistorico->bind_param($tiposMov, ...$paramsMov);
+$stmtHistorico->execute();
+$r = $stmtHistorico->get_result();
+while($row=$r->fetch_assoc()) $movimentacoes[]=$row;
 $flash=$_SESSION['flash'] ?? null; unset($_SESSION['flash']);
 $totalProdutos=(int)$conn->query('SELECT COUNT(*) total FROM produtos')->fetch_assoc()['total'];
 $totalUnidades=(int)$conn->query('SELECT COALESCE(SUM(quantidade),0) total FROM produtos')->fetch_assoc()['total'];
@@ -321,17 +362,50 @@ $ultimasMov=$movimentacoes;
 
     <section class="secao-simples" id="historico">
         <div class="painel-topo">
-            <div><h2>Movimentações</h2><p>Histórico de entradas e saídas de estoque.</p></div>
-            <div class="tabs-historico">
-                <button type="button" class="tab-btn ativo" data-filtro="todas" onclick="filtrarHistorico('todas',this)">Entrada e Saída</button>
-                <button type="button" class="tab-btn" data-filtro="entrada" onclick="filtrarHistorico('entrada',this)">Entrada</button>
-                <button type="button" class="tab-btn" data-filtro="saida" onclick="filtrarHistorico('saida',this)">Saída</button>
+            <div><h2>Movimentações</h2><p>Histórico de entradas e saídas de estoque. Filtre por período para saber exatamente o que entrou ou saiu num intervalo.</p></div>
+            <div class="tabs-historico tabs-tipo">
+                <button type="button" class="tab-btn ativo" data-filtro="todas" onclick="filtrarHistoricoTipo('todas',this)">Entrada e Saída</button>
+                <button type="button" class="tab-btn" data-filtro="entrada" onclick="filtrarHistoricoTipo('entrada',this)">Entrada</button>
+                <button type="button" class="tab-btn" data-filtro="saida" onclick="filtrarHistoricoTipo('saida',this)">Saída</button>
             </div>
         </div>
+
+        <form method="get" action="index.php#historico" class="form-filtro-log">
+            <div class="campo">
+                <label for="mov_de">De</label>
+                <input type="date" id="mov_de" name="mov_de" value="<?= htmlspecialchars($movDe) ?>">
+            </div>
+            <div class="campo">
+                <label for="mov_ate">Até</label>
+                <input type="date" id="mov_ate" name="mov_ate" value="<?= htmlspecialchars($movAte) ?>">
+            </div>
+            <div class="campo campo-botao">
+                <button type="submit" class="btn-salvar">Filtrar período</button>
+                <a href="index.php#historico" class="btn-cancelar">Limpar</a>
+            </div>
+        </form>
+        <div class="tabs-historico tabs-periodo">
+            <button type="button" class="tab-btn <?= $periodoAtivoPreset === 'tudo' ? 'ativo' : '' ?>" onclick="periodoRapidoHistorico('tudo')">Tudo</button>
+            <button type="button" class="tab-btn <?= $periodoAtivoPreset === 'hoje' ? 'ativo' : '' ?>" onclick="periodoRapidoHistorico('hoje')">Hoje</button>
+            <button type="button" class="tab-btn <?= $periodoAtivoPreset === '7dias' ? 'ativo' : '' ?>" onclick="periodoRapidoHistorico('7dias')">Últimos 7 dias</button>
+            <button type="button" class="tab-btn <?= $periodoAtivoPreset === '30dias' ? 'ativo' : '' ?>" onclick="periodoRapidoHistorico('30dias')">Últimos 30 dias</button>
+            <button type="button" class="tab-btn <?= $periodoAtivoPreset === 'mes' ? 'ativo' : '' ?>" onclick="periodoRapidoHistorico('mes')">Este mês</button>
+        </div>
+
+        <?php if ($movPeriodoAtivo): ?>
+            <p class="aviso-periodo aviso-periodo-ok">
+                Período: <strong><?= $movDe ? date('d/m/Y', strtotime($movDe)) : 'início do histórico' ?></strong> até <strong><?= $movAte ? date('d/m/Y', strtotime($movAte)) : 'agora' ?></strong>
+                — <?= count($movimentacoes) ?> movimentação(ões) encontrada(s) no período (sem limite de quantidade).
+            </p>
+        <?php endif; ?>
+
         <div class="tabela-container historico"><table id="tabela-historico"><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Observação</th></tr></thead><tbody>
-        <?php if (!$ultimasMov): ?><tr><td colspan="6" class="vazio">Nenhuma movimentação registrada.</td></tr>
+        <?php if (!$ultimasMov): ?><tr><td colspan="6" class="vazio">Nenhuma movimentação encontrada<?= $movPeriodoAtivo ? ' nesse período.' : '.' ?></td></tr>
         <?php else: foreach($ultimasMov as $m): ?><tr data-tipo="<?= htmlspecialchars($m['tipo']) ?>"><td><?= date('d/m/Y H:i', strtotime($m['data_movimentacao'])) ?></td><td><?= htmlspecialchars($m['produto_nome']) ?></td><td><span class="badge-tipo <?= $m['tipo'] ?>"><?= strtoupper($m['tipo']) ?></span></td><td><?= (int)$m['quantidade'] ?></td><td><?= htmlspecialchars($m['usuario_nome'] ?: '—') ?></td><td><?= htmlspecialchars($m['observacao'] ?: '—') ?></td></tr><?php endforeach; endif; ?>
         </tbody></table></div>
+        <?php if (!$movPeriodoAtivo): ?>
+            <p class="total-relatorio">Mostrando as <?= count($ultimasMov) ?> mais recentes. Use os filtros de período acima para consultar um intervalo específico, sem limite de resultados.</p>
+        <?php endif; ?>
     </section>
 
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle de Almoxarifado</p></footer>
@@ -404,12 +478,31 @@ function filtrarProdutos(){
   });
 }
 
-function filtrarHistorico(tipo, botao){
-  document.querySelectorAll('.tabs-historico .tab-btn').forEach(b=>b.classList.remove('ativo'));
+function filtrarHistoricoTipo(tipo, botao){
+  document.querySelectorAll('.tabs-tipo .tab-btn').forEach(b=>b.classList.remove('ativo'));
   botao.classList.add('ativo');
   document.querySelectorAll('#tabela-historico tbody tr[data-tipo]').forEach(linha=>{
-    linha.style.display=(tipo==='todas' || linha.dataset.tipo===tipo)?'':'none';
+    linha.style.display = (tipo === 'todas' || linha.dataset.tipo === tipo) ? '' : 'none';
   });
+}
+
+function periodoRapidoHistorico(periodo){
+  const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const hoje = new Date();
+  let de = '', ate = '';
+  if (periodo === 'hoje') {
+    de = fmt(hoje); ate = fmt(hoje);
+  } else if (periodo === '7dias') {
+    const d = new Date(hoje); d.setDate(d.getDate() - 7);
+    de = fmt(d); ate = fmt(hoje);
+  } else if (periodo === '30dias') {
+    const d = new Date(hoje); d.setDate(d.getDate() - 30);
+    de = fmt(d); ate = fmt(hoje);
+  } else if (periodo === 'mes') {
+    de = fmt(new Date(hoje.getFullYear(), hoje.getMonth(), 1)); ate = fmt(hoje);
+  }
+  const query = (de || ate) ? ('?mov_de=' + de + '&mov_ate=' + ate) : '';
+  window.location.href = 'index.php' + query + '#historico';
 }
 </script>
 </body>

@@ -1,4 +1,9 @@
 <?php
+// Sem isso, o PHP usa o fuso do php.ini (frequentemente UTC ou Europe/Berlin),
+// enquanto o MySQL usa o horário do sistema — perto da meia-noite os dois
+// discordavam sobre qual é "hoje", quebrando filtros de período por data.
+date_default_timezone_set('America/Sao_Paulo');
+
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $host = 'localhost';
 $usuario = 'root';
