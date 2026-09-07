@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($email === '' || $senha === '') {
             $erro = 'Informe e-mail e senha.';
         } else {
-            $stmt = $conn->prepare('SELECT id, nome, senha_hash, role FROM usuarios WHERE email = ?');
+            $stmt = $conn->prepare('SELECT id, nome, senha_hash, role, tema FROM usuarios WHERE email = ?');
             $stmt->bind_param('s', $email);
             $stmt->execute();
             $usuario = $stmt->get_result()->fetch_assoc();
@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['usuario_id'] = $usuario['id'];
                 $_SESSION['usuario_nome'] = $usuario['nome'];
                 $_SESSION['usuario_role'] = $usuario['role'];
+                $_SESSION['usuario_tema'] = $usuario['tema'];
                 header('Location: index.php');
                 exit;
             }

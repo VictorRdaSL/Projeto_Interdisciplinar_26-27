@@ -133,12 +133,13 @@ $queryStringSemExport = http_build_query(array_filter([
 ]));
 ?>
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WareSys | Relatórios</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dark.css">
 </head>
 <body>
 <aside class="sidebar">
@@ -149,13 +150,9 @@ $queryStringSemExport = http_build_query(array_filter([
     <nav>
         <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
         <a href="index.php#produtos"><span>📦</span>Produtos</a>
-        <a href="index.php#entradas"><span>↓</span>Entradas</a>
-        <a href="index.php#saidas"><span>↑</span>Saídas</a>
         <a href="index.php#historico"><span>📊</span>Histórico</a>
         <a href="relatorios.php" class="ativo"><span>📄</span>Relatórios</a>
-        <?php if (usuarioTemPermissao('config.acessar')): ?>
         <a href="configuracoes.php"><span>⚙</span>Configurações</a>
-        <?php endif; ?>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
 </aside>

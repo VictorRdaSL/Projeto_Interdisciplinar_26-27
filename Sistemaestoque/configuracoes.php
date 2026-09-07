@@ -5,9 +5,28 @@ require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/log.php';
 
-exigirPapel(['admin']);
+$podeAdministrar = usuarioTemPermissao('config.acessar');
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_papel') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_tema') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+    } else {
+        $novoTema = $_POST['tema'] ?? '';
+        if (!in_array($novoTema, ['claro', 'escuro'], true)) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Tema inválido.'];
+        } else {
+            $stmt = $conn->prepare('UPDATE usuarios SET tema = ? WHERE id = ?');
+            $stmt->bind_param('si', $novoTema, $_SESSION['usuario_id']);
+            $stmt->execute();
+            $_SESSION['usuario_tema'] = $novoTema;
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Tema atualizado com sucesso.'];
+        }
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
+if ($podeAdministrar && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_papel') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
@@ -46,51 +65,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar
 }
 
 $usuarios = [];
-$r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
-while ($row = $r->fetch_assoc()) $usuarios[] = $row;
-
-$filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
-$filtroAcao = trim($_GET['filtro_acao'] ?? '');
-$filtroDe = trim($_GET['filtro_de'] ?? '');
-$filtroAte = trim($_GET['filtro_ate'] ?? '');
-
-$condicoes = [];
-$parametros = [];
-$tipos = '';
-if ($filtroUsuario > 0) { $condicoes[]='l.usuario_id = ?'; $parametros[]=$filtroUsuario; $tipos.='i'; }
-if ($filtroAcao !== '') { $condicoes[]='l.acao = ?'; $parametros[]=$filtroAcao; $tipos.='s'; }
-if ($filtroDe !== '') { $condicoes[]='DATE(l.criado_em) >= ?'; $parametros[]=$filtroDe; $tipos.='s'; }
-if ($filtroAte !== '') { $condicoes[]='DATE(l.criado_em) <= ?'; $parametros[]=$filtroAte; $tipos.='s'; }
-$whereSql = $condicoes ? 'WHERE '.implode(' AND ', $condicoes) : '';
-
-$sqlLog = "
-    SELECT l.*, ator.nome AS ator_nome,
-           CASE WHEN l.entidade_tipo='produto' THEN p.nome ELSE ue.nome END AS entidade_nome
-    FROM log_alteracoes l
-    JOIN usuarios ator ON ator.id = l.usuario_id
-    LEFT JOIN produtos p ON l.entidade_tipo='produto' AND p.id = l.entidade_id
-    LEFT JOIN usuarios ue ON l.entidade_tipo='usuario' AND ue.id = l.entidade_id
-    $whereSql
-    ORDER BY l.criado_em DESC
-    LIMIT 100
-";
-$stmtLog = $conn->prepare($sqlLog);
-if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
-$stmtLog->execute();
 $logs = [];
-$rl = $stmtLog->get_result();
-while ($row = $rl->fetch_assoc()) $logs[] = $row;
+$filtroUsuario = 0;
+$filtroAcao = '';
+$filtroDe = '';
+$filtroAte = '';
+
+if ($podeAdministrar) {
+    $r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
+    while ($row = $r->fetch_assoc()) $usuarios[] = $row;
+
+    $filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
+    $filtroAcao = trim($_GET['filtro_acao'] ?? '');
+    $filtroDe = trim($_GET['filtro_de'] ?? '');
+    $filtroAte = trim($_GET['filtro_ate'] ?? '');
+
+    $condicoes = [];
+    $parametros = [];
+    $tipos = '';
+    if ($filtroUsuario > 0) { $condicoes[]='l.usuario_id = ?'; $parametros[]=$filtroUsuario; $tipos.='i'; }
+    if ($filtroAcao !== '') { $condicoes[]='l.acao = ?'; $parametros[]=$filtroAcao; $tipos.='s'; }
+    if ($filtroDe !== '') { $condicoes[]='DATE(l.criado_em) >= ?'; $parametros[]=$filtroDe; $tipos.='s'; }
+    if ($filtroAte !== '') { $condicoes[]='DATE(l.criado_em) <= ?'; $parametros[]=$filtroAte; $tipos.='s'; }
+    $whereSql = $condicoes ? 'WHERE '.implode(' AND ', $condicoes) : '';
+
+    $sqlLog = "
+        SELECT l.*, ator.nome AS ator_nome,
+               CASE WHEN l.entidade_tipo='produto' THEN p.nome ELSE ue.nome END AS entidade_nome
+        FROM log_alteracoes l
+        JOIN usuarios ator ON ator.id = l.usuario_id
+        LEFT JOIN produtos p ON l.entidade_tipo='produto' AND p.id = l.entidade_id
+        LEFT JOIN usuarios ue ON l.entidade_tipo='usuario' AND ue.id = l.entidade_id
+        $whereSql
+        ORDER BY l.criado_em DESC
+        LIMIT 100
+    ";
+    $stmtLog = $conn->prepare($sqlLog);
+    if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
+    $stmtLog->execute();
+    $rl = $stmtLog->get_result();
+    while ($row = $rl->fetch_assoc()) $logs[] = $row;
+}
 
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 ?>
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WareSys | Configurações</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dark.css">
 </head>
 <body>
 <aside class="sidebar">
@@ -101,10 +128,10 @@ unset($_SESSION['flash']);
     <nav>
         <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
         <a href="index.php#produtos"><span>📦</span>Produtos</a>
-        <a href="index.php#entradas"><span>↓</span>Entradas</a>
-        <a href="index.php#saidas"><span>↑</span>Saídas</a>
         <a href="index.php#historico"><span>📊</span>Histórico</a>
+        <?php if (usuarioTemPermissao('relatorios.ver')): ?>
         <a href="relatorios.php"><span>📄</span>Relatórios</a>
+        <?php endif; ?>
         <a href="configuracoes.php" class="ativo"><span>⚙</span>Configurações</a>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
@@ -112,10 +139,10 @@ unset($_SESSION['flash']);
 
 <main>
     <header class="topo">
-        <div><p class="bem-vindo">Área administrativa</p><h2>Configurações</h2></div>
+        <div><p class="bem-vindo"><?= $podeAdministrar ? 'Área administrativa' : 'Suas preferências' ?></p><h2>Configurações</h2></div>
         <div class="perfil">
             <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
-            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-admin">Administrador</span></p></div>
+            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
             <a href="logout.php" class="btn btn-sair">Sair</a>
         </div>
     </header>
@@ -125,6 +152,25 @@ unset($_SESSION['flash']);
     <?php endif; ?>
 
     <section class="painel">
+        <div class="painel-topo">
+            <div><h2>Aparência</h2><p>Escolha o tema de exibição do sistema. Fica salvo na sua conta e vale para qualquer dispositivo.</p></div>
+        </div>
+        <form method="post" class="form-tema">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="alterar_tema">
+            <div class="tema-opcoes">
+                <button type="submit" name="tema" value="claro" class="tema-opcao <?= ($_SESSION['usuario_tema'] ?? 'claro') === 'claro' ? 'ativo' : '' ?>">
+                    <span class="tema-icone">☀️</span> Tema Claro
+                </button>
+                <button type="submit" name="tema" value="escuro" class="tema-opcao <?= ($_SESSION['usuario_tema'] ?? 'claro') === 'escuro' ? 'ativo' : '' ?>">
+                    <span class="tema-icone">🌙</span> Tema Escuro
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <?php if ($podeAdministrar): ?>
+    <section class="painel" style="margin-top:30px;">
         <div class="painel-topo">
             <div><h2>Usuários e papéis de acesso</h2><p>Defina o nível de permissão de cada usuário do sistema.</p></div>
         </div>
@@ -214,6 +260,7 @@ unset($_SESSION['flash']);
             </table>
         </div>
     </section>
+    <?php endif; ?>
 
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle de Almoxarifado</p></footer>
 </main>

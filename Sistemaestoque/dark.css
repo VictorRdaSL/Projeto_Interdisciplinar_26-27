@@ -1,0 +1,140 @@
+/* ========================================
+   TEMA ESCURO
+   Aplicado quando <html data-theme="escuro">.
+   Não é "inverter cores": cada componente foi revisado para manter
+   contraste e legibilidade (texto, ícones, tabelas, badges de status).
+======================================== */
+
+[data-theme="escuro"] {
+    --d-bg: #10160f;
+    --d-bg-elevado: #182119;
+    --d-bg-hover: #202b23;
+    --d-bg-input: #1b241d;
+    --d-borda: #2a362d;
+    --d-texto: #e9f2ec;
+    --d-texto-secundario: #9ab0a2;
+    --d-texto-terciario: #6f8577;
+    --d-accent: #4ed188;
+    --d-accent-hover: #3ab873;
+    --d-accent-suave-bg: #16301f;
+    --d-accent-suave-texto: #7be3a8;
+    --d-amber-bg: #3a2c10;
+    --d-amber-texto: #f0b429;
+    --d-sombra: rgba(0, 0, 0, 0.5);
+}
+
+/* Base da página */
+[data-theme="escuro"] body { background: var(--d-bg); color: var(--d-texto); }
+
+/* Menu lateral */
+[data-theme="escuro"] .sidebar { background: var(--d-bg-elevado); border-right: 1px solid var(--d-borda); }
+[data-theme="escuro"] .logo p { color: var(--d-texto-terciario); }
+[data-theme="escuro"] .logo h1,
+[data-theme="escuro"] .topo h2,
+[data-theme="escuro"] .painel-topo h2,
+[data-theme="escuro"] .secao-simples h2,
+[data-theme="escuro"] .modal-topo h2,
+[data-theme="escuro"] .painel-notificacoes h4,
+[data-theme="escuro"] .notificacao-item strong { color: var(--d-texto); }
+[data-theme="escuro"] nav a,
+[data-theme="escuro"] .sidebar-bottom a { color: var(--d-texto-secundario); }
+[data-theme="escuro"] nav a:hover,
+[data-theme="escuro"] .sidebar-bottom a:hover { background: var(--d-bg-hover); color: var(--d-accent); }
+[data-theme="escuro"] nav a.ativo { background: var(--d-accent-suave-bg); color: var(--d-accent-suave-texto); }
+[data-theme="escuro"] .versao { color: var(--d-texto-terciario); }
+
+/* Cabeçalho */
+[data-theme="escuro"] .bem-vindo,
+[data-theme="escuro"] .perfil p { color: var(--d-texto-secundario); }
+[data-theme="escuro"] .notificacao { background: var(--d-bg-elevado); }
+
+/* Cards do dashboard */
+[data-theme="escuro"] .card { background: var(--d-bg-elevado); box-shadow: 0 5px 20px var(--d-sombra); }
+[data-theme="escuro"] .card p,
+[data-theme="escuro"] .painel-topo p,
+[data-theme="escuro"] .secao-simples p,
+[data-theme="escuro"] .modal-topo p { color: var(--d-texto-secundario); }
+[data-theme="escuro"] .card-icon,
+[data-theme="escuro"] .produto-icon { background: var(--d-accent-suave-bg); }
+[data-theme="escuro"] .positivo { color: var(--d-accent); }
+[data-theme="escuro"] .alerta { color: var(--d-amber-texto); }
+
+/* Botões */
+[data-theme="escuro"] .btn { background: var(--d-bg-elevado); color: var(--d-texto-secundario); box-shadow: 0 3px 10px var(--d-sombra); }
+[data-theme="escuro"] .btn:hover { background: var(--d-bg-hover); }
+[data-theme="escuro"] .btn-principal,
+[data-theme="escuro"] .btn-salvar { background: var(--d-accent); color: #0b1710; }
+[data-theme="escuro"] .btn-principal:hover,
+[data-theme="escuro"] .btn-salvar:hover { background: var(--d-accent-hover); }
+[data-theme="escuro"] .btn-cancelar { background: var(--d-bg-input); color: var(--d-texto-secundario); }
+[data-theme="escuro"] .btn-cancelar:hover { background: var(--d-bg-hover); }
+[data-theme="escuro"] .acao-btn { background: var(--d-bg-input); }
+[data-theme="escuro"] .acao-btn:hover { background: var(--d-bg-hover); }
+
+/* Painéis e seções */
+[data-theme="escuro"] .painel,
+[data-theme="escuro"] .secao-simples { background: var(--d-bg-elevado); box-shadow: 0 5px 20px var(--d-sombra); }
+[data-theme="escuro"] .pesquisa { background: var(--d-bg-input); border-color: var(--d-borda); }
+[data-theme="escuro"] .pesquisa input { color: var(--d-texto); }
+
+/* Tabelas */
+[data-theme="escuro"] th { color: var(--d-texto-secundario); border-bottom: 1px solid var(--d-borda); }
+[data-theme="escuro"] td { color: var(--d-texto); border-bottom: 1px solid var(--d-borda); }
+[data-theme="escuro"] .produto p { color: var(--d-texto-terciario); }
+[data-theme="escuro"] .vazio { color: var(--d-texto-secundario); }
+[data-theme="escuro"] .tabela-detalhe th { color: var(--d-texto-secundario); }
+[data-theme="escuro"] .tabela-detalhe th,
+[data-theme="escuro"] .tabela-detalhe td { border-bottom: 1px solid var(--d-borda); }
+
+/* Status e badges — cada um revisado para contraste próprio, não só invertido */
+[data-theme="escuro"] .disponivel,
+[data-theme="escuro"] .aviso-periodo-ok,
+[data-theme="escuro"] .badge-tipo.entrada,
+[data-theme="escuro"] .papel-gerente,
+[data-theme="escuro"] .flash.sucesso { background: var(--d-accent-suave-bg); color: var(--d-accent-suave-texto); }
+[data-theme="escuro"] .flash.sucesso { border-color: #23533a; }
+[data-theme="escuro"] .baixo,
+[data-theme="escuro"] .papel-admin,
+[data-theme="escuro"] .aviso-periodo,
+[data-theme="escuro"] .flash.erro { background: var(--d-amber-bg); color: var(--d-amber-texto); }
+[data-theme="escuro"] .flash.erro { border-color: #5a4318; }
+[data-theme="escuro"] .badge-tipo.saida { background: var(--d-bg-hover); color: var(--d-texto-secundario); }
+[data-theme="escuro"] .papel-usuario { background: #1c2731; color: #9bb6c7; }
+[data-theme="escuro"] .detalhe-produto summary { color: var(--d-accent); }
+
+/* Formulários e modais */
+[data-theme="escuro"] .campo label { color: var(--d-texto-secundario); }
+[data-theme="escuro"] .campo input,
+[data-theme="escuro"] .campo select,
+[data-theme="escuro"] .campo textarea,
+[data-theme="escuro"] .form-papel select { background: var(--d-bg-input); border-color: var(--d-borda); color: var(--d-texto); }
+[data-theme="escuro"] .campo input:focus,
+[data-theme="escuro"] .campo select:focus,
+[data-theme="escuro"] .campo textarea:focus { border-color: var(--d-accent); background: var(--d-bg-elevado); }
+[data-theme="escuro"] .modal { background: rgba(0, 0, 0, 0.65); }
+[data-theme="escuro"] .modal-box { background: var(--d-bg-elevado); box-shadow: 0 20px 60px var(--d-sombra); }
+[data-theme="escuro"] .fechar { color: var(--d-texto-secundario); }
+[data-theme="escuro"] .fechar:hover { background: var(--d-bg-hover); }
+[data-theme="escuro"] footer { color: var(--d-texto-terciario); }
+
+/* Abas (tipo/período/relatórios) */
+[data-theme="escuro"] .tabs-historico { background: var(--d-bg-input); }
+[data-theme="escuro"] .tab-btn { color: var(--d-texto-secundario); }
+[data-theme="escuro"] .tab-btn:hover { color: var(--d-accent); }
+[data-theme="escuro"] .tab-btn.ativo { background: var(--d-bg-elevado); color: var(--d-accent); box-shadow: 0 2px 6px var(--d-sombra); }
+
+/* Sino de notificações */
+[data-theme="escuro"] .notificacao-btn { background: var(--d-bg-elevado); box-shadow: 0 3px 10px var(--d-sombra); }
+[data-theme="escuro"] .notificacao-btn:hover { background: var(--d-bg-hover); }
+[data-theme="escuro"] .painel-notificacoes { background: var(--d-bg-elevado); box-shadow: 0 10px 30px var(--d-sombra); }
+[data-theme="escuro"] .notificacao-item { color: var(--d-texto); }
+[data-theme="escuro"] .notificacao-item:hover { background: var(--d-bg-hover); }
+[data-theme="escuro"] .notificacao-vazio { color: var(--d-texto-terciario); }
+
+/* Relatórios */
+[data-theme="escuro"] .total-relatorio { color: var(--d-texto-secundario); }
+
+/* Alternador de tema (Configurações) */
+[data-theme="escuro"] .tema-opcao { background: var(--d-bg-input); border-color: var(--d-borda); color: var(--d-texto-secundario); }
+[data-theme="escuro"] .tema-opcao:hover { border-color: var(--d-accent); }
+[data-theme="escuro"] .tema-opcao.ativo { border-color: var(--d-accent); background: var(--d-accent-suave-bg); color: var(--d-accent-suave-texto); }
