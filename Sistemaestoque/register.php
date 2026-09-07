@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['usuario_id'] = $novoUsuarioId;
                     $_SESSION['usuario_nome'] = $nome;
                     $_SESSION['usuario_role'] = $papelPadrao;
+                    $_SESSION['usuario_tema'] = 'claro';
                     header('Location: index.php');
                     exit;
                 } catch (mysqli_sql_exception $e) {

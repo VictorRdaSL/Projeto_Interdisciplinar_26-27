@@ -19,10 +19,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(150) NOT NULL UNIQUE,
     senha_hash VARCHAR(255) NOT NULL,
     role ENUM('admin','gerente','usuario') NOT NULL DEFAULT 'usuario',
+    tema ENUM('claro','escuro') NOT NULL DEFAULT 'claro',
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role ENUM('admin','gerente','usuario') NOT NULL DEFAULT 'usuario';
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tema ENUM('claro','escuro') NOT NULL DEFAULT 'claro';
 
 CREATE TABLE IF NOT EXISTS entradas_estoque (
     id INT AUTO_INCREMENT PRIMARY KEY,

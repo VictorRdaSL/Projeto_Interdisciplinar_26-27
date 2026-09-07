@@ -79,3 +79,11 @@ nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde
 .tabela-detalhe th{color:#8a9b91;font-weight:normal}
 @media(max-width:950px){.grid-mov{grid-template-columns:1fr}}
 @media(max-width:600px){.form-mov{grid-template-columns:1fr}.full{grid-column:auto}}
+
+.form-tema{display:block}
+.tema-opcoes{display:flex;gap:12px;flex-wrap:wrap}
+.tema-opcao{display:flex;align-items:center;gap:10px;padding:16px 26px;border:2px solid #dfe9e2;border-radius:14px;background:#fafcfb;color:#53645a;font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+.tema-opcao:hover{border-color:var(--verde-300)}
+.tema-opcao.ativo{border-color:var(--verde-600);background:var(--verde-50);color:var(--verde-800)}
+.tema-icone{font-size:22px}
+@media(max-width:600px){.tema-opcoes{flex-direction:column}.tema-opcao{width:100%}}

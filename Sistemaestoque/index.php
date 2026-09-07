@@ -218,13 +218,14 @@ $movHoje=(int)$conn->query("
 $ultimasMov=$movimentacoes;
 ?>
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WareSys | Controle de Almoxarifado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dark.css">
 </head>
 <body>
 <aside class="sidebar">
@@ -235,16 +236,12 @@ $ultimasMov=$movimentacoes;
     <nav>
         <a href="#dashboard" class="ativo"><span>⌂</span>Dashboard</a>
         <a href="#produtos"><span>📦</span>Produtos</a>
-        <a href="#entradas"><span>↓</span>Entradas</a>
-        <a href="#saidas"><span>↑</span>Saídas</a>
         <a href="#estoque-baixo"><span>⚠</span>Estoque Baixo</a>
         <a href="#historico"><span>📊</span>Histórico</a>
         <?php if (usuarioTemPermissao('relatorios.ver')): ?>
         <a href="relatorios.php"><span>📄</span>Relatórios</a>
         <?php endif; ?>
-        <?php if (usuarioTemPermissao('config.acessar')): ?>
         <a href="configuracoes.php"><span>⚙</span>Configurações</a>
-        <?php endif; ?>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
 </aside>
