@@ -127,7 +127,6 @@ unset($_SESSION['flash']);
     </div>
     <nav>
         <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
-        <a href="index.php#produtos"><span>📦</span>Produtos</a>
         <a href="index.php#historico"><span>📊</span>Histórico</a>
         <?php if (usuarioTemPermissao('relatorios.ver')): ?>
         <a href="relatorios.php"><span>📄</span>Relatórios</a>
