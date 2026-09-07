@@ -1,21 +1,10 @@
 <?php
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/includes/permissoes.php';
+require_once __DIR__ . '/includes/periodo.php';
 require_once __DIR__ . '/config/database.php';
 
 exigirPapel(['admin', 'gerente']);
-
-/**
- * Fragmento reaproveitável do filtro de período, usado tanto na listagem por
- * movimentação quanto no resumo agrupado por produto.
- */
-function condicaoPeriodo(string $alias, string $dataDe, string $dataAte, array &$parametros, string &$tipos): array
-{
-    $condicoes = [];
-    if ($dataDe !== '') { $condicoes[] = "DATE($alias.criado_em) >= ?"; $parametros[] = $dataDe; $tipos .= 's'; }
-    if ($dataAte !== '') { $condicoes[] = "DATE($alias.criado_em) <= ?"; $parametros[] = $dataAte; $tipos .= 's'; }
-    return $condicoes;
-}
 
 function condicoesMovimentacao(string $alias, int $usuarioId, string $dataDe, string $dataAte, array &$parametros, string &$tipos): string
 {
@@ -24,47 +13,13 @@ function condicoesMovimentacao(string $alias, int $usuarioId, string $dataDe, st
     return $condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '';
 }
 
-function montarResumoPorProduto(mysqli $conn, string $dataDe, string $dataAte): array
-{
-    // Cada lado é somado numa subconsulta própria (1 linha por produto) antes de
-    // juntar com produtos — evitar juntar entradas e saídas na mesma junção direta,
-    // o que geraria produto cartesiano e somas infladas quando um produto tem mais
-    // de uma entrada e mais de uma saída.
-    $paramsE = []; $tiposE = '';
-    $condE = condicaoPeriodo('e', $dataDe, $dataAte, $paramsE, $tiposE);
-    $whereE = $condE ? 'WHERE ' . implode(' AND ', $condE) : '';
-
-    $paramsS = []; $tiposS = '';
-    $condS = condicaoPeriodo('s', $dataDe, $dataAte, $paramsS, $tiposS);
-    $whereS = $condS ? 'WHERE ' . implode(' AND ', $condS) : '';
-
-    $sql = "SELECT p.id, p.nome,
-                COALESCE(te.total, 0) AS total_entrada,
-                COALESCE(ts.total, 0) AS total_saida
-            FROM produtos p
-            LEFT JOIN (SELECT produto_id, SUM(quantidade) AS total FROM entradas_estoque e $whereE GROUP BY produto_id) te ON te.produto_id = p.id
-            LEFT JOIN (SELECT produto_id, SUM(quantidade) AS total FROM saidas_estoque s $whereS GROUP BY produto_id) ts ON ts.produto_id = p.id
-            WHERE COALESCE(te.total, 0) > 0 OR COALESCE(ts.total, 0) > 0
-            ORDER BY p.nome";
-
-    $parametros = array_merge($paramsE, $paramsS);
-    $tipos = $tiposE . $tiposS;
-    $stmt = $conn->prepare($sql);
-    if ($parametros) $stmt->bind_param($tipos, ...$parametros);
-    $stmt->execute();
-    $linhas = [];
-    $r = $stmt->get_result();
-    while ($row = $r->fetch_assoc()) $linhas[] = $row;
-    return $linhas;
-}
-
 function montarConsultaMovimentacoes(mysqli $conn, string $filtroTipo, int $filtroUsuario, string $filtroDe, string $filtroAte): array
 {
-    $selectEntrada = "SELECT e.criado_em AS data_mov, 'entrada' AS tipo, e.quantidade, e.observacao, p.nome AS produto_nome, u.nome AS usuario_nome
+    $selectEntrada = "SELECT e.criado_em AS data_mov, 'entrada' AS tipo, e.quantidade, e.observacao, e.produto_id AS produto_id, p.nome AS produto_nome, u.nome AS usuario_nome
         FROM entradas_estoque e
         LEFT JOIN produtos p ON p.id = e.produto_id
         LEFT JOIN usuarios u ON u.id = e.usuario_id";
-    $selectSaida = "SELECT s.criado_em AS data_mov, 'saida' AS tipo, s.quantidade, s.observacao, p.nome AS produto_nome, u.nome AS usuario_nome
+    $selectSaida = "SELECT s.criado_em AS data_mov, 'saida' AS tipo, s.quantidade, s.observacao, s.produto_id AS produto_id, p.nome AS produto_nome, u.nome AS usuario_nome
         FROM saidas_estoque s
         LEFT JOIN produtos p ON p.id = s.produto_id
         LEFT JOIN usuarios u ON u.id = s.usuario_id";
@@ -97,6 +52,37 @@ function montarConsultaMovimentacoes(mysqli $conn, string $filtroTipo, int $filt
     return $linhas;
 }
 
+/**
+ * Agrupa por produto a mesma lista de movimentações individuais usada no
+ * relatório "Por Movimentação" — evita duplicar a consulta SQL: os totais e
+ * o detalhamento por produto vêm do mesmo conjunto de linhas já filtrado
+ * por período/tipo.
+ */
+function agruparMovimentacoesPorProduto(array $movimentos): array
+{
+    $porProduto = [];
+    foreach ($movimentos as $m) {
+        $id = (int)$m['produto_id'];
+        if (!isset($porProduto[$id])) {
+            $porProduto[$id] = [
+                'produto_id' => $id,
+                'nome' => $m['produto_nome'],
+                'total_entrada' => 0,
+                'total_saida' => 0,
+                'movimentos' => [],
+            ];
+        }
+        if ($m['tipo'] === 'entrada') {
+            $porProduto[$id]['total_entrada'] += (int)$m['quantidade'];
+        } else {
+            $porProduto[$id]['total_saida'] += (int)$m['quantidade'];
+        }
+        $porProduto[$id]['movimentos'][] = $m;
+    }
+    usort($porProduto, fn($a, $b) => strcmp($a['nome'], $b['nome']));
+    return $porProduto;
+}
+
 $modo = ($_GET['modo'] ?? '') === 'produto' ? 'produto' : 'movimentacao';
 $filtroTipo = $_GET['tipo'] ?? '';
 if (!in_array($filtroTipo, ['entrada', 'saida'], true)) $filtroTipo = '';
@@ -104,8 +90,12 @@ $filtroUsuario = (int)($_GET['usuario_id'] ?? 0);
 $filtroDe = trim($_GET['data_de'] ?? '');
 $filtroAte = trim($_GET['data_ate'] ?? '');
 
+$periodoCompleto = $filtroDe !== '' && $filtroAte !== '';
+
 if ($modo === 'produto') {
-    $resumoProdutos = montarResumoPorProduto($conn, $filtroDe, $filtroAte);
+    $resumoProdutos = $periodoCompleto
+        ? agruparMovimentacoesPorProduto(montarConsultaMovimentacoes($conn, $filtroTipo, 0, $filtroDe, $filtroAte))
+        : [];
 } else {
     $movimentacoes = montarConsultaMovimentacoes($conn, $filtroTipo, $filtroUsuario, $filtroDe, $filtroAte);
 }
@@ -247,44 +237,81 @@ $queryStringSemExport = http_build_query(array_filter([
     <?php else: ?>
     <section class="painel">
         <div class="painel-topo">
-            <div><h2>Resumo por Produto no Período</h2><p>Visão agregada — diferente do relatório "Por Movimentação": aqui cada produto aparece <strong>uma única vez</strong>, somando tudo que entrou e tudo que saiu no intervalo escolhido.</p></div>
+            <div><h2>Consulta por Produto num Intervalo</h2><p>Diferente do relatório "Por Movimentação" (que lista cada lançamento individualmente): aqui cada produto aparece <strong>uma única vez</strong>, com o total que entrou e o total que saiu dentro do intervalo de datas — e cada linha pode ser expandida para ver os lançamentos individuais daquele produto no período.</p></div>
         </div>
         <form method="get" class="form-filtro-log">
             <input type="hidden" name="modo" value="produto">
             <div class="campo">
-                <label for="data_de_p">De</label>
-                <input type="date" id="data_de_p" name="data_de" value="<?= htmlspecialchars($filtroDe) ?>">
+                <label for="tipo_p">Tipo</label>
+                <select id="tipo_p" name="tipo">
+                    <option value="">Entrada e Saída</option>
+                    <option value="entrada" <?= $filtroTipo === 'entrada' ? 'selected' : '' ?>>Somente Entradas</option>
+                    <option value="saida" <?= $filtroTipo === 'saida' ? 'selected' : '' ?>>Somente Saídas</option>
+                </select>
             </div>
             <div class="campo">
-                <label for="data_ate_p">Até</label>
-                <input type="date" id="data_ate_p" name="data_ate" value="<?= htmlspecialchars($filtroAte) ?>">
+                <label for="data_de_p">Data inicial *</label>
+                <input type="date" id="data_de_p" name="data_de" value="<?= htmlspecialchars($filtroDe) ?>" required>
+            </div>
+            <div class="campo">
+                <label for="data_ate_p">Data final *</label>
+                <input type="date" id="data_ate_p" name="data_ate" value="<?= htmlspecialchars($filtroAte) ?>" required>
             </div>
             <div class="campo campo-botao">
-                <button type="submit" class="btn-salvar">Filtrar</button>
+                <button type="submit" class="btn-salvar">Consultar</button>
                 <a href="relatorios.php?modo=produto" class="btn-cancelar">Limpar</a>
             </div>
         </form>
-        <?php if (!$filtroDe && !$filtroAte): ?>
-            <p class="aviso-periodo">Nenhum período selecionado — mostrando o total histórico (desde sempre) de cada produto.</p>
+
+        <?php if (!$periodoCompleto): ?>
+            <p class="aviso-periodo">Informe a data inicial <strong>e</strong> a data final para consultar. Os dois campos são obrigatórios nesta visão.</p>
+        <?php else: ?>
+            <p class="aviso-periodo aviso-periodo-ok">Período consultado: <strong><?= date('d/m/Y', strtotime($filtroDe)) ?></strong> até <strong><?= date('d/m/Y', strtotime($filtroAte)) ?></strong> (intervalo completo, incluindo as duas datas de ponta).</p>
+            <div class="tabela-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <?php if ($filtroTipo !== 'saida'): ?><th>Total Entrada</th><?php endif; ?>
+                            <?php if ($filtroTipo !== 'entrada'): ?><th>Total Saída</th><?php endif; ?>
+                            <?php if ($filtroTipo === ''): ?><th>Saldo do período</th><?php endif; ?>
+                            <th>Lançamentos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (!$resumoProdutos): ?>
+                        <tr><td colspan="5" class="vazio">Nenhum produto teve movimentação nesse período.</td></tr>
+                    <?php else: foreach ($resumoProdutos as $rp): $saldo=(int)$rp['total_entrada']-(int)$rp['total_saida']; ?>
+                        <tr>
+                            <td><strong><?= htmlspecialchars($rp['nome']) ?></strong></td>
+                            <?php if ($filtroTipo !== 'saida'): ?><td><span class="badge-tipo entrada">+<?= (int)$rp['total_entrada'] ?></span></td><?php endif; ?>
+                            <?php if ($filtroTipo !== 'entrada'): ?><td><span class="badge-tipo saida">-<?= (int)$rp['total_saida'] ?></span></td><?php endif; ?>
+                            <?php if ($filtroTipo === ''): ?><td><?= $saldo > 0 ? '+' : '' ?><?= $saldo ?></td><?php endif; ?>
+                            <td>
+                                <details class="detalhe-produto">
+                                    <summary>Ver <?= count($rp['movimentos']) ?> lançamento(s)</summary>
+                                    <table class="tabela-detalhe">
+                                        <thead><tr><th>Data/Hora</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th></tr></thead>
+                                        <tbody>
+                                        <?php foreach ($rp['movimentos'] as $mov): ?>
+                                            <tr>
+                                                <td><?= date('d/m/Y H:i', strtotime($mov['data_mov'])) ?></td>
+                                                <td><span class="badge-tipo <?= $mov['tipo'] ?>"><?= strtoupper($mov['tipo']) ?></span></td>
+                                                <td><?= (int)$mov['quantidade'] ?></td>
+                                                <td><?= htmlspecialchars($mov['usuario_nome'] ?: '—') ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </details>
+                            </td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            <p class="total-relatorio"><?= count($resumoProdutos) ?> produto(s) com movimentação no período.</p>
         <?php endif; ?>
-        <div class="tabela-container">
-            <table>
-                <thead><tr><th>Produto</th><th>Total Entrada</th><th>Total Saída</th><th>Saldo do período</th></tr></thead>
-                <tbody>
-                <?php if (!$resumoProdutos): ?>
-                    <tr><td colspan="4" class="vazio">Nenhum produto teve entrada ou saída no período selecionado.</td></tr>
-                <?php else: foreach ($resumoProdutos as $rp): $saldo=(int)$rp['total_entrada']-(int)$rp['total_saida']; ?>
-                    <tr>
-                        <td><strong><?= htmlspecialchars($rp['nome']) ?></strong></td>
-                        <td><span class="badge-tipo entrada">+<?= (int)$rp['total_entrada'] ?></span></td>
-                        <td><span class="badge-tipo saida">-<?= (int)$rp['total_saida'] ?></span></td>
-                        <td><?= $saldo > 0 ? '+' : '' ?><?= $saldo ?></td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
-        <p class="total-relatorio"><?= count($resumoProdutos) ?> produto(s) com movimentação no período.</p>
     </section>
     <?php endif; ?>
 

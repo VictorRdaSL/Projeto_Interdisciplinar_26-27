@@ -50,6 +50,7 @@ nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde
 .tab-btn:hover{color:var(--verde-700)}
 .tab-btn.ativo{background:#ffffff;color:var(--verde-700);font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,.06)}
 @media(max-width:800px){.tabs-historico{width:100%}.tab-btn{flex:1}}
+.tabs-periodo{margin:0 0 20px 0;flex-wrap:wrap}
 .form-filtro-log{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;margin-bottom:22px}
 .form-filtro-log .campo{min-width:160px}
 .form-filtro-log .campo-botao{flex-direction:row;gap:10px}
@@ -70,5 +71,11 @@ nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde
 .tabs-relatorio{margin-bottom:20px;display:inline-flex}
 .tabs-relatorio .tab-btn{text-decoration:none}
 .aviso-periodo{background:#fff3dc;color:#b98439;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:16px}
+.aviso-periodo-ok{background:var(--verde-50);color:var(--verde-800)}
+.detalhe-produto summary{cursor:pointer;color:var(--verde-700);font-size:13px;font-weight:bold}
+.detalhe-produto summary:hover{text-decoration:underline}
+.tabela-detalhe{width:100%;margin-top:10px;border-collapse:collapse}
+.tabela-detalhe th,.tabela-detalhe td{padding:8px 10px;font-size:12px;border-bottom:1px solid #f0f3f1;text-align:left}
+.tabela-detalhe th{color:#8a9b91;font-weight:normal}
 @media(max-width:950px){.grid-mov{grid-template-columns:1fr}}
 @media(max-width:600px){.form-mov{grid-template-columns:1fr}.full{grid-column:auto}}
