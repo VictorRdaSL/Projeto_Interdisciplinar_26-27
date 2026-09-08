@@ -295,7 +295,7 @@ $ultimasMov=$movimentacoes;
     <section class="painel" id="produtos">
         <div class="painel-topo">
             <div><h2>Produtos em Estoque</h2><p>Consulte as quantidades disponíveis</p></div>
-            <div class="pesquisa"><span>🔍</span><input id="busca" type="text" placeholder="Pesquisar produto..." oninput="filtrarProdutos()"></div>
+            <div class="pesquisa"><span>🔍</span><input id="busca" type="text" placeholder="Pesquisar produto por nome..." oninput="agendarFiltroProdutos()"></div>
         </div>
         <?php $podeAjustar = usuarioTemPermissao('produtos.ajustar'); ?>
         <div class="tabela-container">
@@ -305,7 +305,7 @@ $ultimasMov=$movimentacoes;
                 <?php if (!$produtos): ?>
                     <tr><td colspan="<?= $podeAjustar ? 8 : 7 ?>" class="vazio">Nenhum produto cadastrado.</td></tr>
                 <?php else: foreach ($produtos as $p): $baixo=(int)$p['quantidade'] <= (int)$p['estoque_minimo']; ?>
-                    <tr>
+                    <tr data-nome="<?= htmlspecialchars($p['nome'], ENT_QUOTES) ?>">
                         <td class="produto"><div class="produto-icon">📦</div><div><strong><?= htmlspecialchars($p['nome']) ?></strong><p><?= htmlspecialchars($p['observacao'] ?: 'Produto cadastrado') ?></p></div></td>
                         <td>#<?= htmlspecialchars($p['codigo']) ?></td>
                         <td><?= htmlspecialchars($p['categoria']) ?></td>
@@ -326,6 +326,9 @@ $ultimasMov=$movimentacoes;
                         <?php endif; ?>
                     </tr>
                 <?php endforeach; endif; ?>
+                <tr id="busca-sem-resultado" style="display:none;">
+                    <td colspan="<?= $podeAjustar ? 8 : 7 ?>" class="vazio">Nenhum produto encontrado para essa busca.</td>
+                </tr>
                 </tbody>
             </table>
         </div>
@@ -466,11 +469,22 @@ document.addEventListener('click', function(e){
   }
 });
 
-function filtrarProdutos(){
-  const termo=document.getElementById('busca').value.toLowerCase();
-  document.querySelectorAll('#tabela-produtos tbody tr').forEach(linha=>{
-    linha.style.display=linha.innerText.toLowerCase().includes(termo)?'':'none';
+let filtroProdutosTimeout = null;
+function agendarFiltroProdutos(){
+  clearTimeout(filtroProdutosTimeout);
+  filtroProdutosTimeout = setTimeout(aplicarFiltroProdutos, 300);
+}
+
+function aplicarFiltroProdutos(){
+  const termo = document.getElementById('busca').value.trim().toLowerCase();
+  let visiveis = 0;
+  document.querySelectorAll('#tabela-produtos tbody tr[data-nome]').forEach(linha=>{
+    const mostra = termo === '' || linha.dataset.nome.toLowerCase().includes(termo);
+    linha.style.display = mostra ? '' : 'none';
+    if (mostra) visiveis++;
   });
+  const semResultado = document.getElementById('busca-sem-resultado');
+  if (semResultado) semResultado.style.display = (visiveis === 0 && termo !== '') ? '' : 'none';
 }
 
 function filtrarHistoricoTipo(tipo, botao){
