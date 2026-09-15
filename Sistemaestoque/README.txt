@@ -9,8 +9,8 @@ SISTEMA DE ESTOQUE - XAMPP + PHP + MYSQL
 7. Depois abra http://localhost/sistema_estoque_xampp/
 
 LOGIN DO MYSQL PADRÃO DO XAMPP:
-Usuário: root
-Senha: vazia
+Usuário: admin@waresys.com
+Senha: admin123
 
 Se o MySQL tiver senha, altere config/database.php.
 
