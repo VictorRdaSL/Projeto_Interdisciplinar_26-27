@@ -40,4 +40,4 @@ Desenvolver um sistema web capaz de:
 
 Projeto desenvolvido como parte das atividades acadêmicas da **FATEC**, com foco no desenvolvimento de uma aplicação web para gerenciamento de estoque.
 
-![Sistema de Controle de Estoque](https://raw.githubusercontent.com/VictorRdaSL/Projeto_Interdisciplinar_26-27/main/img/estoque-home.png)
+![Sistema de Controle de Estoque](https://raw.githubusercontent.com/VictorRdaSL/Projeto_Interdisciplinar_26-27/main/img/editora-home.jpg)
