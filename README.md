@@ -10,7 +10,7 @@ Repositório do grupo de Projeto Interdisciplinar (PI) da FATEC — **Projeto_In
 
 **Tecnologias utilizadas:** PHP, SQL, HTML e CSS
 
-**Wiki do projeto:** [Início do Projeto](https://github.com/VictorRdaSL/Projeto_Interdisciplinar_26-27/wiki/Inicio-do-Projeto)
+**Wiki do projeto:** [Início do Projeto](https://github.com/VictorRdaSL/Projeto_Interdisciplinar_26-27/wiki)
 
 ---
 
