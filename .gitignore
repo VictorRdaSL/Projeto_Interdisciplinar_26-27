@@ -1,0 +1,7 @@
+CLAUDE.md
+
+# Credenciais reais de ambiente — nunca commitar
+Sistemaestoque/config/config.php
+
+# Logs de erro em producao
+Sistemaestoque/logs/*.log

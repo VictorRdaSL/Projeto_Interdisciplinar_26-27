@@ -1,7 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/includes/sessao.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/log.php';
@@ -50,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $novoUsuarioId = $conn->insert_id;
                     registrarLog($conn, $novoUsuarioId, 'usuario.criar', 'usuario', $novoUsuarioId, null, $papelPadrao);
 
+                    session_regenerate_id(true);
                     $_SESSION['usuario_id'] = $novoUsuarioId;
                     $_SESSION['usuario_nome'] = $nome;
                     $_SESSION['usuario_role'] = $papelPadrao;
