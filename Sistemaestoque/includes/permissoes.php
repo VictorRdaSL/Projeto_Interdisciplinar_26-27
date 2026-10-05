@@ -1,14 +1,12 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/sessao.php';
 
 const PAPEIS_VALIDOS = ['admin', 'gerente', 'usuario'];
 
 const PERMISSOES_POR_PAPEL = [
-    'admin'   => ['produtos.criar', 'produtos.ajustar', 'movimentacoes.criar', 'relatorios.ver', 'config.acessar'],
-    'gerente' => ['produtos.criar', 'produtos.ajustar', 'movimentacoes.criar', 'relatorios.ver'],
-    'usuario' => ['movimentacoes.criar'],
+    'admin'   => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver', 'config.acessar'],
+    'gerente' => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver'],
+    'usuario' => ['livros.gerenciar', 'pessoas.gerenciar'],
 ];
 
 const NOMES_PAPEIS = [

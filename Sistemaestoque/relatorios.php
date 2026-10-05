@@ -149,6 +149,8 @@ $queryStringSemExport = http_build_query(array_filter([
     </div>
     <nav>
         <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
+        <a href="livros.php"><span>📚</span>Livros</a>
+        <a href="pessoas.php"><span>👤</span>Pessoas</a>
         <a href="index.php#historico"><span>📊</span>Histórico</a>
         <a href="relatorios.php" class="ativo"><span>📄</span>Relatórios</a>
         <a href="configuracoes.php"><span>⚙</span>Configurações</a>
