@@ -91,10 +91,16 @@ if ($podeAdministrar) {
 
     $sqlLog = "
         SELECT l.*, ator.nome AS ator_nome,
-               CASE WHEN l.entidade_tipo='produto' THEN p.nome ELSE ue.nome END AS entidade_nome
+               CASE
+                   WHEN l.entidade_tipo='livro' THEN lv.titulo
+                   WHEN l.entidade_tipo='pessoa' THEN pe.nome
+                   WHEN l.entidade_tipo='usuario' THEN ue.nome
+                   ELSE NULL
+               END AS entidade_nome
         FROM log_alteracoes l
         JOIN usuarios ator ON ator.id = l.usuario_id
-        LEFT JOIN produtos p ON l.entidade_tipo='produto' AND p.id = l.entidade_id
+        LEFT JOIN livros lv ON l.entidade_tipo='livro' AND lv.id = l.entidade_id
+        LEFT JOIN pessoas pe ON l.entidade_tipo='pessoa' AND pe.id = l.entidade_id
         LEFT JOIN usuarios ue ON l.entidade_tipo='usuario' AND ue.id = l.entidade_id
         $whereSql
         ORDER BY l.criado_em DESC
@@ -127,6 +133,8 @@ unset($_SESSION['flash']);
     </div>
     <nav>
         <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
+        <a href="livros.php"><span>📚</span>Livros</a>
+        <a href="pessoas.php"><span>👤</span>Pessoas</a>
         <a href="index.php#historico"><span>📊</span>Histórico</a>
         <?php if (usuarioTemPermissao('relatorios.ver')): ?>
         <a href="relatorios.php"><span>📄</span>Relatórios</a>
