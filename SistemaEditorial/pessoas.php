@@ -106,7 +106,7 @@ $podeGerenciar = usuarioTemPermissao('pessoas.gerenciar');
     </div>
     <nav>
         <a href="index.php"><span>⌂</span>Painel</a>
-        <span class="nav-desabilitado"><span>🗄</span>Minha mesa<span class="nav-tag">em breve</span></span>
+        <a href="minha_mesa.php"><span>🗄</span>Minha mesa</a>
         <a href="livros.php"><span>📚</span>Livros</a>
         <a href="pessoas.php" class="ativo"><span>👤</span>Pessoas</a>
         <span class="nav-desabilitado"><span>📄</span>Relatórios<span class="nav-tag">em breve</span></span>

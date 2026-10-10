@@ -27,21 +27,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuarioId = (int)$_SESSION['usuario_id'];
 
     try {
+        $responsavelIdPost = isset($_POST['responsavel_id']) && $_POST['responsavel_id'] !== '' ? (int)$_POST['responsavel_id'] : null;
+
         if ($acaoPost === 'avancar') {
             $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
             $etapaPuladaId = isset($_POST['etapa_pulada_id']) && $_POST['etapa_pulada_id'] !== '' ? (int)$_POST['etapa_pulada_id'] : null;
-            $resultado = avancarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $etapaPuladaId);
+            $resultado = avancarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $etapaPuladaId, $responsavelIdPost);
             $mensagem = 'Livro avançado para ' . $resultado['etapa_nome'] . '.';
         } elseif ($acaoPost === 'repetir') {
-            $resultado = repetirEtapa($conn, $livroId, $usuarioId);
+            $resultado = repetirEtapa($conn, $livroId, $usuarioId, $responsavelIdPost);
             $mensagem = 'Nova rodada aberta em ' . $resultado['etapa_nome'] . '.';
         } elseif ($acaoPost === 'voltar') {
             $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
-            $resultado = voltarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId);
+            $resultado = voltarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $responsavelIdPost);
             $mensagem = 'Livro devolvido para ' . $resultado['etapa_nome'] . '.';
         } elseif ($acaoPost === 'concluir') {
             $resultado = concluirLivro($conn, $livroId, $usuarioId);
             $mensagem = 'Livro concluído com sucesso.';
+        } elseif ($acaoPost === 'passar_mesa') {
+            $novoResponsavelId = (int)($_POST['novo_responsavel_id'] ?? 0);
+            $resultado = passarParaOutraMesa($conn, $livroId, $novoResponsavelId, $usuarioId);
+            $mensagem = 'Livro passado para a mesa de ' . nomeUsuario($conn, $novoResponsavelId) . '.';
         } else {
             throw new InvalidArgumentException('Ação inválida.');
         }
@@ -109,6 +115,10 @@ while ($row = $rm->fetch_assoc()) $movimentacoes[] = $row;
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
+
+$usuariosDisponiveis = [];
+$ru = $conn->query('SELECT id, nome FROM usuarios ORDER BY nome');
+while ($row = $ru->fetch_assoc()) $usuariosDisponiveis[] = $row;
 
 const NOMES_STATUS_LIVRO_DET = [
     'em_andamento' => 'Em andamento',
@@ -215,6 +225,7 @@ if ($podeGerenciar && $livro['status'] === 'em_andamento' && $etapaAtual) {
 // movimentação aberta por livro).
 $rodadaAtualLabel = '—';
 $rodadaAtualExcedente = false;
+$diasComMesaAtual = null;
 if ($movimentacoes && $etapaAtual) {
     $movAtual = $movimentacoes[0];
     $rodadaAtualLabel = 'Rodada ' . (int)$movAtual['rodada'];
@@ -222,6 +233,10 @@ if ($movimentacoes && $etapaAtual) {
         $rodadaAtualLabel .= ' de ' . (int)$etapaAtual['rodadas_incluidas'];
     }
     $rodadaAtualExcedente = (int)$movAtual['excedente'] === 1;
+
+    // Calculado em PHP (não com DATEDIFF/NOW() do MySQL) para não reabrir o bug
+    // conhecido de "hoje" divergente entre PHP e MySQL quando os fusos não combinam.
+    $diasComMesaAtual = (new DateTime())->diff(new DateTime($movAtual['data_entrada']))->days;
 }
 ?>
 <!DOCTYPE html>
@@ -241,7 +256,7 @@ if ($movimentacoes && $etapaAtual) {
     </div>
     <nav>
         <a href="index.php"><span>⌂</span>Painel</a>
-        <span class="nav-desabilitado"><span>🗄</span>Minha mesa<span class="nav-tag">em breve</span></span>
+        <a href="minha_mesa.php"><span>🗄</span>Minha mesa</a>
         <a href="livros.php" class="ativo"><span>📚</span>Livros</a>
         <a href="pessoas.php"><span>👤</span>Pessoas</a>
         <span class="nav-desabilitado"><span>📄</span>Relatórios<span class="nav-tag">em breve</span></span>
@@ -266,7 +281,7 @@ if ($movimentacoes && $etapaAtual) {
 
     <section class="cards">
         <div class="card"><div><p>Etapa atual</p><h3 style="font-size:18px;"><?= htmlspecialchars($livro['etapa_nome'] ?: '—') ?></h3></div><div class="card-icon">📍</div></div>
-        <div class="card"><div><p>Responsável atual (mesa)</p><h3 style="font-size:18px;"><?= htmlspecialchars($livro['responsavel_nome'] ?: '—') ?></h3></div><div class="card-icon">👤</div></div>
+        <div class="card"><div><p>Responsável atual (mesa)</p><h3 style="font-size:18px;"><?= htmlspecialchars($livro['responsavel_nome'] ?: '—') ?></h3><?php if ($diasComMesaAtual !== null): ?><span style="font-size:12px;color:#8a9b91;">com ela há <?= $diasComMesaAtual === 0 ? 'menos de 1 dia' : $diasComMesaAtual . ' dia' . ($diasComMesaAtual > 1 ? 's' : '') ?></span><?php endif; ?></div><div class="card-icon">👤</div></div>
         <div class="card"><div><p>Status</p><h3 style="font-size:18px;"><?= htmlspecialchars(NOMES_STATUS_LIVRO_DET[$livro['status']] ?? $livro['status']) ?></h3></div><div class="card-icon">📊</div></div>
         <div class="card"><div><p>Tem cópia?</p><h3 style="font-size:18px;"><?= ((int)$livro['tem_copia'] === 1) ? 'Sim' : 'Não' ?></h3></div><div class="card-icon">📄</div></div>
         <div class="card"><div><p>Rodada atual</p><h3 style="font-size:18px;"><?= htmlspecialchars($rodadaAtualLabel) ?><?php if ($rodadaAtualExcedente): ?> <span class="status baixo" style="font-size:11px;">Cobrável</span><?php endif; ?></h3></div><div class="card-icon">🔁</div></div>
@@ -296,7 +311,7 @@ if ($movimentacoes && $etapaAtual) {
                     $confirmJs = json_encode($msg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
                 }
             ?>
-                <form method="post" style="display:inline-block;">
+                <form method="post" style="display:inline-flex;align-items:center;gap:6px;">
                     <?= csrf_field() ?>
                     <input type="hidden" name="acao" value="<?= $a['modo'] === 'concluir' ? 'concluir' : 'avancar' ?>">
                     <?php if (isset($a['etapa_destino_id'])): ?>
@@ -304,6 +319,13 @@ if ($movimentacoes && $etapaAtual) {
                     <?php endif; ?>
                     <?php if (isset($a['etapa_pulada_id'])): ?>
                         <input type="hidden" name="etapa_pulada_id" value="<?= (int)$a['etapa_pulada_id'] ?>">
+                    <?php endif; ?>
+                    <?php if ($a['modo'] !== 'concluir'): ?>
+                    <select name="responsavel_id" title="Responsável na nova etapa">
+                        <?php foreach ($usuariosDisponiveis as $u): ?>
+                            <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                     <?php endif; ?>
                     <button type="submit" class="btn btn-principal"<?= $confirmJs ? ' onclick="return confirm(' . $confirmJs . ')"' : '' ?>><?= htmlspecialchars($a['label']) ?></button>
                 </form>
@@ -319,9 +341,14 @@ if ($movimentacoes && $etapaAtual) {
                 $confirmRepetirJs = json_encode($msgRepetir, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
             }
         ?>
-        <form method="post" style="display:inline-block;margin-top:10px;">
+        <form method="post" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;">
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="repetir">
+            <select name="responsavel_id" title="Responsável na nova rodada">
+                <?php foreach ($usuariosDisponiveis as $u): ?>
+                    <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
             <button type="submit" class="btn"<?= $confirmRepetirJs ? ' onclick="return confirm(' . $confirmRepetirJs . ')"' : '' ?>>🔁 Repetir etapa</button>
         </form>
         <?php endif; ?>
@@ -334,6 +361,11 @@ if ($movimentacoes && $etapaAtual) {
                 <option value="">Voltar para...</option>
                 <?php foreach ($etapasParaVoltar as $ev): ?>
                     <option value="<?= (int)$ev['id'] ?>"><?= htmlspecialchars($ev['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <select name="responsavel_id" title="Responsável na etapa anterior">
+                <?php foreach ($usuariosDisponiveis as $u): ?>
+                    <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
                 <?php endforeach; ?>
             </select>
             <button type="submit" class="btn-cancelar">⬅ Voltar etapa</button>
@@ -351,6 +383,17 @@ if ($movimentacoes && $etapaAtual) {
         }
         </script>
         <?php endif; ?>
+
+        <form method="post" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="passar_mesa">
+            <select name="novo_responsavel_id" required>
+                <?php foreach ($usuariosDisponiveis as $u): ?>
+                    <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" class="btn">🗄 Passar para outra mesa</button>
+        </form>
     </section>
     <?php endif; ?>
 
