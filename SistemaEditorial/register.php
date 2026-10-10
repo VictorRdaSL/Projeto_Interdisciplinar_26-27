@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="auth-card">
     <div class="logo auth-logo">
         <div class="logo-icon">S</div>
-        <div><h1>Ware<span>Sys</span></h1><p>Controle Inteligente</p></div>
+        <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
     </div>
     <h2>Criar conta</h2>
     <p class="auth-sub">Cadastre-se para acessar o controle de almoxarifado.</p>

@@ -41,6 +41,8 @@
 [data-theme="escuro"] nav a:hover,
 [data-theme="escuro"] .sidebar-bottom a:hover { background: var(--d-bg-hover); color: var(--d-accent); }
 [data-theme="escuro"] nav a.ativo { background: var(--d-accent-suave-bg); color: var(--d-accent-suave-texto); }
+[data-theme="escuro"] nav .nav-desabilitado { color: var(--d-texto-terciario); }
+[data-theme="escuro"] nav .nav-desabilitado .nav-tag { background: var(--d-bg-hover); color: var(--d-texto-terciario); }
 [data-theme="escuro"] .versao { color: var(--d-texto-terciario); }
 
 /* Cabeçalho */
@@ -55,7 +57,7 @@
 [data-theme="escuro"] .secao-simples p,
 [data-theme="escuro"] .modal-topo p { color: var(--d-texto-secundario); }
 [data-theme="escuro"] .card-icon,
-[data-theme="escuro"] .produto-icon { background: var(--d-accent-suave-bg); }
+[data-theme="escuro"] .livro-icon { background: var(--d-accent-suave-bg); }
 [data-theme="escuro"] .positivo { color: var(--d-accent); }
 [data-theme="escuro"] .alerta { color: var(--d-amber-texto); }
 
@@ -80,7 +82,7 @@
 /* Tabelas */
 [data-theme="escuro"] th { color: var(--d-texto-secundario); border-bottom: 1px solid var(--d-borda); }
 [data-theme="escuro"] td { color: var(--d-texto); border-bottom: 1px solid var(--d-borda); }
-[data-theme="escuro"] .produto p { color: var(--d-texto-terciario); }
+[data-theme="escuro"] .livro-titulo p { color: var(--d-texto-terciario); }
 [data-theme="escuro"] .vazio { color: var(--d-texto-secundario); }
 [data-theme="escuro"] .tabela-detalhe th { color: var(--d-texto-secundario); }
 [data-theme="escuro"] .tabela-detalhe th,
@@ -100,7 +102,6 @@
 [data-theme="escuro"] .flash.erro { border-color: #5a4318; }
 [data-theme="escuro"] .badge-tipo.saida { background: var(--d-bg-hover); color: var(--d-texto-secundario); }
 [data-theme="escuro"] .papel-usuario { background: #1c2731; color: #9bb6c7; }
-[data-theme="escuro"] .detalhe-produto summary { color: var(--d-accent); }
 
 /* Formulários e modais */
 [data-theme="escuro"] .campo label { color: var(--d-texto-secundario); }
