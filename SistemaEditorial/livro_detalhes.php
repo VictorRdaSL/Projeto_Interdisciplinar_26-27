@@ -2,10 +2,61 @@
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/permissoes.php';
+require_once __DIR__ . '/includes/csrf.php';
+require_once __DIR__ . '/includes/movimentacoes.php';
 
 $livroId = (int)($_GET['id'] ?? 0);
 if ($livroId <= 0) {
     header('Location: livros.php');
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!usuarioTemPermissao('livros.gerenciar')) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não tem permissão para movimentar livros.'];
+        header('Location: livro_detalhes.php?id=' . $livroId);
+        exit;
+    }
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: livro_detalhes.php?id=' . $livroId);
+        exit;
+    }
+
+    $acaoPost = $_POST['acao'] ?? '';
+    $usuarioId = (int)$_SESSION['usuario_id'];
+
+    try {
+        if ($acaoPost === 'avancar') {
+            $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
+            $etapaPuladaId = isset($_POST['etapa_pulada_id']) && $_POST['etapa_pulada_id'] !== '' ? (int)$_POST['etapa_pulada_id'] : null;
+            $resultado = avancarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $etapaPuladaId);
+            $mensagem = 'Livro avançado para ' . $resultado['etapa_nome'] . '.';
+        } elseif ($acaoPost === 'repetir') {
+            $resultado = repetirEtapa($conn, $livroId, $usuarioId);
+            $mensagem = 'Nova rodada aberta em ' . $resultado['etapa_nome'] . '.';
+        } elseif ($acaoPost === 'voltar') {
+            $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
+            $resultado = voltarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId);
+            $mensagem = 'Livro devolvido para ' . $resultado['etapa_nome'] . '.';
+        } elseif ($acaoPost === 'concluir') {
+            $resultado = concluirLivro($conn, $livroId, $usuarioId);
+            $mensagem = 'Livro concluído com sucesso.';
+        } else {
+            throw new InvalidArgumentException('Ação inválida.');
+        }
+
+        if ($resultado['avisos']) {
+            $mensagem .= ' ' . implode(' ', $resultado['avisos']);
+        }
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => $mensagem];
+    } catch (InvalidArgumentException $e) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $e->getMessage()];
+    } catch (Throwable $e) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não foi possível concluir a ação: ' . $e->getMessage()];
+    }
+
+    header('Location: livro_detalhes.php?id=' . $livroId);
     exit;
 }
 
@@ -73,6 +124,105 @@ const NOMES_TIPO_MOV = [
     'troca_responsavel'=> 'Troca de responsável',
     'resgate'          => 'Resgate',
 ];
+
+// Resolução das ações de movimentação disponíveis para esta tela.
+$etapaAtual = buscarEtapa($conn, (int)$livro['etapa_atual_id']);
+$acoesDisponiveis = [];
+$podeRepetir = false;
+$rodadaRepetir = null;
+$excedenteRepetir = false;
+$etapasParaVoltar = [];
+$infoVoltar = [];
+
+if ($podeGerenciar && $livro['status'] === 'em_andamento' && $etapaAtual) {
+    $proxima = proximaEtapaAtiva($conn, (int)$etapaAtual['ordem']);
+
+    if (!$proxima) {
+        if ((int)$etapaAtual['finaliza_livro'] === 1) {
+            $acoesDisponiveis[] = ['modo' => 'concluir', 'label' => 'Concluir livro'];
+        }
+    } else {
+        $proximaJaFeita = etapaJaConcluidaParaLivro($conn, $livroId, (int)$proxima['id']);
+        if ($proximaJaFeita) {
+            $rodada = calcularRodada($conn, $livroId, (int)$proxima['id']);
+            $acoesDisponiveis[] = [
+                'modo' => 'avancar', 'etapa_destino_id' => (int)$proxima['id'],
+                'label' => 'Entrar de novo em ' . $proxima['nome'],
+                'etapa_nome' => $proxima['nome'], 'rodada' => $rodada,
+                'excedente' => calcularExcedente($proxima, $rodada),
+                'rodadas_incluidas' => $proxima['rodadas_incluidas'],
+            ];
+            $naoFeita = primeiraEtapaNaoConcluida($conn, $livroId, (int)$etapaAtual['ordem']);
+            if ($naoFeita) {
+                $rodadaNf = calcularRodada($conn, $livroId, (int)$naoFeita['id']);
+                $acoesDisponiveis[] = [
+                    'modo' => 'avancar', 'etapa_destino_id' => (int)$naoFeita['id'],
+                    'label' => 'Seguir direto para ' . $naoFeita['nome'],
+                    'etapa_nome' => $naoFeita['nome'], 'rodada' => $rodadaNf,
+                    'excedente' => calcularExcedente($naoFeita, $rodadaNf),
+                    'rodadas_incluidas' => $naoFeita['rodadas_incluidas'],
+                ];
+            }
+        } elseif ((int)$proxima['opcional'] === 1) {
+            $rodada = calcularRodada($conn, $livroId, (int)$proxima['id']);
+            $acoesDisponiveis[] = [
+                'modo' => 'avancar', 'etapa_destino_id' => (int)$proxima['id'],
+                'label' => 'Fazer ' . $proxima['nome'],
+                'etapa_nome' => $proxima['nome'], 'rodada' => $rodada,
+                'excedente' => calcularExcedente($proxima, $rodada),
+                'rodadas_incluidas' => $proxima['rodadas_incluidas'],
+            ];
+            $depoisDaPulada = proximaEtapaAtiva($conn, (int)$proxima['ordem']);
+            if ($depoisDaPulada) {
+                $acoesDisponiveis[] = [
+                    'modo' => 'avancar', 'etapa_destino_id' => (int)$depoisDaPulada['id'],
+                    'etapa_pulada_id' => (int)$proxima['id'],
+                    'label' => 'Pular ' . $proxima['nome'],
+                ];
+            }
+        } else {
+            $rodada = calcularRodada($conn, $livroId, (int)$proxima['id']);
+            $acoesDisponiveis[] = [
+                'modo' => 'avancar', 'etapa_destino_id' => (int)$proxima['id'],
+                'label' => 'Avançar para ' . $proxima['nome'],
+                'etapa_nome' => $proxima['nome'], 'rodada' => $rodada,
+                'excedente' => calcularExcedente($proxima, $rodada),
+                'rodadas_incluidas' => $proxima['rodadas_incluidas'],
+            ];
+        }
+    }
+
+    if ((int)$etapaAtual['repetivel'] === 1) {
+        $podeRepetir = true;
+        $rodadaRepetir = calcularRodada($conn, $livroId, (int)$etapaAtual['id']);
+        $excedenteRepetir = calcularExcedente($etapaAtual, $rodadaRepetir);
+    }
+
+    $etapasParaVoltar = etapasAnterioresAtivas($conn, (int)$etapaAtual['ordem']);
+    foreach ($etapasParaVoltar as $ev) {
+        $r = calcularRodada($conn, $livroId, (int)$ev['id']);
+        $infoVoltar[(int)$ev['id']] = [
+            'nome' => $ev['nome'],
+            'rodada' => $r,
+            'excedente' => calcularExcedente($ev, $r),
+            'rodadas_incluidas' => $ev['rodadas_incluidas'] !== null ? (int)$ev['rodadas_incluidas'] : null,
+        ];
+    }
+}
+
+// Rodada atual exibida nos cards — lida da movimentação mais recente (é a
+// aberta, se o livro estiver em andamento; invariante: só existe uma
+// movimentação aberta por livro).
+$rodadaAtualLabel = '—';
+$rodadaAtualExcedente = false;
+if ($movimentacoes && $etapaAtual) {
+    $movAtual = $movimentacoes[0];
+    $rodadaAtualLabel = 'Rodada ' . (int)$movAtual['rodada'];
+    if ($etapaAtual['rodadas_incluidas'] !== null) {
+        $rodadaAtualLabel .= ' de ' . (int)$etapaAtual['rodadas_incluidas'];
+    }
+    $rodadaAtualExcedente = (int)$movAtual['excedente'] === 1;
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
@@ -90,12 +240,11 @@ const NOMES_TIPO_MOV = [
         <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
     </div>
     <nav>
-        <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
+        <a href="index.php"><span>⌂</span>Painel</a>
+        <span class="nav-desabilitado"><span>🗄</span>Minha mesa<span class="nav-tag">em breve</span></span>
         <a href="livros.php" class="ativo"><span>📚</span>Livros</a>
         <a href="pessoas.php"><span>👤</span>Pessoas</a>
-        <?php if (usuarioTemPermissao('relatorios.ver')): ?>
-        <a href="relatorios.php"><span>📄</span>Relatórios</a>
-        <?php endif; ?>
+        <span class="nav-desabilitado"><span>📄</span>Relatórios<span class="nav-tag">em breve</span></span>
         <a href="configuracoes.php"><span>⚙</span>Configurações</a>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
@@ -120,11 +269,88 @@ const NOMES_TIPO_MOV = [
         <div class="card"><div><p>Responsável atual (mesa)</p><h3 style="font-size:18px;"><?= htmlspecialchars($livro['responsavel_nome'] ?: '—') ?></h3></div><div class="card-icon">👤</div></div>
         <div class="card"><div><p>Status</p><h3 style="font-size:18px;"><?= htmlspecialchars(NOMES_STATUS_LIVRO_DET[$livro['status']] ?? $livro['status']) ?></h3></div><div class="card-icon">📊</div></div>
         <div class="card"><div><p>Tem cópia?</p><h3 style="font-size:18px;"><?= ((int)$livro['tem_copia'] === 1) ? 'Sim' : 'Não' ?></h3></div><div class="card-icon">📄</div></div>
+        <div class="card"><div><p>Rodada atual</p><h3 style="font-size:18px;"><?= htmlspecialchars($rodadaAtualLabel) ?><?php if ($rodadaAtualExcedente): ?> <span class="status baixo" style="font-size:11px;">Cobrável</span><?php endif; ?></h3></div><div class="card-icon">🔁</div></div>
     </section>
 
     <?php if ($podeGerenciar): ?>
     <section class="acoes">
         <a href="livro_form.php?id=<?= (int)$livro['id'] ?>" class="btn btn-principal">✏️ Editar Livro</a>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($podeGerenciar && $livro['status'] === 'em_andamento' && $etapaAtual): ?>
+    <section class="painel">
+        <div class="painel-topo">
+            <div><h2>Movimentar livro</h2>
+                <p>Etapa atual: <strong><?= htmlspecialchars($etapaAtual['nome']) ?></strong><?= (int)$etapaAtual['opcional'] === 1 ? ' (opcional)' : '' ?><?= (int)$etapaAtual['repetivel'] === 1 ? ' (repetível)' : '' ?>.</p>
+            </div>
+        </div>
+
+        <?php if ($acoesDisponiveis): ?>
+        <div class="acoes" style="flex-wrap:wrap;">
+            <?php foreach ($acoesDisponiveis as $a):
+                $confirmJs = null;
+                if (!empty($a['excedente'])) {
+                    $limite = $a['rodadas_incluidas'] !== null ? (int)$a['rodadas_incluidas'] : '?';
+                    $msg = 'Esta será a rodada ' . (int)$a['rodada'] . ' de ' . $a['etapa_nome'] . '. O limite incluído é ' . $limite . '. A rodada será marcada como cobrável.';
+                    $confirmJs = json_encode($msg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+                }
+            ?>
+                <form method="post" style="display:inline-block;">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="acao" value="<?= $a['modo'] === 'concluir' ? 'concluir' : 'avancar' ?>">
+                    <?php if (isset($a['etapa_destino_id'])): ?>
+                        <input type="hidden" name="etapa_destino_id" value="<?= (int)$a['etapa_destino_id'] ?>">
+                    <?php endif; ?>
+                    <?php if (isset($a['etapa_pulada_id'])): ?>
+                        <input type="hidden" name="etapa_pulada_id" value="<?= (int)$a['etapa_pulada_id'] ?>">
+                    <?php endif; ?>
+                    <button type="submit" class="btn btn-principal"<?= $confirmJs ? ' onclick="return confirm(' . $confirmJs . ')"' : '' ?>><?= htmlspecialchars($a['label']) ?></button>
+                </form>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($podeRepetir):
+            $confirmRepetirJs = null;
+            if ($excedenteRepetir) {
+                $limiteRepetir = $etapaAtual['rodadas_incluidas'] !== null ? (int)$etapaAtual['rodadas_incluidas'] : '?';
+                $msgRepetir = 'Esta será a rodada ' . (int)$rodadaRepetir . ' de ' . $etapaAtual['nome'] . '. O limite incluído é ' . $limiteRepetir . '. A rodada será marcada como cobrável.';
+                $confirmRepetirJs = json_encode($msgRepetir, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+            }
+        ?>
+        <form method="post" style="display:inline-block;margin-top:10px;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="repetir">
+            <button type="submit" class="btn"<?= $confirmRepetirJs ? ' onclick="return confirm(' . $confirmRepetirJs . ')"' : '' ?>>🔁 Repetir etapa</button>
+        </form>
+        <?php endif; ?>
+
+        <?php if ($etapasParaVoltar): ?>
+        <form method="post" style="display:inline-flex;align-items:center;gap:10px;margin-top:10px;" onsubmit="return confirmarVoltar(this)">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="voltar">
+            <select name="etapa_destino_id" required>
+                <option value="">Voltar para...</option>
+                <?php foreach ($etapasParaVoltar as $ev): ?>
+                    <option value="<?= (int)$ev['id'] ?>"><?= htmlspecialchars($ev['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" class="btn-cancelar">⬅ Voltar etapa</button>
+        </form>
+        <script>
+        const INFO_VOLTAR = <?= json_encode($infoVoltar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        function confirmarVoltar(form) {
+            const select = form.querySelector('select[name="etapa_destino_id"]');
+            const info = INFO_VOLTAR[select.value];
+            if (info && info.excedente) {
+                const limite = info.rodadas_incluidas !== null ? info.rodadas_incluidas : '?';
+                return confirm('Esta será a rodada ' + info.rodada + ' de ' + info.nome + '. O limite incluído é ' + limite + '. A rodada será marcada como cobrável.');
+            }
+            return true;
+        }
+        </script>
+        <?php endif; ?>
     </section>
     <?php endif; ?>
 

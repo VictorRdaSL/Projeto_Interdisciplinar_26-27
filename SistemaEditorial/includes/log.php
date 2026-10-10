@@ -7,8 +7,6 @@ function registrarLog(mysqli $conn, int $usuarioId, string $acao, string $entida
 }
 
 const NOMES_ACOES_LOG = [
-    'produto.nome'          => 'Editou nome do produto',
-    'produto.categoria'     => 'Editou categoria do produto',
     'usuario.criar'         => 'Criou usuário',
     'usuario.alterar_papel' => 'Alterou papel de usuário',
     'livro.criar'           => 'Cadastrou livro',
@@ -16,6 +14,10 @@ const NOMES_ACOES_LOG = [
     'pessoa.criar'          => 'Cadastrou pessoa',
     'pessoa.editar'         => 'Editou pessoa',
     'pessoa.excluir'        => 'Excluiu pessoa',
+    'movimentacao.avancar'  => 'Avançou etapa',
+    'movimentacao.repetir'  => 'Repetiu etapa',
+    'movimentacao.voltar'   => 'Voltou etapa',
+    'movimentacao.concluir' => 'Concluiu livro',
 ];
 
 function nomeAcaoLog(string $acao): string

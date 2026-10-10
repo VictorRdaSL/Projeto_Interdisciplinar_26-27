@@ -129,16 +129,14 @@ unset($_SESSION['flash']);
 <aside class="sidebar">
     <div class="logo">
         <div class="logo-icon">S</div>
-        <div><h1>Ware<span>Sys</span></h1><p>Controle Inteligente</p></div>
+        <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
     </div>
     <nav>
-        <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
+        <a href="index.php"><span>⌂</span>Painel</a>
+        <span class="nav-desabilitado"><span>🗄</span>Minha mesa<span class="nav-tag">em breve</span></span>
         <a href="livros.php"><span>📚</span>Livros</a>
         <a href="pessoas.php"><span>👤</span>Pessoas</a>
-        <a href="index.php#historico"><span>📊</span>Histórico</a>
-        <?php if (usuarioTemPermissao('relatorios.ver')): ?>
-        <a href="relatorios.php"><span>📄</span>Relatórios</a>
-        <?php endif; ?>
+        <span class="nav-desabilitado"><span>📄</span>Relatórios<span class="nav-tag">em breve</span></span>
         <a href="configuracoes.php" class="ativo"><span>⚙</span>Configurações</a>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
@@ -213,7 +211,7 @@ unset($_SESSION['flash']);
 
     <section class="painel" style="margin-top:30px;">
         <div class="painel-topo">
-            <div><h2>Log de Alterações</h2><p>Auditoria de edições de produtos e ações de controle de acesso.</p></div>
+            <div><h2>Log de Alterações</h2><p>Auditoria de edições de livros, pessoas e ações de controle de acesso.</p></div>
         </div>
         <form method="get" class="form-filtro-log">
             <div class="campo">
@@ -269,7 +267,7 @@ unset($_SESSION['flash']);
     </section>
     <?php endif; ?>
 
-    <footer><p>WareSys © 2026 — Sistema acadêmico de Controle de Almoxarifado</p></footer>
+    <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
 </main>
 </body>
 </html>
