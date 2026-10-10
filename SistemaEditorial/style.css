@@ -18,9 +18,11 @@ body{background:var(--verde-50);color:#244331}
 .logo h1 span{color:var(--verde-500)}
 nav a.ativo{background:var(--verde-100);color:var(--verde-800)}
 nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde-700)}
+nav .nav-desabilitado{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:10px;color:#aab5ae;cursor:default}
+nav .nav-desabilitado .nav-tag{margin-left:auto;font-size:10px;background:#eef2ef;color:#8a9b91;padding:2px 7px;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
 .btn-principal,.btn-salvar{background:var(--verde-600)}
 .btn-principal:hover,.btn-salvar:hover{background:var(--verde-700)}
-.card-icon,.produto-icon{background:var(--verde-50)}
+.card-icon,.livro-icon{background:var(--verde-50)}
 .positivo{color:var(--verde-600)}
 .disponivel{background:var(--verde-100);color:var(--verde-800)}
 .pesquisa{background:#f6fbf5;border:1px solid var(--verde-100)}
@@ -72,8 +74,6 @@ nav a:hover,.sidebar-bottom a:hover{background:var(--verde-50);color:var(--verde
 .tabs-relatorio .tab-btn{text-decoration:none}
 .aviso-periodo{background:#fff3dc;color:#b98439;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:16px}
 .aviso-periodo-ok{background:var(--verde-50);color:var(--verde-800)}
-.detalhe-produto summary{cursor:pointer;color:var(--verde-700);font-size:13px;font-weight:bold}
-.detalhe-produto summary:hover{text-decoration:underline}
 .tabela-detalhe{width:100%;margin-top:10px;border-collapse:collapse}
 .tabela-detalhe th,.tabela-detalhe td{padding:8px 10px;font-size:12px;border-bottom:1px solid #f0f3f1;text-align:left}
 .tabela-detalhe th{color:#8a9b91;font-weight:normal}

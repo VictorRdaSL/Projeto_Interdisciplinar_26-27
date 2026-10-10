@@ -612,7 +612,7 @@ td {
 }
 
 
-.produto {
+.livro-titulo {
 
     display: flex;
 
@@ -622,7 +622,7 @@ td {
 }
 
 
-.produto p {
+.livro-titulo p {
 
     font-size: 11px;
 
@@ -632,7 +632,7 @@ td {
 }
 
 
-.produto-icon {
+.livro-icon {
 
     width: 40px;
 

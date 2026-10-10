@@ -180,12 +180,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
     </div>
     <nav>
-        <a href="index.php#dashboard"><span>⌂</span>Dashboard</a>
+        <a href="index.php"><span>⌂</span>Painel</a>
+        <span class="nav-desabilitado"><span>🗄</span>Minha mesa<span class="nav-tag">em breve</span></span>
         <a href="livros.php" class="ativo"><span>📚</span>Livros</a>
         <a href="pessoas.php"><span>👤</span>Pessoas</a>
-        <?php if (usuarioTemPermissao('relatorios.ver')): ?>
-        <a href="relatorios.php"><span>📄</span>Relatórios</a>
-        <?php endif; ?>
+        <span class="nav-desabilitado"><span>📄</span>Relatórios<span class="nav-tag">em breve</span></span>
         <a href="configuracoes.php"><span>⚙</span>Configurações</a>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
