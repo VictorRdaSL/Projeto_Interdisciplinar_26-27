@@ -69,7 +69,35 @@ function avisoIsbnVazioAoSairDaCatalogacao(string $nomeEtapaFechada, ?string $is
     return null;
 }
 
-function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $etapaPuladaId = null): array
+function usuarioExiste(mysqli $conn, int $usuarioId): bool
+{
+    $stmt = $conn->prepare('SELECT 1 FROM usuarios WHERE id = ?');
+    $stmt->bind_param('i', $usuarioId);
+    $stmt->execute();
+    return (bool)$stmt->get_result()->fetch_assoc();
+}
+
+function nomeUsuario(mysqli $conn, int $usuarioId): string
+{
+    $stmt = $conn->prepare('SELECT nome FROM usuarios WHERE id = ?');
+    $stmt->bind_param('i', $usuarioId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row ? $row['nome'] : ('Usuário #' . $usuarioId);
+}
+
+function resolverResponsavel(mysqli $conn, array $livro, ?int $novoResponsavelId): int
+{
+    if ($novoResponsavelId === null) {
+        return (int)$livro['responsavel_atual_id'];
+    }
+    if (!usuarioExiste($conn, $novoResponsavelId)) {
+        throw new InvalidArgumentException('Usuário responsável inválido.');
+    }
+    return $novoResponsavelId;
+}
+
+function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $etapaPuladaId = null, ?int $novoResponsavelId = null): array
 {
     $livro = buscarLivroParaMovimentar($conn, $livroId);
     $etapaOrigemOrdem = (int)$livro['etapa_atual_ordem'];
@@ -97,12 +125,13 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
         }
     }
 
-    $responsavelId = (int)$livro['responsavel_atual_id'];
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
     $conn->begin_transaction();
     try {
+        $responsavelId = resolverResponsavel($conn, $livro, $novoResponsavelId);
+
         fecharMovimentacaoAtual($conn, $livroId, $agora);
         $avisoIsbn = avisoIsbnVazioAoSairDaCatalogacao($etapaOrigemNome, $livro['isbn']);
         if ($avisoIsbn) $avisos[] = $avisoIsbn;
@@ -117,8 +146,8 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
         $novaMovId = abrirMovimentacao($conn, $livroId, (int)$etapaDestino['id'], $responsavelId, $registradoPorId, 'avanco', $rodada, $excedente, $agora);
 
         $etapaDestinoId2 = (int)$etapaDestino['id'];
-        $stmtL = $conn->prepare('UPDATE livros SET etapa_atual_id = ?, atualizado_em = ? WHERE id = ?');
-        $stmtL->bind_param('isi', $etapaDestinoId2, $agora, $livroId);
+        $stmtL = $conn->prepare('UPDATE livros SET etapa_atual_id = ?, responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
+        $stmtL->bind_param('iisi', $etapaDestinoId2, $responsavelId, $agora, $livroId);
         $stmtL->execute();
 
         registrarLog($conn, $registradoPorId, 'movimentacao.avancar', 'livro', $livroId, $etapaOrigemNome, $etapaDestino['nome']);
@@ -140,7 +169,7 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
     ];
 }
 
-function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId): array
+function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $novoResponsavelId = null): array
 {
     $livro = buscarLivroParaMovimentar($conn, $livroId);
     if ((int)$livro['etapa_atual_repetivel'] !== 1) {
@@ -149,12 +178,13 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId): array
 
     $etapaAtualId = (int)$livro['etapa_atual_id'];
     $etapaAtualNome = $livro['etapa_atual_nome'];
-    $responsavelId = (int)$livro['responsavel_atual_id'];
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
     $conn->begin_transaction();
     try {
+        $responsavelId = resolverResponsavel($conn, $livro, $novoResponsavelId);
+
         fecharMovimentacaoAtual($conn, $livroId, $agora);
         $avisoIsbn = avisoIsbnVazioAoSairDaCatalogacao($etapaAtualNome, $livro['isbn']);
         if ($avisoIsbn) $avisos[] = $avisoIsbn;
@@ -164,8 +194,8 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId): array
         $excedente = calcularExcedente($etapaAtual, $rodada);
         $novaMovId = abrirMovimentacao($conn, $livroId, $etapaAtualId, $responsavelId, $registradoPorId, 'repeticao', $rodada, $excedente, $agora);
 
-        $stmtL = $conn->prepare('UPDATE livros SET atualizado_em = ? WHERE id = ?');
-        $stmtL->bind_param('si', $agora, $livroId);
+        $stmtL = $conn->prepare('UPDATE livros SET responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
+        $stmtL->bind_param('isi', $responsavelId, $agora, $livroId);
         $stmtL->execute();
 
         registrarLog($conn, $registradoPorId, 'movimentacao.repetir', 'livro', $livroId, null, $etapaAtualNome);
@@ -187,7 +217,7 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId): array
     ];
 }
 
-function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId): array
+function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $novoResponsavelId = null): array
 {
     $livro = buscarLivroParaMovimentar($conn, $livroId);
     $etapaOrigemNome = $livro['etapa_atual_nome'];
@@ -201,12 +231,13 @@ function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regis
         throw new InvalidArgumentException('Voltar etapa só permite ir para uma etapa anterior na ordem.');
     }
 
-    $responsavelId = (int)$livro['responsavel_atual_id'];
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
     $conn->begin_transaction();
     try {
+        $responsavelId = resolverResponsavel($conn, $livro, $novoResponsavelId);
+
         fecharMovimentacaoAtual($conn, $livroId, $agora);
         $avisoIsbn = avisoIsbnVazioAoSairDaCatalogacao($etapaOrigemNome, $livro['isbn']);
         if ($avisoIsbn) $avisos[] = $avisoIsbn;
@@ -216,8 +247,8 @@ function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regis
         $novaMovId = abrirMovimentacao($conn, $livroId, (int)$etapaDestino['id'], $responsavelId, $registradoPorId, 'retrocesso', $rodada, $excedente, $agora);
 
         $etapaDestinoId2 = (int)$etapaDestino['id'];
-        $stmtL = $conn->prepare('UPDATE livros SET etapa_atual_id = ?, atualizado_em = ? WHERE id = ?');
-        $stmtL->bind_param('isi', $etapaDestinoId2, $agora, $livroId);
+        $stmtL = $conn->prepare('UPDATE livros SET etapa_atual_id = ?, responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
+        $stmtL->bind_param('iisi', $etapaDestinoId2, $responsavelId, $agora, $livroId);
         $stmtL->execute();
 
         registrarLog($conn, $registradoPorId, 'movimentacao.voltar', 'livro', $livroId, $etapaOrigemNome, $etapaDestino['nome']);
@@ -275,6 +306,51 @@ function concluirLivro(mysqli $conn, int $livroId, int $registradoPorId): array
         'etapa_nome' => $etapaAtualNome,
         'rodada' => null,
         'excedente' => false,
+        'avisos' => $avisos,
+    ];
+}
+
+function passarParaOutraMesa(mysqli $conn, int $livroId, int $novoResponsavelId, int $registradoPorId): array
+{
+    $livro = buscarLivroParaMovimentar($conn, $livroId);
+    $responsavelAntigoId = (int)$livro['responsavel_atual_id'];
+
+    if (!usuarioExiste($conn, $novoResponsavelId)) {
+        throw new InvalidArgumentException('Usuário responsável inválido.');
+    }
+
+    $agora = date('Y-m-d H:i:s');
+    $avisos = [];
+
+    $conn->begin_transaction();
+    try {
+        $movFechada = fecharMovimentacaoAtual($conn, $livroId, $agora);
+        // Mesma etapa, mesma rodada — trocar de mesa nunca conta como rodada nova.
+        $rodada = (int)$movFechada['rodada'];
+        $excedente = (bool)$movFechada['excedente'];
+        $etapaId = (int)$movFechada['etapa_id'];
+
+        $novaMovId = abrirMovimentacao($conn, $livroId, $etapaId, $novoResponsavelId, $registradoPorId, 'troca_responsavel', $rodada, $excedente, $agora);
+
+        $stmtL = $conn->prepare('UPDATE livros SET responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
+        $stmtL->bind_param('isi', $novoResponsavelId, $agora, $livroId);
+        $stmtL->execute();
+
+        registrarLog($conn, $registradoPorId, 'movimentacao.trocar_responsavel', 'livro', $livroId, nomeUsuario($conn, $responsavelAntigoId), nomeUsuario($conn, $novoResponsavelId));
+
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        throw $e;
+    }
+
+    return [
+        'livro_id' => $livroId,
+        'movimentacao_id' => $novaMovId,
+        'etapa_id' => $etapaId,
+        'etapa_nome' => $livro['etapa_atual_nome'],
+        'rodada' => $rodada,
+        'excedente' => $excedente,
         'avisos' => $avisos,
     ];
 }

@@ -181,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <nav>
         <a href="index.php"><span>⌂</span>Painel</a>
-        <span class="nav-desabilitado"><span>🗄</span>Minha mesa<span class="nav-tag">em breve</span></span>
+        <a href="minha_mesa.php"><span>🗄</span>Minha mesa</a>
         <a href="livros.php" class="ativo"><span>📚</span>Livros</a>
         <a href="pessoas.php"><span>👤</span>Pessoas</a>
         <span class="nav-desabilitado"><span>📄</span>Relatórios<span class="nav-tag">em breve</span></span>
