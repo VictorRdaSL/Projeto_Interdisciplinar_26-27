@@ -41,21 +41,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $antes = $stmtAntes->get_result()->fetch_assoc();
             if (!$antes) voltarPessoas('erro', 'Pessoa não encontrada.');
 
-            $stmt = $conn->prepare('UPDATE pessoas SET nome = ?, email = ?, telefone = ? WHERE id = ?');
-            $stmt->bind_param('sssi', $nome, $emailParam, $telefoneParam, $pessoaId);
-            $stmt->execute();
+            $conn->begin_transaction();
+            try {
+                $stmt = $conn->prepare('UPDATE pessoas SET nome = ?, email = ?, telefone = ? WHERE id = ?');
+                $stmt->bind_param('sssi', $nome, $emailParam, $telefoneParam, $pessoaId);
+                $stmt->execute();
 
-            if ($nome !== $antes['nome']) {
-                registrarLog($conn, $usuarioId, 'pessoa.editar', 'pessoa', $pessoaId, $antes['nome'], $nome);
+                if ($nome !== $antes['nome']) {
+                    registrarLog($conn, $usuarioId, 'pessoa.editar', 'pessoa', $pessoaId, $antes['nome'], $nome);
+                }
+                $conn->commit();
+            } catch (Throwable $e) {
+                $conn->rollback();
+                voltarPessoas('erro', 'Não foi possível atualizar a pessoa: ' . $e->getMessage());
             }
             voltarPessoas('sucesso', 'Pessoa atualizada com sucesso.');
         } else {
             $agora = date('Y-m-d H:i:s');
-            $stmt = $conn->prepare('INSERT INTO pessoas (nome, email, telefone, criado_em) VALUES (?, ?, ?, ?)');
-            $stmt->bind_param('ssss', $nome, $emailParam, $telefoneParam, $agora);
-            $stmt->execute();
-            $novaPessoaId = $conn->insert_id;
-            registrarLog($conn, $usuarioId, 'pessoa.criar', 'pessoa', $novaPessoaId, null, $nome);
+            $conn->begin_transaction();
+            try {
+                $stmt = $conn->prepare('INSERT INTO pessoas (nome, email, telefone, criado_em) VALUES (?, ?, ?, ?)');
+                $stmt->bind_param('ssss', $nome, $emailParam, $telefoneParam, $agora);
+                $stmt->execute();
+                $novaPessoaId = $conn->insert_id;
+                registrarLog($conn, $usuarioId, 'pessoa.criar', 'pessoa', $novaPessoaId, null, $nome);
+                $conn->commit();
+            } catch (Throwable $e) {
+                $conn->rollback();
+                voltarPessoas('erro', 'Não foi possível cadastrar a pessoa: ' . $e->getMessage());
+            }
             voltarPessoas('sucesso', 'Pessoa cadastrada com sucesso.');
         }
     }
@@ -69,14 +83,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$antes) voltarPessoas('erro', 'Pessoa não encontrada.');
 
+        $conn->begin_transaction();
         try {
             $stmt = $conn->prepare('DELETE FROM pessoas WHERE id = ?');
             $stmt->bind_param('i', $pessoaId);
             $stmt->execute();
             registrarLog($conn, $usuarioId, 'pessoa.excluir', 'pessoa', $pessoaId, $antes['nome'], null);
+            $conn->commit();
             voltarPessoas('sucesso', 'Pessoa excluída com sucesso.');
         } catch (mysqli_sql_exception $e) {
+            $conn->rollback();
             voltarPessoas('erro', 'Não é possível excluir "' . $antes['nome'] . '": ela está vinculada a um ou mais livros.');
+        } catch (Throwable $e) {
+            $conn->rollback();
+            voltarPessoas('erro', 'Não foi possível excluir a pessoa: ' . $e->getMessage());
         }
     }
 }

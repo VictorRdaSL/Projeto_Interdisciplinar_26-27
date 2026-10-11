@@ -19,6 +19,9 @@ const NOMES_ACOES_LOG = [
     'movimentacao.voltar'   => 'Voltou etapa',
     'movimentacao.concluir' => 'Concluiu livro',
     'movimentacao.trocar_responsavel' => 'Trocou responsável (mesa)',
+    'resgate.iniciar'       => 'Iniciou resgate',
+    'resgate.concluir'      => 'Concluiu resgate',
+    'livro.cancelar'        => 'Cancelou livro',
 ];
 
 function nomeAcaoLog(string $acao): string

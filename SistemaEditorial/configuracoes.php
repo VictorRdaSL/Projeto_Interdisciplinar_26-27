@@ -5,7 +5,8 @@ require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/log.php';
 
-$podeAdministrar = usuarioTemPermissao('config.acessar');
+$podeGerenciarUsuarios = usuarioTemPermissao('config.usuarios');
+$agindoComoAdmin = papelAtual() === 'admin';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_tema') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
@@ -26,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar
     exit;
 }
 
-if ($podeAdministrar && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_papel') {
+if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_papel') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
@@ -35,8 +36,12 @@ if ($podeAdministrar && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao']
 
         if (!in_array($novoPapel, PAPEIS_VALIDOS, true)) {
             $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Papel inválido.'];
-        } elseif ($usuarioId === (int)$_SESSION['usuario_id'] && $novoPapel !== 'admin') {
+        } elseif (!$agindoComoAdmin && $usuarioId === (int)$_SESSION['usuario_id']) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não pode alterar o seu próprio papel.'];
+        } elseif ($agindoComoAdmin && $usuarioId === (int)$_SESSION['usuario_id'] && $novoPapel !== 'admin') {
             $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não pode remover seu próprio acesso de administrador.'];
+        } elseif (!$agindoComoAdmin && $novoPapel === 'admin') {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem conceder o papel de Administrador.'];
         } else {
             $totalAdmins = (int)$conn->query("SELECT COUNT(*) total FROM usuarios WHERE role = 'admin'")->fetch_assoc()['total'];
             $stmtAtual = $conn->prepare('SELECT role FROM usuarios WHERE id = ?');
@@ -46,6 +51,8 @@ if ($podeAdministrar && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao']
 
             if (!$usuarioAtualLinha) {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Usuário não encontrado.'];
+            } elseif (!$agindoComoAdmin && $usuarioAtualLinha['role'] === 'admin') {
+                $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem alterar o papel de um Administrador.'];
             } elseif ($usuarioAtualLinha['role'] === 'admin' && $novoPapel !== 'admin' && $totalAdmins <= 1) {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não é possível remover o último administrador do sistema.'];
             } else {
@@ -64,54 +71,93 @@ if ($podeAdministrar && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao']
     exit;
 }
 
-$usuarios = [];
-$logs = [];
-$filtroUsuario = 0;
-$filtroAcao = '';
-$filtroDe = '';
-$filtroAte = '';
+if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_usuario') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php');
+        exit;
+    }
 
-if ($podeAdministrar) {
-    $r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
-    while ($row = $r->fetch_assoc()) $usuarios[] = $row;
+    $novoNome = trim($_POST['novo_nome'] ?? '');
+    $novoEmail = trim($_POST['novo_email'] ?? '');
+    $novaSenha = (string)($_POST['nova_senha'] ?? '');
+    $novaConfirmarSenha = (string)($_POST['nova_confirmar_senha'] ?? '');
+    $novoPapelCriado = $_POST['novo_papel'] ?? 'usuario';
 
-    $filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
-    $filtroAcao = trim($_GET['filtro_acao'] ?? '');
-    $filtroDe = trim($_GET['filtro_de'] ?? '');
-    $filtroAte = trim($_GET['filtro_ate'] ?? '');
-
-    $condicoes = [];
-    $parametros = [];
-    $tipos = '';
-    if ($filtroUsuario > 0) { $condicoes[]='l.usuario_id = ?'; $parametros[]=$filtroUsuario; $tipos.='i'; }
-    if ($filtroAcao !== '') { $condicoes[]='l.acao = ?'; $parametros[]=$filtroAcao; $tipos.='s'; }
-    if ($filtroDe !== '') { $condicoes[]='DATE(l.criado_em) >= ?'; $parametros[]=$filtroDe; $tipos.='s'; }
-    if ($filtroAte !== '') { $condicoes[]='DATE(l.criado_em) <= ?'; $parametros[]=$filtroAte; $tipos.='s'; }
-    $whereSql = $condicoes ? 'WHERE '.implode(' AND ', $condicoes) : '';
-
-    $sqlLog = "
-        SELECT l.*, ator.nome AS ator_nome,
-               CASE
-                   WHEN l.entidade_tipo='livro' THEN lv.titulo
-                   WHEN l.entidade_tipo='pessoa' THEN pe.nome
-                   WHEN l.entidade_tipo='usuario' THEN ue.nome
-                   ELSE NULL
-               END AS entidade_nome
-        FROM log_alteracoes l
-        JOIN usuarios ator ON ator.id = l.usuario_id
-        LEFT JOIN livros lv ON l.entidade_tipo='livro' AND lv.id = l.entidade_id
-        LEFT JOIN pessoas pe ON l.entidade_tipo='pessoa' AND pe.id = l.entidade_id
-        LEFT JOIN usuarios ue ON l.entidade_tipo='usuario' AND ue.id = l.entidade_id
-        $whereSql
-        ORDER BY l.criado_em DESC
-        LIMIT 100
-    ";
-    $stmtLog = $conn->prepare($sqlLog);
-    if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
-    $stmtLog->execute();
-    $rl = $stmtLog->get_result();
-    while ($row = $rl->fetch_assoc()) $logs[] = $row;
+    if ($novoNome === '' || $novoEmail === '' || $novaSenha === '' || $novaConfirmarSenha === '') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Preencha todos os campos do novo usuário.'];
+    } elseif (!filter_var($novoEmail, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe um e-mail válido para o novo usuário.'];
+    } elseif (strlen($novaSenha) < 6) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'A senha deve ter pelo menos 6 caracteres.'];
+    } elseif ($novaSenha !== $novaConfirmarSenha) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'As senhas não coincidem.'];
+    } elseif (!in_array($novoPapelCriado, PAPEIS_VALIDOS, true)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Papel inválido.'];
+    } elseif (!$agindoComoAdmin && $novoPapelCriado === 'admin') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem criar um usuário com o papel de Administrador.'];
+    } else {
+        $stmtExiste = $conn->prepare('SELECT id FROM usuarios WHERE email = ?');
+        $stmtExiste->bind_param('s', $novoEmail);
+        $stmtExiste->execute();
+        if ($stmtExiste->get_result()->fetch_assoc()) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe um usuário com esse e-mail.'];
+        } else {
+            $novaSenhaHash = password_hash($novaSenha, PASSWORD_DEFAULT);
+            $stmtInsert = $conn->prepare('INSERT INTO usuarios (nome, email, senha_hash, role) VALUES (?, ?, ?, ?)');
+            $stmtInsert->bind_param('ssss', $novoNome, $novoEmail, $novaSenhaHash, $novoPapelCriado);
+            $stmtInsert->execute();
+            $novoUsuarioId = $conn->insert_id;
+            registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.criar', 'usuario', $novoUsuarioId, null, $novoPapelCriado);
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Usuário cadastrado com sucesso.'];
+        }
+    }
+    header('Location: configuracoes.php');
+    exit;
 }
+
+$usuarios = [];
+$r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
+while ($row = $r->fetch_assoc()) $usuarios[] = $row;
+
+// Log de auditoria: aberto a qualquer usuário logado (decisão confirmada no Passo 9).
+$logs = [];
+$filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
+$filtroAcao = trim($_GET['filtro_acao'] ?? '');
+$filtroDe = trim($_GET['filtro_de'] ?? '');
+$filtroAte = trim($_GET['filtro_ate'] ?? '');
+
+$condicoes = [];
+$parametros = [];
+$tipos = '';
+if ($filtroUsuario > 0) { $condicoes[]='l.usuario_id = ?'; $parametros[]=$filtroUsuario; $tipos.='i'; }
+if ($filtroAcao !== '') { $condicoes[]='l.acao = ?'; $parametros[]=$filtroAcao; $tipos.='s'; }
+if ($filtroDe !== '') { $condicoes[]='DATE(l.criado_em) >= ?'; $parametros[]=$filtroDe; $tipos.='s'; }
+if ($filtroAte !== '') { $condicoes[]='DATE(l.criado_em) <= ?'; $parametros[]=$filtroAte; $tipos.='s'; }
+$whereSql = $condicoes ? 'WHERE '.implode(' AND ', $condicoes) : '';
+
+$sqlLog = "
+    SELECT l.*, ator.nome AS ator_nome,
+           CASE
+               WHEN l.entidade_tipo='livro' THEN lv.titulo
+               WHEN l.entidade_tipo='pessoa' THEN pe.nome
+               WHEN l.entidade_tipo='usuario' THEN ue.nome
+               ELSE NULL
+           END AS entidade_nome
+    FROM log_alteracoes l
+    JOIN usuarios ator ON ator.id = l.usuario_id
+    LEFT JOIN livros lv ON l.entidade_tipo='livro' AND lv.id = l.entidade_id
+    LEFT JOIN pessoas pe ON l.entidade_tipo='pessoa' AND pe.id = l.entidade_id
+    LEFT JOIN usuarios ue ON l.entidade_tipo='usuario' AND ue.id = l.entidade_id
+    $whereSql
+    ORDER BY l.criado_em DESC
+    LIMIT 100
+";
+$stmtLog = $conn->prepare($sqlLog);
+if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
+$stmtLog->execute();
+$rl = $stmtLog->get_result();
+while ($row = $rl->fetch_assoc()) $logs[] = $row;
 
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
@@ -144,7 +190,7 @@ unset($_SESSION['flash']);
 
 <main>
     <header class="topo">
-        <div><p class="bem-vindo"><?= $podeAdministrar ? 'Área administrativa' : 'Suas preferências' ?></p><h2>Configurações</h2></div>
+        <div><p class="bem-vindo"><?= $podeGerenciarUsuarios ? 'Área administrativa' : 'Suas preferências' ?></p><h2>Configurações</h2></div>
         <div class="perfil">
             <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
             <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
@@ -174,40 +220,72 @@ unset($_SESSION['flash']);
         </form>
     </section>
 
-    <?php if ($podeAdministrar): ?>
+    <?php if ($podeGerenciarUsuarios): ?>
     <section class="painel" style="margin-top:30px;">
         <div class="painel-topo">
-            <div><h2>Usuários e papéis de acesso</h2><p>Defina o nível de permissão de cada usuário do sistema.</p></div>
+            <div><h2>Usuários e papéis de acesso</h2><p>Defina o nível de permissão de cada usuário do sistema.<?= $agindoComoAdmin ? '' : ' Como Gerente, você pode definir Usuário ou Gerente, mas não pode conceder o papel de Administrador, alterar o papel de um Administrador, ou alterar o seu próprio papel.' ?></p></div>
         </div>
         <div class="tabela-container">
             <table>
                 <thead><tr><th>Nome</th><th>E-mail</th><th>Papel atual</th><th>Cadastrado em</th><th>Alterar papel</th></tr></thead>
                 <tbody>
-                <?php foreach ($usuarios as $u): ?>
+                <?php foreach ($usuarios as $u):
+                    $ehEuMesmo = (int)$u['id'] === (int)$_SESSION['usuario_id'];
+                    $podeEditarEssaLinha = $agindoComoAdmin || (!$ehEuMesmo && $u['role'] !== 'admin');
+                ?>
                     <tr>
                         <td><strong><?= htmlspecialchars($u['nome']) ?></strong></td>
                         <td><?= htmlspecialchars($u['email']) ?></td>
                         <td><span class="papel-badge papel-<?= htmlspecialchars($u['role']) ?>"><?= htmlspecialchars(nomePapel($u['role'])) ?></span></td>
                         <td><?= date('d/m/Y', strtotime($u['criado_em'])) ?></td>
                         <td>
+                            <?php if ($podeEditarEssaLinha): ?>
                             <form method="post" class="form-papel">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="acao" value="alterar_papel">
                                 <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
                                 <select name="papel">
+                                    <?php if ($agindoComoAdmin): ?>
                                     <option value="admin" <?= $u['role'] === 'admin' ? 'selected' : '' ?>>Administrador</option>
+                                    <?php endif; ?>
                                     <option value="gerente" <?= $u['role'] === 'gerente' ? 'selected' : '' ?>>Gerente</option>
                                     <option value="usuario" <?= $u['role'] === 'usuario' ? 'selected' : '' ?>>Usuário</option>
                                 </select>
                                 <button type="submit" class="btn-salvar">Salvar</button>
                             </form>
+                            <?php else: ?>
+                                <span class="vazio" style="display:inline;padding:0;">—</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
+
+        <div class="secao-simples" style="margin-top:24px;">
+            <h2 style="font-size:16px;">+ Novo usuário</h2>
+            <form method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="acao" value="criar_usuario">
+                <div class="campo"><label for="novo_nome">Nome</label><input type="text" id="novo_nome" name="novo_nome" required></div>
+                <div class="campo"><label for="novo_email">E-mail</label><input type="email" id="novo_email" name="novo_email" required></div>
+                <div class="campo"><label for="nova_senha">Senha</label><input type="password" id="nova_senha" name="nova_senha" minlength="6" required></div>
+                <div class="campo"><label for="nova_confirmar_senha">Confirmar senha</label><input type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="6" required></div>
+                <div class="campo"><label for="novo_papel">Papel</label>
+                    <select id="novo_papel" name="novo_papel">
+                        <?php if ($agindoComoAdmin): ?>
+                        <option value="admin">Administrador</option>
+                        <?php endif; ?>
+                        <option value="gerente">Gerente</option>
+                        <option value="usuario" selected>Usuário</option>
+                    </select>
+                </div>
+                <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar usuário</button></div>
+            </form>
+        </div>
     </section>
+    <?php endif; ?>
 
     <section class="painel" style="margin-top:30px;">
         <div class="painel-topo">
@@ -265,7 +343,6 @@ unset($_SESSION['flash']);
             </table>
         </div>
     </section>
-    <?php endif; ?>
 
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
 </main>
