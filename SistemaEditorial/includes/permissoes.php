@@ -4,9 +4,9 @@ require_once __DIR__ . '/sessao.php';
 const PAPEIS_VALIDOS = ['admin', 'gerente', 'usuario'];
 
 const PERMISSOES_POR_PAPEL = [
-    'admin'   => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver', 'config.acessar'],
-    'gerente' => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver'],
-    'usuario' => ['livros.gerenciar', 'pessoas.gerenciar'],
+    'admin'   => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver', 'livros.cancelar', 'config.usuarios'],
+    'gerente' => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver', 'livros.cancelar', 'config.usuarios'],
+    'usuario' => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver'],
 ];
 
 const NOMES_PAPEIS = [
