@@ -98,7 +98,8 @@ $rc = $stmtContrib->get_result();
 while ($row = $rc->fetch_assoc()) $contribuicoes[] = $row;
 
 $stmtMov = $conn->prepare('
-    SELECT m.*, e.nome AS etapa_nome, resp.nome AS responsavel_nome, reg.nome AS registrado_por_nome
+    SELECT m.*, e.nome AS etapa_nome, e.rodadas_incluidas AS etapa_rodadas_incluidas,
+           resp.nome AS responsavel_nome, reg.nome AS registrado_por_nome
     FROM movimentacoes m
     LEFT JOIN etapas e ON e.id = m.etapa_id
     LEFT JOIN usuarios resp ON resp.id = m.responsavel_id
@@ -134,6 +135,32 @@ const NOMES_TIPO_MOV = [
     'troca_responsavel'=> 'Troca de responsável',
     'resgate'          => 'Resgate',
 ];
+
+// Classe de destaque visual por tipo de movimentação (volta, pulo, resgate).
+const CLASSE_DESTAQUE_TIPO_MOV = [
+    'retrocesso' => 'info',
+    'pulo_opcional' => 'pulo',
+    'resgate' => 'resgate',
+];
+
+// Calculado em PHP (DateTime::diff), não com DATEDIFF/NOW() do MySQL, pela
+// mesma cautela de fuso já documentada para "dias com a mesa atual".
+function formatarDuracaoEtapa(string $dataEntrada, ?string $dataSaida): string
+{
+    $inicio = new DateTime($dataEntrada);
+    $fim = $dataSaida !== null ? new DateTime($dataSaida) : new DateTime();
+    $diff = $inicio->diff($fim);
+
+    if ($diff->days >= 1) {
+        $texto = $diff->days . ' dia' . ($diff->days > 1 ? 's' : '');
+    } elseif ($diff->h >= 1) {
+        $texto = $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+    } else {
+        $texto = 'menos de 1 hora';
+    }
+
+    return $dataSaida === null ? $texto . ' (em andamento)' : $texto;
+}
 
 // Resolução das ações de movimentação disponíveis para esta tela.
 $etapaAtual = buscarEtapa($conn, (int)$livro['etapa_atual_id']);
@@ -238,6 +265,33 @@ if ($movimentacoes && $etapaAtual) {
     // conhecido de "hoje" divergente entre PHP e MySQL quando os fusos não combinam.
     $diasComMesaAtual = (new DateTime())->diff(new DateTime($movAtual['data_entrada']))->days;
 }
+
+// Indicador de progresso no fluxo (ex: "Etapa 7 de 15").
+$totalEtapas = (int)$conn->query('SELECT COUNT(*) total FROM etapas')->fetch_assoc()['total'];
+$percentualProgresso = ($etapaAtual && $totalEtapas > 0) ? round(((int)$etapaAtual['ordem']) / $totalEtapas * 100) : 0;
+
+// Resumo das rodadas nas etapas com limite (ex: "Diagramação: 2 de 3 · Revisão: 1 de 2")
+// e quantas delas já ficaram cobráveis.
+$resumoRodadasTexto = [];
+$stmtResumo = $conn->prepare('
+    SELECT e.nome, e.rodadas_incluidas, COALESCE(MAX(m.rodada), 0) AS rodada_max
+    FROM etapas e
+    LEFT JOIN movimentacoes m ON m.etapa_id = e.id AND m.livro_id = ?
+    WHERE e.rodadas_incluidas IS NOT NULL
+    GROUP BY e.id, e.nome, e.rodadas_incluidas, e.ordem
+    ORDER BY e.ordem
+');
+$stmtResumo->bind_param('i', $livroId);
+$stmtResumo->execute();
+$rResumo = $stmtResumo->get_result();
+while ($row = $rResumo->fetch_assoc()) {
+    $resumoRodadasTexto[] = $row['nome'] . ': ' . (int)$row['rodada_max'] . ' de ' . (int)$row['rodadas_incluidas'];
+}
+
+$stmtCobraveis = $conn->prepare('SELECT COUNT(*) total FROM movimentacoes WHERE livro_id = ? AND excedente = 1');
+$stmtCobraveis->bind_param('i', $livroId);
+$stmtCobraveis->execute();
+$totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
 ?>
 <!DOCTYPE html>
 <html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
@@ -277,6 +331,29 @@ if ($movimentacoes && $etapaAtual) {
 
     <?php if ($flash): ?>
         <div class="flash <?= htmlspecialchars($flash['type']) ?>"><?= htmlspecialchars($flash['message']) ?></div>
+    <?php endif; ?>
+
+    <?php if ($etapaAtual): ?>
+    <section class="painel" style="padding:18px 24px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;">
+            <div style="flex:1;min-width:220px;">
+                <p style="font-size:13px;color:#8a9b91;margin-bottom:6px;">Progresso no fluxo — Etapa <?= (int)$etapaAtual['ordem'] ?> de <?= $totalEtapas ?></p>
+                <div style="background:#eef2ef;border-radius:999px;height:10px;overflow:hidden;">
+                    <div style="background:var(--verde-500);height:100%;width:<?= $percentualProgresso ?>%;"></div>
+                </div>
+            </div>
+            <?php if ($resumoRodadasTexto || $totalCobraveis > 0): ?>
+            <div style="font-size:13px;color:#53645a;text-align:right;">
+                <?php if ($resumoRodadasTexto): ?>
+                    <div><?= htmlspecialchars(implode(' · ', $resumoRodadasTexto)) ?></div>
+                <?php endif; ?>
+                <?php if ($totalCobraveis > 0): ?>
+                    <span class="status baixo" style="margin-top:6px;display:inline-block;"><?= $totalCobraveis ?> rodada<?= $totalCobraveis > 1 ? 's' : '' ?> <?= $totalCobraveis > 1 ? 'cobráveis' : 'cobrável' ?> acumulada<?= $totalCobraveis > 1 ? 's' : '' ?></span>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    </section>
     <?php endif; ?>
 
     <section class="cards">
@@ -427,18 +504,30 @@ if ($movimentacoes && $etapaAtual) {
         <p>Nenhuma movimentação é apagada ou sobrescrita — este é o histórico completo do livro.</p>
         <div class="tabela-container historico">
             <table>
-                <thead><tr><th>Entrada</th><th>Saída</th><th>Etapa</th><th>Tipo</th><th>Rodada</th><th>Excedente</th><th>Responsável</th><th>Registrado por</th></tr></thead>
+                <thead><tr><th>Entrada</th><th>Saída</th><th>Tempo na etapa</th><th>Etapa</th><th>Tipo</th><th>Rodada</th><th>Responsável (mesa)</th><th>Registrado por</th></tr></thead>
                 <tbody>
                 <?php if (!$movimentacoes): ?>
                     <tr><td colspan="8" class="vazio">Nenhuma movimentação registrada.</td></tr>
-                <?php else: foreach ($movimentacoes as $m): ?>
-                    <tr>
+                <?php else: foreach ($movimentacoes as $m):
+                    $rodadaLinhaLabel = 'Rodada ' . (int)$m['rodada'];
+                    if ($m['etapa_rodadas_incluidas'] !== null) {
+                        $rodadaLinhaLabel .= ' de ' . (int)$m['etapa_rodadas_incluidas'];
+                    }
+                    $classeDestaque = CLASSE_DESTAQUE_TIPO_MOV[$m['tipo']] ?? null;
+                ?>
+                    <tr class="<?= $classeDestaque ? 'mov-destaque mov-' . $classeDestaque : '' ?>">
                         <td><?= date('d/m/Y H:i', strtotime($m['data_entrada'])) ?></td>
                         <td><?= $m['data_saida'] ? date('d/m/Y H:i', strtotime($m['data_saida'])) : '—' ?></td>
+                        <td><?= htmlspecialchars(formatarDuracaoEtapa($m['data_entrada'], $m['data_saida'])) ?></td>
                         <td><?= htmlspecialchars($m['etapa_nome'] ?: '—') ?></td>
-                        <td><?= htmlspecialchars(NOMES_TIPO_MOV[$m['tipo']] ?? $m['tipo']) ?></td>
-                        <td><?= (int)$m['rodada'] ?></td>
-                        <td><?= ((int)$m['excedente'] === 1) ? '<span class="status baixo">Cobrável</span>' : '—' ?></td>
+                        <td>
+                            <?php if ($classeDestaque): ?>
+                                <span class="status <?= $classeDestaque ?>"><?= htmlspecialchars(NOMES_TIPO_MOV[$m['tipo']] ?? $m['tipo']) ?></span>
+                            <?php else: ?>
+                                <?= htmlspecialchars(NOMES_TIPO_MOV[$m['tipo']] ?? $m['tipo']) ?>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= htmlspecialchars($rodadaLinhaLabel) ?><?php if ((int)$m['excedente'] === 1): ?> <span class="status baixo">Cobrável</span><?php endif; ?></td>
                         <td><?= htmlspecialchars($m['responsavel_nome'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($m['registrado_por_nome'] ?: '—') ?></td>
                     </tr>

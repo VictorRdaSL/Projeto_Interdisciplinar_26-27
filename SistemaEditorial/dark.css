@@ -102,6 +102,12 @@
 [data-theme="escuro"] .flash.erro { border-color: #5a4318; }
 [data-theme="escuro"] .badge-tipo.saida { background: var(--d-bg-hover); color: var(--d-texto-secundario); }
 [data-theme="escuro"] .papel-usuario { background: #1c2731; color: #9bb6c7; }
+[data-theme="escuro"] .status.info { background: #132a3f; color: #6cb2f0; }
+[data-theme="escuro"] .status.pulo { background: #2a1f3d; color: #b394e0; }
+[data-theme="escuro"] .status.resgate { background: #3a1a18; color: #f08880; }
+[data-theme="escuro"] .historico tr.mov-info td:first-child { border-left-color: #6cb2f0; }
+[data-theme="escuro"] .historico tr.mov-pulo td:first-child { border-left-color: #b394e0; }
+[data-theme="escuro"] .historico tr.mov-resgate td:first-child { border-left-color: #f08880; }
 
 /* Formulários e modais */
 [data-theme="escuro"] .campo label { color: var(--d-texto-secundario); }
