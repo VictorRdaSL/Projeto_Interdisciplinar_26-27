@@ -10,15 +10,20 @@ $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
 
 // GROUP_CONCAT é específico do MySQL/MariaDB (não é SQL padrão) — usado aqui
 // só para exibição/busca na listagem, não faz parte do schema em si.
+// mAtual é a movimentação aberta (0 ou 1 por livro, nunca mais que isso) — não
+// infla o GROUP_CONCAT de pessoas, que vem de um JOIN N:N separado.
 $sql = "
     SELECT l.id, l.titulo, l.isbn, l.status, l.tem_copia,
            e.nome AS etapa_nome, u.nome AS responsavel_nome,
-           GROUP_CONCAT(DISTINCT pe.nome ORDER BY pe.nome SEPARATOR ', ') AS pessoas_nomes
+           GROUP_CONCAT(DISTINCT pe.nome ORDER BY pe.nome SEPARATOR ', ') AS pessoas_nomes,
+           EXISTS(SELECT 1 FROM resgates r WHERE r.livro_id = l.id) AS ja_teve_resgate,
+           mAtual.data_entrada AS etapa_desde
     FROM livros l
     LEFT JOIN etapas e ON e.id = l.etapa_atual_id
     LEFT JOIN usuarios u ON u.id = l.responsavel_atual_id
     LEFT JOIN contribuicoes c ON c.livro_id = l.id
     LEFT JOIN pessoas pe ON pe.id = c.pessoa_id
+    LEFT JOIN movimentacoes mAtual ON mAtual.livro_id = l.id AND mAtual.data_saida IS NULL
     GROUP BY l.id
     ORDER BY l.titulo
 ";
@@ -97,29 +102,35 @@ function classeStatusLivro(string $status): string
         <?php endif; ?>
         <div class="tabela-container">
             <table id="tabela-livros">
-                <thead><tr><th>Título</th><th>ISBN</th><th>Pessoas</th><th>Etapa atual</th><th>Responsável</th><th>Cópia</th><th>Status</th></tr></thead>
+                <thead><tr><th>Título</th><th>ISBN</th><th>Pessoas</th><th>Etapa atual</th><th>Na etapa desde</th><th>Responsável</th><th>Cópia</th><th>Status</th></tr></thead>
                 <tbody>
                 <?php if (!$livros): ?>
-                    <tr><td colspan="7" class="vazio">Nenhum livro cadastrado.</td></tr>
+                    <tr><td colspan="8" class="vazio">Nenhum livro cadastrado.</td></tr>
                 <?php else: foreach ($livros as $l):
                     $busca = strtolower($l['titulo'] . ' ' . ($l['isbn'] ?? '') . ' ' . ($l['pessoas_nomes'] ?? ''));
                 ?>
                     <tr data-busca="<?= htmlspecialchars($busca, ENT_QUOTES) ?>">
                         <td class="livro-titulo">
-                            <div class="livro-icon">📖</div>
+                            <div class="livro-icon"><?= $l['status'] === 'extraviado' ? '🚨' : '📖' ?></div>
                             <div><strong><a href="livro_detalhes.php?id=<?= (int)$l['id'] ?>"><?= htmlspecialchars($l['titulo']) ?></a></strong>
                             <p><?= htmlspecialchars($l['pessoas_nomes'] ?: 'Sem pessoas vinculadas') ?></p></div>
                         </td>
                         <td><?= htmlspecialchars($l['isbn'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($l['pessoas_nomes'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($l['etapa_nome'] ?: '—') ?></td>
+                        <td><?= $l['etapa_desde'] ? date('d/m/Y', strtotime($l['etapa_desde'])) : '—' ?></td>
                         <td><?= htmlspecialchars($l['responsavel_nome'] ?: '—') ?></td>
                         <td><?= ((int)$l['tem_copia'] === 1) ? 'Sim' : 'Não' ?></td>
-                        <td><span class="status <?= classeStatusLivro($l['status']) ?>"><?= htmlspecialchars(nomeStatusLivro($l['status'])) ?></span></td>
+                        <td>
+                            <span class="status <?= htmlspecialchars(classeStatusLivro($l['status'])) ?>"><?= htmlspecialchars(nomeStatusLivro($l['status'])) ?></span>
+                            <?php if ((int)$l['ja_teve_resgate'] === 1): ?>
+                                <span class="status resgate" title="Já passou por um resgate">🔍 Já resgatado</span>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; endif; ?>
                 <tr id="busca-sem-resultado" style="display:none;">
-                    <td colspan="7" class="vazio">Nenhum livro encontrado para essa busca.</td>
+                    <td colspan="8" class="vazio">Nenhum livro encontrado para essa busca.</td>
                 </tr>
                 </tbody>
             </table>

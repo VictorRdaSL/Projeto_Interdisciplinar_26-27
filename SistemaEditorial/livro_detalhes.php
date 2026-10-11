@@ -48,6 +48,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $novoResponsavelId = (int)($_POST['novo_responsavel_id'] ?? 0);
             $resultado = passarParaOutraMesa($conn, $livroId, $novoResponsavelId, $usuarioId);
             $mensagem = 'Livro passado para a mesa de ' . nomeUsuario($conn, $novoResponsavelId) . '.';
+        } elseif ($acaoPost === 'iniciar_resgate') {
+            iniciarResgate($conn, $livroId, $usuarioId);
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate iniciado. O livro foi marcado como extraviado.'];
+            header('Location: resgate.php?id=' . $livroId);
+            exit;
+        } elseif ($acaoPost === 'cancelar') {
+            if (!usuarioTemPermissao('livros.cancelar')) {
+                throw new InvalidArgumentException('Você não tem permissão para cancelar livros.');
+            }
+            cancelarLivro($conn, $livroId, $usuarioId);
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Livro cancelado.'];
+            header('Location: livro_detalhes.php?id=' . $livroId);
+            exit;
         } else {
             throw new InvalidArgumentException('Ação inválida.');
         }
@@ -105,7 +118,7 @@ $stmtMov = $conn->prepare('
     LEFT JOIN usuarios resp ON resp.id = m.responsavel_id
     LEFT JOIN usuarios reg ON reg.id = m.registrado_por_id
     WHERE m.livro_id = ?
-    ORDER BY m.data_entrada DESC
+    ORDER BY m.data_entrada DESC, m.id DESC
 ');
 $stmtMov->bind_param('i', $livroId);
 $stmtMov->execute();
@@ -276,7 +289,7 @@ $resumoRodadasTexto = [];
 $stmtResumo = $conn->prepare('
     SELECT e.nome, e.rodadas_incluidas, COALESCE(MAX(m.rodada), 0) AS rodada_max
     FROM etapas e
-    LEFT JOIN movimentacoes m ON m.etapa_id = e.id AND m.livro_id = ?
+    LEFT JOIN movimentacoes m ON m.etapa_id = e.id AND m.livro_id = ? AND m.tipo IN (\'avanco\', \'repeticao\', \'retrocesso\')
     WHERE e.rodadas_incluidas IS NOT NULL
     GROUP BY e.id, e.nome, e.rodadas_incluidas, e.ordem
     ORDER BY e.ordem
@@ -471,6 +484,26 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
             </select>
             <button type="submit" class="btn">🗄 Passar para outra mesa</button>
         </form>
+
+        <form method="post" style="display:inline-block;margin-top:16px;" onsubmit="return confirm('Marcar este livro como extraviado e iniciar um resgate? Isso bloqueia avançar, repetir, voltar e trocar de mesa até o resgate ser concluído.');">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="iniciar_resgate">
+            <button type="submit" class="btn-cancelar">🚨 Iniciar resgate</button>
+        </form>
+
+        <?php if (usuarioTemPermissao('livros.cancelar')): ?>
+        <form method="post" style="display:inline-block;margin-top:16px;margin-left:10px;" onsubmit="return confirm('Cancelar este livro? Essa ação encerra o fluxo editorial dele — não é possível avançar, repetir, voltar ou trocar de mesa depois.');">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="cancelar">
+            <button type="submit" class="btn-cancelar">🛑 Cancelar livro</button>
+        </form>
+        <?php endif; ?>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($livro['status'] === 'extraviado'): ?>
+    <section class="painel">
+        <div class="flash erro" style="margin:0;">🚨 Este livro está <strong>extraviado</strong>. <a href="resgate.php?id=<?= (int)$livro['id'] ?>">Ver resgate em andamento →</a></div>
     </section>
     <?php endif; ?>
 
@@ -515,14 +548,14 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
                     }
                     $classeDestaque = CLASSE_DESTAQUE_TIPO_MOV[$m['tipo']] ?? null;
                 ?>
-                    <tr class="<?= $classeDestaque ? 'mov-destaque mov-' . $classeDestaque : '' ?>">
+                    <tr class="<?= htmlspecialchars($classeDestaque ? 'mov-destaque mov-' . $classeDestaque : '') ?>">
                         <td><?= date('d/m/Y H:i', strtotime($m['data_entrada'])) ?></td>
                         <td><?= $m['data_saida'] ? date('d/m/Y H:i', strtotime($m['data_saida'])) : '—' ?></td>
                         <td><?= htmlspecialchars(formatarDuracaoEtapa($m['data_entrada'], $m['data_saida'])) ?></td>
                         <td><?= htmlspecialchars($m['etapa_nome'] ?: '—') ?></td>
                         <td>
                             <?php if ($classeDestaque): ?>
-                                <span class="status <?= $classeDestaque ?>"><?= htmlspecialchars(NOMES_TIPO_MOV[$m['tipo']] ?? $m['tipo']) ?></span>
+                                <span class="status <?= htmlspecialchars($classeDestaque) ?>"><?= htmlspecialchars(NOMES_TIPO_MOV[$m['tipo']] ?? $m['tipo']) ?></span>
                             <?php else: ?>
                                 <?= htmlspecialchars(NOMES_TIPO_MOV[$m['tipo']] ?? $m['tipo']) ?>
                             <?php endif; ?>
