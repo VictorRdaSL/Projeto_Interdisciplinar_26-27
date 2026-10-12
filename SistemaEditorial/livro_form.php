@@ -6,6 +6,14 @@ require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/isbn.php';
 
+function buscarNomePorId(array $lista, int $id): string
+{
+    foreach ($lista as $item) {
+        if ((int)$item['id'] === $id) return $item['nome'];
+    }
+    return '#' . $id;
+}
+
 if (!usuarioTemPermissao('livros.gerenciar')) {
     $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não tem permissão para gerenciar livros.'];
     header('Location: livros.php');
@@ -106,10 +114,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isbnParam = $isbnNormalizado !== '' ? $isbnNormalizado : null;
             $usuarioId = (int)$_SESSION['usuario_id'];
             $agora = date('Y-m-d H:i:s');
+            $contribuicoesAntigas = [];
 
             $conn->begin_transaction();
             try {
                 if ($editando) {
+                    $stmtCAntes = $conn->prepare('SELECT pessoa_id, papel_id FROM contribuicoes WHERE livro_id = ?');
+                    $stmtCAntes->bind_param('i', $livroId);
+                    $stmtCAntes->execute();
+                    $rcAntes = $stmtCAntes->get_result();
+                    while ($row = $rcAntes->fetch_assoc()) $contribuicoesAntigas[] = $row;
+
                     $stmtU = $conn->prepare('UPDATE livros SET titulo=?, isbn=?, tem_copia=?, observacoes=?, atualizado_em=? WHERE id=?');
                     $stmtU->bind_param('ssissi', $titulo, $isbnParam, $temCopia, $observacoesParam, $agora, $livroId);
                     $stmtU->execute();
@@ -119,9 +134,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmtDel->execute();
 
                     if ($titulo !== $livroAtual['titulo']) {
-                        registrarLog($conn, $usuarioId, 'livro.editar', 'livro', $livroId, $livroAtual['titulo'], $titulo);
-                    } else {
-                        registrarLog($conn, $usuarioId, 'livro.editar', 'livro', $livroId, null, $titulo);
+                        registrarLog($conn, $usuarioId, 'livro.editar_titulo', 'livro', $livroId, $livroAtual['titulo'], $titulo);
+                    }
+                    $isbnAntigoLog = $livroAtual['isbn'] ?? null;
+                    if ($isbnAntigoLog !== $isbnParam) {
+                        registrarLog($conn, $usuarioId, 'livro.editar_isbn', 'livro', $livroId, $isbnAntigoLog ?: '(vazio)', $isbnParam ?: '(vazio)');
+                    }
+                    if ((int)$livroAtual['tem_copia'] !== $temCopia) {
+                        registrarLog($conn, $usuarioId, 'livro.editar_copia', 'livro', $livroId, (int)$livroAtual['tem_copia'] ? 'Sim' : 'Não', $temCopia ? 'Sim' : 'Não');
+                    }
+                    $obsAntigaOriginal = $livroAtual['observacoes'] ?? null;
+                    if ($obsAntigaOriginal !== $observacoesParam) {
+                        registrarLog($conn, $usuarioId, 'livro.editar_observacoes', 'livro', $livroId, truncarParaLog($obsAntigaOriginal), truncarParaLog($observacoesParam));
                     }
                     $novoLivroId = $livroId;
                 } else {
@@ -142,6 +166,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmtMov->execute();
 
                     registrarLog($conn, $usuarioId, 'livro.criar', 'livro', $novoLivroId, null, $titulo);
+                }
+
+                $chaveAntigas = [];
+                foreach ($contribuicoesAntigas as $c) $chaveAntigas[$c['pessoa_id'] . '-' . $c['papel_id']] = $c;
+                $chaveNovas = [];
+                foreach ($contribuicoesForm as $c) $chaveNovas[$c['pessoa_id'] . '-' . $c['papel_id']] = $c;
+
+                foreach ($chaveNovas as $chave => $c) {
+                    if (!isset($chaveAntigas[$chave])) {
+                        $desc = buscarNomePorId($pessoasDisponiveis, $c['pessoa_id']) . ' (' . buscarNomePorId($papeisDisponiveis, $c['papel_id']) . ')';
+                        registrarLog($conn, $usuarioId, 'contribuicao.adicionar', 'livro', $novoLivroId, null, $desc);
+                    }
+                }
+                foreach ($chaveAntigas as $chave => $c) {
+                    if (!isset($chaveNovas[$chave])) {
+                        $desc = buscarNomePorId($pessoasDisponiveis, $c['pessoa_id']) . ' (' . buscarNomePorId($papeisDisponiveis, $c['papel_id']) . ')';
+                        registrarLog($conn, $usuarioId, 'contribuicao.remover', 'livro', $novoLivroId, $desc, null);
+                    }
                 }
 
                 if ($contribuicoesForm) {
