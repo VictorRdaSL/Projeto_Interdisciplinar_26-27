@@ -142,6 +142,8 @@ $sqlLog = "
                WHEN l.entidade_tipo='livro' THEN lv.titulo
                WHEN l.entidade_tipo='pessoa' THEN pe.nome
                WHEN l.entidade_tipo='usuario' THEN ue.nome
+               WHEN l.entidade_tipo='etapa' THEN et.nome
+               WHEN l.entidade_tipo='papel' THEN pa.nome
                ELSE NULL
            END AS entidade_nome
     FROM log_alteracoes l
@@ -149,6 +151,8 @@ $sqlLog = "
     LEFT JOIN livros lv ON l.entidade_tipo='livro' AND lv.id = l.entidade_id
     LEFT JOIN pessoas pe ON l.entidade_tipo='pessoa' AND pe.id = l.entidade_id
     LEFT JOIN usuarios ue ON l.entidade_tipo='usuario' AND ue.id = l.entidade_id
+    LEFT JOIN etapas et ON l.entidade_tipo='etapa' AND et.id = l.entidade_id
+    LEFT JOIN papeis pa ON l.entidade_tipo='papel' AND pa.id = l.entidade_id
     $whereSql
     ORDER BY l.criado_em DESC
     LIMIT 100

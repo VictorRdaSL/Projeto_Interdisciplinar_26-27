@@ -168,7 +168,8 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
         $stmtL->bind_param('iisi', $etapaDestinoId2, $responsavelId, $agora, $livroId);
         $stmtL->execute();
 
-        registrarLog($conn, $registradoPorId, 'movimentacao.avancar', 'livro', $livroId, $etapaOrigemNome, $etapaDestino['nome']);
+        // Guarda só a referência — o detalhe (etapas, rodada, responsável) já está em movimentacoes.
+        registrarLog($conn, $registradoPorId, 'movimentacao.avancar', 'livro', $livroId, null, 'mov#' . $novaMovId);
 
         $conn->commit();
     } catch (Throwable $e) {
@@ -216,7 +217,7 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $no
         $stmtL->bind_param('isi', $responsavelId, $agora, $livroId);
         $stmtL->execute();
 
-        registrarLog($conn, $registradoPorId, 'movimentacao.repetir', 'livro', $livroId, null, $etapaAtualNome);
+        registrarLog($conn, $registradoPorId, 'movimentacao.repetir', 'livro', $livroId, null, 'mov#' . $novaMovId);
 
         $conn->commit();
     } catch (Throwable $e) {
@@ -269,7 +270,7 @@ function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regis
         $stmtL->bind_param('iisi', $etapaDestinoId2, $responsavelId, $agora, $livroId);
         $stmtL->execute();
 
-        registrarLog($conn, $registradoPorId, 'movimentacao.voltar', 'livro', $livroId, $etapaOrigemNome, $etapaDestino['nome']);
+        registrarLog($conn, $registradoPorId, 'movimentacao.voltar', 'livro', $livroId, null, 'mov#' . $novaMovId);
 
         $conn->commit();
     } catch (Throwable $e) {
@@ -301,7 +302,7 @@ function concluirLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 
     $conn->begin_transaction();
     try {
-        fecharMovimentacaoAtual($conn, $livroId, $agora);
+        $movFechada = fecharMovimentacaoAtual($conn, $livroId, $agora);
         $avisoIsbn = avisoIsbnVazioAoSairDaCatalogacao($etapaAtualNome, $livro['isbn']);
         if ($avisoIsbn) $avisos[] = $avisoIsbn;
 
@@ -309,7 +310,7 @@ function concluirLivro(mysqli $conn, int $livroId, int $registradoPorId): array
         $stmtL->bind_param('si', $agora, $livroId);
         $stmtL->execute();
 
-        registrarLog($conn, $registradoPorId, 'movimentacao.concluir', 'livro', $livroId, $etapaAtualNome, 'concluido');
+        registrarLog($conn, $registradoPorId, 'movimentacao.concluir', 'livro', $livroId, null, 'mov#' . $movFechada['id']);
 
         $conn->commit();
     } catch (Throwable $e) {
@@ -336,13 +337,13 @@ function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 
     $conn->begin_transaction();
     try {
-        fecharMovimentacaoAtual($conn, $livroId, $agora);
+        $movFechada = fecharMovimentacaoAtual($conn, $livroId, $agora);
 
         $stmtL = $conn->prepare("UPDATE livros SET status = 'cancelado', atualizado_em = ? WHERE id = ?");
         $stmtL->bind_param('si', $agora, $livroId);
         $stmtL->execute();
 
-        registrarLog($conn, $registradoPorId, 'livro.cancelar', 'livro', $livroId, $etapaAtualNome, 'cancelado');
+        registrarLog($conn, $registradoPorId, 'livro.cancelar', 'livro', $livroId, null, 'mov#' . $movFechada['id']);
 
         $conn->commit();
     } catch (Throwable $e) {
@@ -447,7 +448,7 @@ function iniciarResgate(mysqli $conn, int $livroId, int $registradoPorId): array
         $stmtR->execute();
         $resgateId = $conn->insert_id;
 
-        registrarLog($conn, $registradoPorId, 'resgate.iniciar', 'livro', $livroId, null, 'extraviado');
+        registrarLog($conn, $registradoPorId, 'resgate.iniciar', 'livro', $livroId, null, 'resgate#' . $resgateId);
 
         $conn->commit();
     } catch (Throwable $e) {
@@ -525,7 +526,7 @@ function concluirResgate(mysqli $conn, int $livroId, int $novaEtapaId, int $novo
         $stmtR->bind_param('ssi', $agora, $localEncontrado, $resgateId);
         $stmtR->execute();
 
-        registrarLog($conn, $registradoPorId, 'resgate.concluir', 'livro', $livroId, 'extraviado', $novaEtapa['nome']);
+        registrarLog($conn, $registradoPorId, 'resgate.concluir', 'livro', $livroId, null, 'resgate#' . $resgateId);
 
         $conn->commit();
     } catch (Throwable $e) {
