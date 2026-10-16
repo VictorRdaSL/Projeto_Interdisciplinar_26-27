@@ -45,6 +45,7 @@ const NOMES_ACOES_LOG = [
     'papel.criar'                  => 'Criou papel',
     'papel.editar'                 => 'Editou papel',
     'papel.desativar'              => 'Desativou papel',
+    'config.editar_dias_limite'    => 'Editou dias-limite de livro parado',
 ];
 
 function nomeAcaoLog(string $acao): string

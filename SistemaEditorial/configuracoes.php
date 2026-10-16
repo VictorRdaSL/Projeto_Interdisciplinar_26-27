@@ -4,8 +4,10 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/log.php';
+require_once __DIR__ . '/includes/alertas.php';
 
 $podeGerenciarUsuarios = usuarioTemPermissao('config.usuarios');
+$podeConfigurarDiasLimite = usuarioTemPermissao('config.dias_limite');
 $agindoComoAdmin = papelAtual() === 'admin';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_tema') {
@@ -21,6 +23,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar
             $stmt->execute();
             $_SESSION['usuario_tema'] = $novoTema;
             $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Tema atualizado com sucesso.'];
+        }
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
+if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_dias_limite') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+    } else {
+        $novoDiasLimite = (int)($_POST['dias_limite_livro_parado'] ?? 0);
+        if ($novoDiasLimite <= 0) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe um número de dias maior que zero.'];
+        } else {
+            $diasLimiteAntigo = (string)buscarDiasLimiteGlobal($conn);
+            $stmt = $conn->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'dias_limite_livro_parado'");
+            $novoDiasLimiteStr = (string)$novoDiasLimite;
+            $stmt->bind_param('s', $novoDiasLimiteStr);
+            $stmt->execute();
+            if ($novoDiasLimiteStr !== $diasLimiteAntigo) {
+                registrarLog($conn, (int)$_SESSION['usuario_id'], 'config.editar_dias_limite', 'configuracao', 0, $diasLimiteAntigo, $novoDiasLimiteStr);
+            }
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Limite padrão de dias atualizado com sucesso.'];
         }
     }
     header('Location: configuracoes.php');
@@ -120,6 +145,8 @@ $usuarios = [];
 $r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
 while ($row = $r->fetch_assoc()) $usuarios[] = $row;
 
+$diasLimiteAtual = buscarDiasLimiteGlobal($conn);
+
 // Log de auditoria: aberto a qualquer usuário logado (decisão confirmada no Passo 9).
 $logs = [];
 $filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
@@ -144,6 +171,7 @@ $sqlLog = "
                WHEN l.entidade_tipo='usuario' THEN ue.nome
                WHEN l.entidade_tipo='etapa' THEN et.nome
                WHEN l.entidade_tipo='papel' THEN pa.nome
+               WHEN l.entidade_tipo='configuracao' THEN 'Configuração global'
                ELSE NULL
            END AS entidade_nome
     FROM log_alteracoes l
@@ -223,6 +251,22 @@ unset($_SESSION['flash']);
             </div>
         </form>
     </section>
+
+    <?php if ($podeConfigurarDiasLimite): ?>
+    <section class="painel" style="margin-top:30px;">
+        <div class="painel-topo">
+            <div><h2>Livro parado</h2><p>Quantos dias um livro pode ficar na mesma etapa antes de entrar no alerta do Painel. Vale para etapas sem um limite próprio (hoje, todas).</p></div>
+        </div>
+        <form method="post" class="form-papel">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="alterar_dias_limite">
+            <div class="campo"><label for="dias_limite_livro_parado">Dias-limite padrão</label>
+                <input type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" value="<?= (int)$diasLimiteAtual ?>" required>
+            </div>
+            <button type="submit" class="btn-salvar">Salvar</button>
+        </form>
+    </section>
+    <?php endif; ?>
 
     <?php if ($podeGerenciarUsuarios): ?>
     <section class="painel" style="margin-top:30px;">
