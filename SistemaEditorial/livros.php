@@ -7,6 +7,9 @@ require_once __DIR__ . '/includes/isbn.php';
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
+// Permite chegar com a busca já preenchida (ex.: a partir do painel) — o
+// filtro em si continua sendo client-side, isso só define o valor inicial.
+$termoBuscaInicial = trim($_GET['busca'] ?? '');
 
 // GROUP_CONCAT é específico do MySQL/MariaDB (não é SQL padrão) — usado aqui
 // só para exibição/busca na listagem, não faz parte do schema em si.
@@ -93,7 +96,7 @@ function classeStatusLivro(string $status): string
     <section class="painel" id="livros">
         <div class="painel-topo">
             <div><h2>Livros cadastrados</h2><p>Busque por título, ISBN ou nome de pessoa vinculada.</p></div>
-            <div class="pesquisa"><span>🔍</span><input id="busca" type="text" placeholder="Pesquisar livro..." oninput="agendarFiltroLivros()"></div>
+            <div class="pesquisa"><span>🔍</span><input id="busca" type="text" placeholder="Pesquisar livro..." oninput="agendarFiltroLivros()" value="<?= htmlspecialchars($termoBuscaInicial) ?>"></div>
         </div>
         <?php if ($podeGerenciar): ?>
         <div class="acoes" style="margin-bottom:20px;">
@@ -156,6 +159,9 @@ function aplicarFiltroLivros(){
   });
   const semResultado = document.getElementById('busca-sem-resultado');
   if (semResultado) semResultado.style.display = (visiveis === 0 && termo !== '') ? '' : 'none';
+}
+if (document.getElementById('busca').value.trim() !== '') {
+  aplicarFiltroLivros();
 }
 </script>
 </body>
