@@ -8,7 +8,14 @@ require_once __DIR__ . '/includes/alertas.php';
 
 $podeGerenciarUsuarios = usuarioTemPermissao('config.usuarios');
 $podeConfigurarDiasLimite = usuarioTemPermissao('config.dias_limite');
+$podeGerenciarEtapasPapeis = usuarioTemPermissao('config.etapas_papeis');
 $agindoComoAdmin = papelAtual() === 'admin';
+
+// Nome exato semeado em seed_editorial.sql — mesmo identificado usado em
+// includes/movimentacoes.php (NOME_ETAPA_CATALOGACAO) pro aviso de ISBN
+// vazio. Não há coluna de identificador estável em `etapas`; renomear essa
+// etapa por aqui desativa aquele aviso silenciosamente (risco já documentado).
+const NOME_ETAPA_CATALOGACAO_CONFIG = 'Catalogação — ISBN e ficha catalográfica';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_tema') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
@@ -141,11 +148,241 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
     exit;
 }
 
+if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_etapa') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $nome = trim($_POST['nome'] ?? '');
+    $opcional = isset($_POST['opcional']) ? 1 : 0;
+    $repetivel = isset($_POST['repetivel']) ? 1 : 0;
+    $rodadasStr = trim($_POST['rodadas_incluidas'] ?? '');
+    $diasStr = trim($_POST['dias_limite'] ?? '');
+
+    if ($nome === '') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
+    } elseif ($rodadasStr !== '' && (!ctype_digit($rodadasStr) || (int)$rodadasStr < 1)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro maior que zero, ou vazio para sem limite.'];
+    } elseif ($diasStr !== '' && (!ctype_digit($diasStr) || (int)$diasStr < 1)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro maior que zero, ou vazio para usar o padrão global.'];
+    } else {
+        $rodadas = $rodadasStr === '' ? null : (int)$rodadasStr;
+        $dias = $diasStr === '' ? null : (int)$diasStr;
+        // Sempre entra no final do fluxo — reposicionar é feito depois, pelas setas da tabela.
+        $novaOrdem = (int)$conn->query('SELECT COALESCE(MAX(ordem), 0) + 1 AS o FROM etapas')->fetch_assoc()['o'];
+
+        $stmt = $conn->prepare('INSERT INTO etapas (nome, ordem, opcional, repetivel, rodadas_incluidas, dias_limite, ativa, finaliza_livro) VALUES (?, ?, ?, ?, ?, ?, 1, 0)');
+        $stmt->bind_param('siiiii', $nome, $novaOrdem, $opcional, $repetivel, $rodadas, $dias);
+        $stmt->execute();
+        $novaEtapaId = $conn->insert_id;
+        registrarLog($conn, (int)$_SESSION['usuario_id'], 'etapa.criar', 'etapa', $novaEtapaId, null, $nome);
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Etapa cadastrada com sucesso.'];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
+if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_etapa') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $etapaId = (int)($_POST['etapa_id'] ?? 0);
+    $nome = trim($_POST['nome'] ?? '');
+    $opcional = isset($_POST['opcional']) ? 1 : 0;
+    $repetivel = isset($_POST['repetivel']) ? 1 : 0;
+    $rodadasStr = trim($_POST['rodadas_incluidas'] ?? '');
+    $diasStr = trim($_POST['dias_limite'] ?? '');
+    $ativa = isset($_POST['ativa']) ? 1 : 0;
+
+    $stmtAtual = $conn->prepare('SELECT * FROM etapas WHERE id = ?');
+    $stmtAtual->bind_param('i', $etapaId);
+    $stmtAtual->execute();
+    $etapaAtualRow = $stmtAtual->get_result()->fetch_assoc();
+
+    if (!$etapaAtualRow) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Etapa não encontrada.'];
+    } elseif ($nome === '') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
+    } elseif ($rodadasStr !== '' && (!ctype_digit($rodadasStr) || (int)$rodadasStr < 1)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro maior que zero, ou vazio para sem limite.'];
+    } elseif ($diasStr !== '' && (!ctype_digit($diasStr) || (int)$diasStr < 1)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro maior que zero, ou vazio para usar o padrão global.'];
+    } else {
+        $rodadas = $rodadasStr === '' ? null : (int)$rodadasStr;
+        $dias = $diasStr === '' ? null : (int)$diasStr;
+        $rodadasAntigo = $etapaAtualRow['rodadas_incluidas'] !== null ? (int)$etapaAtualRow['rodadas_incluidas'] : null;
+        $diasAntigo = $etapaAtualRow['dias_limite'] !== null ? (int)$etapaAtualRow['dias_limite'] : null;
+
+        // Muda só daqui pra frente: calcularExcedente() lê etapas.rodadas_incluidas
+        // no momento de cada movimentação — o que já foi gravado em
+        // movimentacoes.excedente não é tocado por este UPDATE.
+        $stmt = $conn->prepare('UPDATE etapas SET nome = ?, opcional = ?, repetivel = ?, rodadas_incluidas = ?, dias_limite = ?, ativa = ? WHERE id = ?');
+        $stmt->bind_param('siiiiii', $nome, $opcional, $repetivel, $rodadas, $dias, $ativa, $etapaId);
+        $stmt->execute();
+
+        $uid = (int)$_SESSION['usuario_id'];
+        if ($nome !== $etapaAtualRow['nome']) {
+            registrarLog($conn, $uid, 'etapa.editar', 'etapa', $etapaId, 'Nome: ' . $etapaAtualRow['nome'], 'Nome: ' . $nome);
+        }
+        if ($opcional !== (int)$etapaAtualRow['opcional']) {
+            registrarLog($conn, $uid, 'etapa.editar', 'etapa', $etapaId, 'Opcional: ' . ($etapaAtualRow['opcional'] ? 'Sim' : 'Não'), 'Opcional: ' . ($opcional ? 'Sim' : 'Não'));
+        }
+        if ($repetivel !== (int)$etapaAtualRow['repetivel']) {
+            registrarLog($conn, $uid, 'etapa.editar', 'etapa', $etapaId, 'Repetível: ' . ($etapaAtualRow['repetivel'] ? 'Sim' : 'Não'), 'Repetível: ' . ($repetivel ? 'Sim' : 'Não'));
+        }
+        if ($rodadas !== $rodadasAntigo) {
+            registrarLog($conn, $uid, 'etapa.editar', 'etapa', $etapaId, 'Rodadas incluídas: ' . ($rodadasAntigo ?? 'sem limite'), 'Rodadas incluídas: ' . ($rodadas ?? 'sem limite'));
+        }
+        if ($dias !== $diasAntigo) {
+            registrarLog($conn, $uid, 'etapa.editar', 'etapa', $etapaId, 'Dias limite: ' . ($diasAntigo ?? 'padrão global'), 'Dias limite: ' . ($dias ?? 'padrão global'));
+        }
+        if ($ativa !== (int)$etapaAtualRow['ativa']) {
+            if ($ativa === 0) {
+                registrarLog($conn, $uid, 'etapa.desativar', 'etapa', $etapaId, 'Ativa', 'Inativa');
+            } else {
+                registrarLog($conn, $uid, 'etapa.editar', 'etapa', $etapaId, 'Inativa', 'Ativa');
+            }
+        }
+
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Etapa atualizada com sucesso.'];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
+if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'mover_etapa') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $etapaId = (int)($_POST['etapa_id'] ?? 0);
+    $direcao = $_POST['direcao'] ?? '';
+
+    $todasEtapas = [];
+    $rt = $conn->query('SELECT id, ordem FROM etapas ORDER BY ordem ASC, id ASC');
+    while ($row = $rt->fetch_assoc()) $todasEtapas[] = $row;
+
+    $idxAtual = null;
+    foreach ($todasEtapas as $i => $e) {
+        if ((int)$e['id'] === $etapaId) { $idxAtual = $i; break; }
+    }
+    $idxVizinho = $idxAtual === null ? null : ($direcao === 'up' ? $idxAtual - 1 : ($direcao === 'down' ? $idxAtual + 1 : null));
+
+    if ($idxAtual === null || $idxVizinho === null || $idxVizinho < 0 || $idxVizinho >= count($todasEtapas)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não é possível mover essa etapa nessa direção.'];
+    } else {
+        $atual = $todasEtapas[$idxAtual];
+        $vizinho = $todasEtapas[$idxVizinho];
+        $ordemAtual = (int)$atual['ordem'];
+        $ordemVizinho = (int)$vizinho['ordem'];
+        $idAtual = (int)$atual['id'];
+        $idVizinho = (int)$vizinho['id'];
+
+        $conn->begin_transaction();
+        try {
+            $stmtMov = $conn->prepare('UPDATE etapas SET ordem = ? WHERE id = ?');
+            $stmtMov->bind_param('ii', $ordemVizinho, $idAtual);
+            $stmtMov->execute();
+            $stmtMov->bind_param('ii', $ordemAtual, $idVizinho);
+            $stmtMov->execute();
+
+            $uid = (int)$_SESSION['usuario_id'];
+            registrarLog($conn, $uid, 'etapa.editar', 'etapa', $idAtual, 'Ordem: ' . $ordemAtual, 'Ordem: ' . $ordemVizinho);
+            registrarLog($conn, $uid, 'etapa.editar', 'etapa', $idVizinho, 'Ordem: ' . $ordemVizinho, 'Ordem: ' . $ordemAtual);
+
+            $conn->commit();
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Ordem atualizada com sucesso.'];
+        } catch (Throwable $e) {
+            $conn->rollback();
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não foi possível reordenar.'];
+        }
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
+if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_papel') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $nome = trim($_POST['nome'] ?? '');
+    if ($nome === '') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
+    } else {
+        $stmt = $conn->prepare('INSERT INTO papeis (nome, ativo) VALUES (?, 1)');
+        $stmt->bind_param('s', $nome);
+        $stmt->execute();
+        $novoPapelId = $conn->insert_id;
+        registrarLog($conn, (int)$_SESSION['usuario_id'], 'papel.criar', 'papel', $novoPapelId, null, $nome);
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Papel cadastrado com sucesso.'];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
+if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_papel') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $papelId = (int)($_POST['papel_id'] ?? 0);
+    $nome = trim($_POST['nome'] ?? '');
+    $ativo = isset($_POST['ativo']) ? 1 : 0;
+
+    $stmtAtual = $conn->prepare('SELECT * FROM papeis WHERE id = ?');
+    $stmtAtual->bind_param('i', $papelId);
+    $stmtAtual->execute();
+    $papelAtualRow = $stmtAtual->get_result()->fetch_assoc();
+
+    if (!$papelAtualRow) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Papel não encontrado.'];
+    } elseif ($nome === '') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
+    } else {
+        $stmt = $conn->prepare('UPDATE papeis SET nome = ?, ativo = ? WHERE id = ?');
+        $stmt->bind_param('sii', $nome, $ativo, $papelId);
+        $stmt->execute();
+
+        $uid = (int)$_SESSION['usuario_id'];
+        if ($nome !== $papelAtualRow['nome']) {
+            registrarLog($conn, $uid, 'papel.editar', 'papel', $papelId, 'Nome: ' . $papelAtualRow['nome'], 'Nome: ' . $nome);
+        }
+        if ($ativo !== (int)$papelAtualRow['ativo']) {
+            if ($ativo === 0) {
+                registrarLog($conn, $uid, 'papel.desativar', 'papel', $papelId, 'Ativo', 'Inativo');
+            } else {
+                registrarLog($conn, $uid, 'papel.editar', 'papel', $papelId, 'Inativo', 'Ativo');
+            }
+        }
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Papel atualizado com sucesso.'];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
 $usuarios = [];
 $r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
 while ($row = $r->fetch_assoc()) $usuarios[] = $row;
 
 $diasLimiteAtual = buscarDiasLimiteGlobal($conn);
+
+$etapas = [];
+$papeis = [];
+$contagemPorEtapa = [];
+if ($podeGerenciarEtapasPapeis) {
+    $re = $conn->query('SELECT * FROM etapas ORDER BY ordem ASC, id ASC');
+    while ($row = $re->fetch_assoc()) $etapas[] = $row;
+
+    // Livros que ficariam "presos" numa etapa desativada ou reordenada —
+    // extraviados contam (ainda estão fisicamente ali), concluídos/cancelados não.
+    $rc = $conn->query("SELECT etapa_atual_id, COUNT(*) total FROM livros WHERE status NOT IN ('concluido', 'cancelado') GROUP BY etapa_atual_id");
+    while ($row = $rc->fetch_assoc()) $contagemPorEtapa[(int)$row['etapa_atual_id']] = (int)$row['total'];
+
+    $rp = $conn->query('SELECT * FROM papeis ORDER BY nome ASC');
+    while ($row = $rp->fetch_assoc()) $papeis[] = $row;
+}
 
 // Log de auditoria: aberto a qualquer usuário logado (decisão confirmada no Passo 9).
 $logs = [];
@@ -335,6 +572,141 @@ unset($_SESSION['flash']);
     </section>
     <?php endif; ?>
 
+    <?php if ($podeGerenciarEtapasPapeis): ?>
+    <section class="painel" style="margin-top:30px;">
+        <div class="painel-topo">
+            <div><h2>Etapas do fluxo</h2><p>Só Administrador. Uma etapa com histórico nunca é excluída — apenas desativada. Livros que já estão numa etapa continuam nela até serem movidos manualmente; desativar ou reordenar não os afeta.</p></div>
+        </div>
+        <div class="tabela-container">
+            <table>
+                <thead><tr><th>Ordem</th><th>Etapa</th><th>Opcional</th><th>Repetível</th><th>Rodadas incluídas</th><th>Dias limite</th><th>Status</th><th>Livros agora</th><th>Ações</th></tr></thead>
+                <tbody>
+                <?php foreach ($etapas as $idxEt => $et):
+                    $qtdLivrosEtapa = $contagemPorEtapa[(int)$et['id']] ?? 0;
+                    $temVizinhoAcima = $idxEt > 0;
+                    $temVizinhoAbaixo = $idxEt < count($etapas) - 1;
+                    $ehCatalogacao = $et['nome'] === NOME_ETAPA_CATALOGACAO_CONFIG;
+                    $msgMoverEtapa = $qtdLivrosEtapa > 0
+                        ? ($qtdLivrosEtapa . ' livro(s) estão nesta etapa agora. Mudar a ordem só afeta movimentações futuras, eles não são afetados. Continuar?')
+                        : null;
+                    $confirmMoverJs = $msgMoverEtapa ? json_encode($msgMoverEtapa, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) : null;
+                ?>
+                    <tr>
+                        <td><?= (int)$et['ordem'] ?></td>
+                        <td><?= htmlspecialchars($et['nome']) ?></td>
+                        <td><?= (int)$et['opcional'] === 1 ? 'Sim' : 'Não' ?></td>
+                        <td><?= (int)$et['repetivel'] === 1 ? 'Sim' : 'Não' ?></td>
+                        <td><?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : 'Sem limite' ?></td>
+                        <td><?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : 'Padrão global' ?></td>
+                        <td><span class="status <?= (int)$et['ativa'] === 1 ? 'disponivel' : 'baixo' ?>"><?= (int)$et['ativa'] === 1 ? 'Ativa' : 'Inativa' ?></span></td>
+                        <td><?= $qtdLivrosEtapa ?></td>
+                        <td>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">
+                                <?php if ($temVizinhoAcima): ?>
+                                <form method="post">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="acao" value="mover_etapa">
+                                    <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
+                                    <input type="hidden" name="direcao" value="up">
+                                    <button type="submit" class="acao-btn" title="Mover para cima"<?= $confirmMoverJs ? " onclick='return confirm(" . $confirmMoverJs . ")'" : '' ?>>↑</button>
+                                </form>
+                                <?php endif; ?>
+                                <?php if ($temVizinhoAbaixo): ?>
+                                <form method="post">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="acao" value="mover_etapa">
+                                    <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
+                                    <input type="hidden" name="direcao" value="down">
+                                    <button type="submit" class="acao-btn" title="Mover para baixo"<?= $confirmMoverJs ? " onclick='return confirm(" . $confirmMoverJs . ")'" : '' ?>>↓</button>
+                                </form>
+                                <?php endif; ?>
+                                <details>
+                                    <summary class="acao-btn" style="display:inline-block;cursor:pointer;">Editar</summary>
+                                    <form method="post" style="margin-top:10px;min-width:260px;" onsubmit="return confirmarEdicaoEtapa(this, <?= (int)$et['ativa'] ?>, <?= $qtdLivrosEtapa ?>)">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="acao" value="editar_etapa">
+                                        <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
+                                        <?php if ($ehCatalogacao): ?>
+                                            <p style="font-size:12px;color:#b98439;">Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Renomear aqui desativa esse aviso.</p>
+                                        <?php endif; ?>
+                                        <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($et['nome']) ?>" required></div>
+                                        <div class="campo"><label><input type="checkbox" name="opcional" <?= (int)$et['opcional'] === 1 ? 'checked' : '' ?>> Opcional</label></div>
+                                        <div class="campo"><label><input type="checkbox" name="repetivel" <?= (int)$et['repetivel'] === 1 ? 'checked' : '' ?>> Repetível</label></div>
+                                        <div class="campo"><label>Rodadas incluídas (vazio = sem limite)</label><input type="number" name="rodadas_incluidas" min="1" value="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"></div>
+                                        <div class="campo"><label>Dias limite (vazio = padrão global)</label><input type="number" name="dias_limite" min="1" value="<?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '' ?>"></div>
+                                        <div class="campo"><label><input type="checkbox" name="ativa" <?= (int)$et['ativa'] === 1 ? 'checked' : '' ?>> Ativa</label></div>
+                                        <button type="submit" class="btn-salvar">Salvar</button>
+                                    </form>
+                                </details>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="secao-simples" style="margin-top:24px;">
+            <h2 style="font-size:16px;">+ Nova etapa</h2>
+            <p style="font-size:13px;color:#8a9b91;margin-bottom:10px;">Entra no final do fluxo — use as setas da tabela pra reposicionar depois.</p>
+            <form method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="acao" value="criar_etapa">
+                <div class="campo"><label for="nova_etapa_nome">Nome</label><input type="text" id="nova_etapa_nome" name="nome" required></div>
+                <div class="campo"><label><input type="checkbox" name="opcional"> Opcional</label></div>
+                <div class="campo"><label><input type="checkbox" name="repetivel"> Repetível</label></div>
+                <div class="campo"><label for="nova_etapa_rodadas">Rodadas incluídas (vazio = sem limite)</label><input type="number" id="nova_etapa_rodadas" name="rodadas_incluidas" min="1"></div>
+                <div class="campo"><label for="nova_etapa_dias">Dias limite (vazio = padrão global)</label><input type="number" id="nova_etapa_dias" name="dias_limite" min="1"></div>
+                <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar etapa</button></div>
+            </form>
+        </div>
+    </section>
+
+    <section class="painel" style="margin-top:30px;">
+        <div class="painel-topo">
+            <div><h2>Papéis de autoria</h2><p>Autor, Organizador, Ilustrador — o papel de uma pessoa num livro (não confundir com o papel de acesso do usuário, na seção acima). Só Administrador. Nunca excluídos — apenas desativados.</p></div>
+        </div>
+        <div class="tabela-container">
+            <table>
+                <thead><tr><th>Nome</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody>
+                <?php if (!$papeis): ?>
+                    <tr><td colspan="3" class="vazio">Nenhum papel cadastrado.</td></tr>
+                <?php else: foreach ($papeis as $pp): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($pp['nome']) ?></td>
+                        <td><span class="status <?= (int)$pp['ativo'] === 1 ? 'disponivel' : 'baixo' ?>"><?= (int)$pp['ativo'] === 1 ? 'Ativo' : 'Inativo' ?></span></td>
+                        <td>
+                            <details>
+                                <summary class="acao-btn" style="display:inline-block;cursor:pointer;">Editar</summary>
+                                <form method="post" style="margin-top:10px;min-width:220px;">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="acao" value="editar_papel">
+                                    <input type="hidden" name="papel_id" value="<?= (int)$pp['id'] ?>">
+                                    <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($pp['nome']) ?>" required></div>
+                                    <div class="campo"><label><input type="checkbox" name="ativo" <?= (int)$pp['ativo'] === 1 ? 'checked' : '' ?>> Ativo</label></div>
+                                    <button type="submit" class="btn-salvar">Salvar</button>
+                                </form>
+                            </details>
+                        </td>
+                    </tr>
+                <?php endforeach; endif; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="secao-simples" style="margin-top:24px;">
+            <h2 style="font-size:16px;">+ Novo papel</h2>
+            <form method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="acao" value="criar_papel">
+                <div class="campo"><label for="novo_papel_nome">Nome</label><input type="text" id="novo_papel_nome" name="nome" required></div>
+                <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar papel</button></div>
+            </form>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <section class="painel" style="margin-top:30px;">
         <div class="painel-topo">
             <div><h2>Log de Alterações</h2><p>Auditoria de edições de livros, pessoas e ações de controle de acesso.</p></div>
@@ -394,5 +766,17 @@ unset($_SESSION['flash']);
 
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
 </main>
+
+<?php if ($podeGerenciarEtapasPapeis): ?>
+<script>
+function confirmarEdicaoEtapa(form, ativaOriginal, qtdLivros) {
+  var chkAtiva = form.querySelector('input[name="ativa"]');
+  if (ativaOriginal === 1 && chkAtiva && !chkAtiva.checked && qtdLivros > 0) {
+    return confirm(qtdLivros + ' livro(s) estão nesta etapa agora. Eles continuam nela até serem movidos manualmente — desativar não os afeta. Desativar mesmo assim?');
+  }
+  return true;
+}
+</script>
+<?php endif; ?>
 </body>
 </html>
