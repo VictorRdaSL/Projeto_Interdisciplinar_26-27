@@ -47,7 +47,7 @@ unset($_SESSION['flash']);
         <a href="minha_mesa.php" class="ativo"><span>🗄</span>Minha mesa</a>
         <a href="livros.php"><span>📚</span>Livros</a>
         <a href="pessoas.php"><span>👤</span>Pessoas</a>
-        <span class="nav-desabilitado"><span>📄</span>Relatórios<span class="nav-tag">em breve</span></span>
+        <a href="relatorios.php"><span>📄</span>Relatórios</a>
         <a href="configuracoes.php"><span>⚙</span>Configurações</a>
     </nav>
     <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
