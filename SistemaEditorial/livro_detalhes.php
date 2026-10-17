@@ -417,7 +417,7 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
                         <?php endforeach; ?>
                     </select>
                     <?php endif; ?>
-                    <button type="submit" class="btn btn-principal"<?= $confirmJs ? ' onclick="return confirm(' . $confirmJs . ')"' : '' ?>><?= htmlspecialchars($a['label']) ?></button>
+                    <button type="submit" class="btn btn-principal"<?= $confirmJs ? " onclick='return confirm(" . $confirmJs . ")'" : '' ?>><?= htmlspecialchars($a['label']) ?></button>
                 </form>
             <?php endforeach; ?>
         </div>
@@ -439,7 +439,7 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
                     <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit" class="btn"<?= $confirmRepetirJs ? ' onclick="return confirm(' . $confirmRepetirJs . ')"' : '' ?>>🔁 Repetir etapa</button>
+            <button type="submit" class="btn"<?= $confirmRepetirJs ? " onclick='return confirm(" . $confirmRepetirJs . ")'" : '' ?>>🔁 Repetir etapa</button>
         </form>
         <?php endif; ?>
 
