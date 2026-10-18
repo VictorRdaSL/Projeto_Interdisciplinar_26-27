@@ -78,7 +78,7 @@ relatorioAbrir('Movimentações por período', 'Relatórios');
                         <td><?= htmlspecialchars($ln['responsavel']) ?></td>
                         <td><?= htmlspecialchars($ln['entrada']) ?></td>
                         <td><?= htmlspecialchars($ln['saida'] ?: '—') ?></td>
-                        <td><?= $ln['excedente'] === 'Sim' ? '<span class="status baixo">Sim</span>' : 'Não' ?></td>
+                        <td><?= $ln['excedente'] === 'Sim' ? '<span class="status atencao">Sim</span>' : 'Não' ?></td>
                     </tr>
                 <?php endforeach; endif; ?>
                 </tbody>

@@ -47,8 +47,8 @@ function nomeStatusLivro(string $status): string
 function classeStatusLivro(string $status): string
 {
     return match ($status) {
-        'concluido' => 'disponivel',
-        'extraviado', 'cancelado' => 'baixo',
+        'concluido' => 'ok',
+        'extraviado', 'cancelado' => 'atencao',
         default => '',
     };
 }
