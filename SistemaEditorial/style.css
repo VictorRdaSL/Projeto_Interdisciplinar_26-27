@@ -31,19 +31,16 @@ nav .nav-desabilitado .nav-tag{margin-left:auto;font-size:10px;background:#eef2e
 .btn-principal:hover,.btn-salvar:hover{background:var(--verde-700)}
 .card-icon,.livro-icon{background:var(--verde-50)}
 .positivo{color:var(--verde-600)}
-.disponivel{background:var(--verde-100);color:var(--verde-800)}
+.ok{background:var(--verde-100);color:var(--verde-800)}
 .pesquisa{background:#f6fbf5;border:1px solid var(--verde-100)}
 .flash{padding:14px 18px;border-radius:12px;margin-bottom:22px;font-size:14px;font-weight:600}
 .flash.sucesso{background:#dff4dd;color:#145d35;border:1px solid #bfe6ba}
 .flash.erro{background:#fff1e3;color:#955d15;border:1px solid #f0d2a6}
 .grid-mov{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-.form-mov{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grade{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .full{grid-column:1/-1}
-.form-mov .btn-salvar{width:100%}
+.form-grade .btn-salvar{width:100%}
 .vazio{text-align:center;padding:30px;color:#819488}
-.badge-tipo{display:inline-block;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:bold}
-.badge-tipo.entrada{background:#dff4dd;color:#146337}
-.badge-tipo.saida{background:#e9f0e5;color:#315a36}
 .historico{margin-top:18px}
 .versao{font-size:11px;color:#8a9b91;padding:13px 15px}
 .btn-sair{padding:9px 16px;font-size:13px}
@@ -85,7 +82,7 @@ nav .nav-desabilitado .nav-tag{margin-left:auto;font-size:10px;background:#eef2e
 .tabela-detalhe th,.tabela-detalhe td{padding:8px 10px;font-size:12px;border-bottom:1px solid #f0f3f1;text-align:left}
 .tabela-detalhe th{color:#8a9b91;font-weight:normal}
 @media(max-width:950px){.grid-mov{grid-template-columns:1fr}}
-@media(max-width:600px){.form-mov{grid-template-columns:1fr}.full{grid-column:auto}}
+@media(max-width:600px){.form-grade{grid-template-columns:1fr}.full{grid-column:auto}}
 
 .form-tema{display:block}
 .tema-opcoes{display:flex;gap:12px;flex-wrap:wrap}

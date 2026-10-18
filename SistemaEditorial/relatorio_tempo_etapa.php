@@ -94,7 +94,7 @@ relatorioAbrir('Tempo por etapa', 'Relatórios');
                     <span><?= $n ?> passagem(ns)<?= $er['abertas'] > 0 ? ' (' . $er['abertas'] . ' em andamento)' : '' ?></span>
                     <span>média <strong><?= formatarDecimalBr($er['media'] / SEGUNDOS_POR_DIA) ?> dia(s)</strong></span>
                     <span>maior <?= formatarDecimalBr($er['maior'] / SEGUNDOS_POR_DIA) ?> dia(s)</span>
-                    <?php if ($id === $etapaGargalo && $etapasComDados > 1): ?><span class="status baixo">maior média</span><?php endif; ?>
+                    <?php if ($id === $etapaGargalo && $etapasComDados > 1): ?><span class="status atencao">maior média</span><?php endif; ?>
                 <?php endif; ?>
             </summary>
             <?php if ($n > 0): ?>
@@ -105,7 +105,7 @@ relatorioAbrir('Tempo por etapa', 'Relatórios');
                     <?php foreach ($er['passagens'] as $p): ?>
                         <tr>
                             <td><a href="livro_detalhes.php?id=<?= (int)$p['livro_id'] ?>"><?= htmlspecialchars($p['titulo']) ?></a></td>
-                            <td><?= (int)$p['rodada'] ?><?= $p['excedente'] ? ' <span class="status baixo">Cobrável</span>' : '' ?></td>
+                            <td><?= (int)$p['rodada'] ?><?= $p['excedente'] ? ' <span class="status atencao">Cobrável</span>' : '' ?></td>
                             <td><?= htmlspecialchars(rotuloTipoMovimentacao($p['tipo'])) ?></td>
                             <td><?= htmlspecialchars($p['responsavel_nome']) ?></td>
                             <td><?= htmlspecialchars(formatarDataHoraBr($p['entrada'])) ?></td>

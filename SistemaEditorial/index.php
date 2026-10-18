@@ -189,7 +189,7 @@ while ($row = $r->fetch_assoc()) $livrosExcedentes[] = $row;
                     <tr>
                         <td><a href="livro_detalhes.php?id=<?= (int)$lp['id'] ?>"><?= htmlspecialchars($lp['titulo']) ?></a></td>
                         <td><?= htmlspecialchars($lp['etapa_nome']) ?></td>
-                        <td><?= htmlspecialchars($rodadaLabel) ?><?php if ((int)$lp['excedente'] === 1): ?> <span class="status baixo">Cobrável</span><?php endif; ?></td>
+                        <td><?= htmlspecialchars($rodadaLabel) ?><?php if ((int)$lp['excedente'] === 1): ?> <span class="status atencao">Cobrável</span><?php endif; ?></td>
                         <td><?= htmlspecialchars($lp['responsavel_nome'] ?: '—') ?></td>
                         <td><span class="alerta"><?= (int)$lp['dias_parado'] ?> dia<?= (int)$lp['dias_parado'] > 1 ? 's' : '' ?> <small>(limite: <?= (int)$lp['limite_aplicado'] ?>)</small></span></td>
                     </tr>
@@ -239,7 +239,7 @@ while ($row = $r->fetch_assoc()) $livrosExcedentes[] = $row;
                     <tr>
                         <td><a href="livro_detalhes.php?id=<?= (int)$lx['id'] ?>"><?= htmlspecialchars($lx['titulo']) ?></a></td>
                         <td><?= htmlspecialchars($lx['etapa_nome']) ?></td>
-                        <td><?= htmlspecialchars($rodadaLabelX) ?> <span class="status baixo">Cobrável</span></td>
+                        <td><?= htmlspecialchars($rodadaLabelX) ?> <span class="status atencao">Cobrável</span></td>
                         <td><?= htmlspecialchars($lx['responsavel_nome'] ?: '—') ?></td>
                     </tr>
                 <?php endforeach; ?>

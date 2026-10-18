@@ -315,7 +315,7 @@ function preencherOptions(selectEl, itens, rotuloPadrao, selecionadoId){
 function adicionarLinhaContribuicao(pessoaId, papelId){
   const i = contribIndex++;
   const div = document.createElement('div');
-  div.className = 'form-mov';
+  div.className = 'form-grade';
   div.style.marginBottom = '10px';
 
   const campoPessoa = document.createElement('div');

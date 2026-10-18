@@ -598,7 +598,7 @@ unset($_SESSION['flash']);
                         <td><?= (int)$et['repetivel'] === 1 ? 'Sim' : 'Não' ?></td>
                         <td><?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : 'Sem limite' ?></td>
                         <td><?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : 'Padrão global' ?></td>
-                        <td><span class="status <?= (int)$et['ativa'] === 1 ? 'disponivel' : 'baixo' ?>"><?= (int)$et['ativa'] === 1 ? 'Ativa' : 'Inativa' ?></span></td>
+                        <td><span class="status <?= (int)$et['ativa'] === 1 ? 'ok' : 'atencao' ?>"><?= (int)$et['ativa'] === 1 ? 'Ativa' : 'Inativa' ?></span></td>
                         <td><?= $qtdLivrosEtapa ?></td>
                         <td>
                             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">
@@ -675,7 +675,7 @@ unset($_SESSION['flash']);
                 <?php else: foreach ($papeis as $pp): ?>
                     <tr>
                         <td><?= htmlspecialchars($pp['nome']) ?></td>
-                        <td><span class="status <?= (int)$pp['ativo'] === 1 ? 'disponivel' : 'baixo' ?>"><?= (int)$pp['ativo'] === 1 ? 'Ativo' : 'Inativo' ?></span></td>
+                        <td><span class="status <?= (int)$pp['ativo'] === 1 ? 'ok' : 'atencao' ?>"><?= (int)$pp['ativo'] === 1 ? 'Ativo' : 'Inativo' ?></span></td>
                         <td>
                             <details>
                                 <summary class="acao-btn" style="display:inline-block;cursor:pointer;">Editar</summary>

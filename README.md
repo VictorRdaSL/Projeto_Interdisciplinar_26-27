@@ -41,4 +41,4 @@ Desenvolver um sistema web capaz de:
 
 Projeto desenvolvido como parte das atividades acadêmicas da **FATEC**, com foco no desenvolvimento de uma aplicação web para gerenciamento de controle editorial.
 
-![Sistema de Controle de Estoque](https://raw.githubusercontent.com/VictorRdaSL/Projeto_Interdisciplinar_26-27/main/img/editora-home.jpg)
+![WareSys — Controle Editorial](https://raw.githubusercontent.com/VictorRdaSL/Projeto_Interdisciplinar_26-27/main/img/editora-home.jpg)
