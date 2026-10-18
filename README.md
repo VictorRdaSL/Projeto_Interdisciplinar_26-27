@@ -37,6 +37,19 @@ Desenvolver um sistema web capaz de:
 
 ---
 
+## ⚙️ Instalação (XAMPP)
+
+1. Copie o projeto para `C:\xampp\htdocs\` e inicie **Apache** e **MySQL** no XAMPP.
+2. No phpMyAdmin (`http://localhost/phpmyadmin`), importe **nesta ordem** os arquivos da pasta `database/`:
+   1. `schema.sql` — cria o banco **`waresys`** e todas as tabelas;
+   2. `seed.sql` — etapas, papéis, configuração e o usuário administrador inicial.
+3. Copie `SistemaEditorial/config/config.example.php` para `SistemaEditorial/config/config.php` e ajuste usuário/senha do MySQL, se necessário.
+4. Acesse `http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/`.
+
+**Login inicial (senha provisória — trocar antes de publicar):** `admin@waresys.com` / `admin123`. Instruções para trocar a senha estão em `SistemaEditorial/README.txt`.
+
+---
+
 ## 👨‍💻 Desenvolvimento
 
 Projeto desenvolvido como parte das atividades acadêmicas da **FATEC**, com foco no desenvolvimento de uma aplicação web para gerenciamento de controle editorial.

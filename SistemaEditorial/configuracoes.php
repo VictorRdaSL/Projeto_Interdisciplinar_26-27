@@ -11,7 +11,7 @@ $podeConfigurarDiasLimite = usuarioTemPermissao('config.dias_limite');
 $podeGerenciarEtapasPapeis = usuarioTemPermissao('config.etapas_papeis');
 $agindoComoAdmin = papelAtual() === 'admin';
 
-// Nome exato semeado em seed_editorial.sql — mesmo identificado usado em
+// Nome exato semeado em database/seed.sql — mesmo identificado usado em
 // includes/movimentacoes.php (NOME_ETAPA_CATALOGACAO) pro aviso de ISBN
 // vazio. Não há coluna de identificador estável em `etapas`; renomear essa
 // etapa por aqui desativa aquele aviso silenciosamente (risco já documentado).
@@ -75,21 +75,21 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
         } elseif (!$agindoComoAdmin && $novoPapel === 'admin') {
             $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem conceder o papel de Administrador.'];
         } else {
-            $totalAdmins = (int)$conn->query("SELECT COUNT(*) total FROM usuarios WHERE role = 'admin'")->fetch_assoc()['total'];
-            $stmtAtual = $conn->prepare('SELECT role FROM usuarios WHERE id = ?');
+            $totalAdmins = (int)$conn->query("SELECT COUNT(*) total FROM usuarios WHERE perfil = 'admin'")->fetch_assoc()['total'];
+            $stmtAtual = $conn->prepare('SELECT perfil FROM usuarios WHERE id = ?');
             $stmtAtual->bind_param('i', $usuarioId);
             $stmtAtual->execute();
             $usuarioAtualLinha = $stmtAtual->get_result()->fetch_assoc();
 
             if (!$usuarioAtualLinha) {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Usuário não encontrado.'];
-            } elseif (!$agindoComoAdmin && $usuarioAtualLinha['role'] === 'admin') {
+            } elseif (!$agindoComoAdmin && $usuarioAtualLinha['perfil'] === 'admin') {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem alterar o papel de um Administrador.'];
-            } elseif ($usuarioAtualLinha['role'] === 'admin' && $novoPapel !== 'admin' && $totalAdmins <= 1) {
+            } elseif ($usuarioAtualLinha['perfil'] === 'admin' && $novoPapel !== 'admin' && $totalAdmins <= 1) {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não é possível remover o último administrador do sistema.'];
             } else {
-                $papelAnterior = $usuarioAtualLinha['role'];
-                $stmt = $conn->prepare('UPDATE usuarios SET role = ? WHERE id = ?');
+                $papelAnterior = $usuarioAtualLinha['perfil'];
+                $stmt = $conn->prepare('UPDATE usuarios SET perfil = ? WHERE id = ?');
                 $stmt->bind_param('si', $novoPapel, $usuarioId);
                 $stmt->execute();
                 if ($novoPapel !== $papelAnterior) {
@@ -136,8 +136,9 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
             $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe um usuário com esse e-mail.'];
         } else {
             $novaSenhaHash = password_hash($novaSenha, PASSWORD_DEFAULT);
-            $stmtInsert = $conn->prepare('INSERT INTO usuarios (nome, email, senha_hash, role) VALUES (?, ?, ?, ?)');
-            $stmtInsert->bind_param('ssss', $novoNome, $novoEmail, $novaSenhaHash, $novoPapelCriado);
+            $criadoEm = date('Y-m-d H:i:s');
+            $stmtInsert = $conn->prepare('INSERT INTO usuarios (nome, email, senha_hash, perfil, criado_em) VALUES (?, ?, ?, ?, ?)');
+            $stmtInsert->bind_param('sssss', $novoNome, $novoEmail, $novaSenhaHash, $novoPapelCriado, $criadoEm);
             $stmtInsert->execute();
             $novoUsuarioId = $conn->insert_id;
             registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.criar', 'usuario', $novoUsuarioId, null, $novoPapelCriado);
@@ -363,7 +364,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 }
 
 $usuarios = [];
-$r = $conn->query('SELECT id, nome, email, role, criado_em FROM usuarios ORDER BY nome');
+$r = $conn->query('SELECT id, nome, email, perfil, criado_em FROM usuarios ORDER BY nome');
 while ($row = $r->fetch_assoc()) $usuarios[] = $row;
 
 $diasLimiteAtual = buscarDiasLimiteGlobal($conn);
@@ -516,12 +517,12 @@ unset($_SESSION['flash']);
                 <tbody>
                 <?php foreach ($usuarios as $u):
                     $ehEuMesmo = (int)$u['id'] === (int)$_SESSION['usuario_id'];
-                    $podeEditarEssaLinha = $agindoComoAdmin || (!$ehEuMesmo && $u['role'] !== 'admin');
+                    $podeEditarEssaLinha = $agindoComoAdmin || (!$ehEuMesmo && $u['perfil'] !== 'admin');
                 ?>
                     <tr>
                         <td><strong><?= htmlspecialchars($u['nome']) ?></strong></td>
                         <td><?= htmlspecialchars($u['email']) ?></td>
-                        <td><span class="papel-badge papel-<?= htmlspecialchars($u['role']) ?>"><?= htmlspecialchars(nomePapel($u['role'])) ?></span></td>
+                        <td><span class="papel-badge papel-<?= htmlspecialchars($u['perfil']) ?>"><?= htmlspecialchars(nomePapel($u['perfil'])) ?></span></td>
                         <td><?= date('d/m/Y', strtotime($u['criado_em'])) ?></td>
                         <td>
                             <?php if ($podeEditarEssaLinha): ?>
@@ -531,10 +532,10 @@ unset($_SESSION['flash']);
                                 <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
                                 <select name="papel">
                                     <?php if ($agindoComoAdmin): ?>
-                                    <option value="admin" <?= $u['role'] === 'admin' ? 'selected' : '' ?>>Administrador</option>
+                                    <option value="admin" <?= $u['perfil'] === 'admin' ? 'selected' : '' ?>>Administrador</option>
                                     <?php endif; ?>
-                                    <option value="gerente" <?= $u['role'] === 'gerente' ? 'selected' : '' ?>>Gerente</option>
-                                    <option value="usuario" <?= $u['role'] === 'usuario' ? 'selected' : '' ?>>Usuário</option>
+                                    <option value="gerente" <?= $u['perfil'] === 'gerente' ? 'selected' : '' ?>>Gerente</option>
+                                    <option value="usuario" <?= $u['perfil'] === 'usuario' ? 'selected' : '' ?>>Usuário</option>
                                 </select>
                                 <button type="submit" class="btn-salvar">Salvar</button>
                             </form>
