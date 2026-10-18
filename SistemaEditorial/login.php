@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
     </div>
     <h2>Entrar</h2>
-    <p class="auth-sub">Acesse o controle de almoxarifado.</p>
+    <p class="auth-sub">Acesse o controle editorial.</p>
 
     <?php if ($erro): ?>
         <div class="flash erro"><?= htmlspecialchars($erro) ?></div>

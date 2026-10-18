@@ -89,18 +89,16 @@
 [data-theme="escuro"] .tabela-detalhe td { border-bottom: 1px solid var(--d-borda); }
 
 /* Status e badges — cada um revisado para contraste próprio, não só invertido */
-[data-theme="escuro"] .disponivel,
+[data-theme="escuro"] .ok,
 [data-theme="escuro"] .aviso-periodo-ok,
-[data-theme="escuro"] .badge-tipo.entrada,
 [data-theme="escuro"] .papel-gerente,
 [data-theme="escuro"] .flash.sucesso { background: var(--d-accent-suave-bg); color: var(--d-accent-suave-texto); }
 [data-theme="escuro"] .flash.sucesso { border-color: #23533a; }
-[data-theme="escuro"] .baixo,
+[data-theme="escuro"] .atencao,
 [data-theme="escuro"] .papel-admin,
 [data-theme="escuro"] .aviso-periodo,
 [data-theme="escuro"] .flash.erro { background: var(--d-amber-bg); color: var(--d-amber-texto); }
 [data-theme="escuro"] .flash.erro { border-color: #5a4318; }
-[data-theme="escuro"] .badge-tipo.saida { background: var(--d-bg-hover); color: var(--d-texto-secundario); }
 [data-theme="escuro"] .papel-usuario { background: #1c2731; color: #9bb6c7; }
 [data-theme="escuro"] .status.info { background: #132a3f; color: #6cb2f0; }
 [data-theme="escuro"] .status.pulo { background: #2a1f3d; color: #b394e0; }

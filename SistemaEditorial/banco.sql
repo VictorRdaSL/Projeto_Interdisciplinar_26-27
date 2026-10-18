@@ -1,7 +1,7 @@
 -- banco.sql — instalação nova (schema completo pós-pivô editorial).
 -- Equivalente a rodar, em sequência, migrations/migracao_editorial.sql e
 -- migrations/seed_editorial.sql sobre um banco já existente — aqui tudo
--- parte de um banco vazio, então as tabelas de estoque nunca são criadas.
+-- parte de um banco vazio.
 
 CREATE DATABASE IF NOT EXISTS sistema_estoque CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE sistema_estoque;
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS log_alteracoes (
 
 -- ============================================================
 -- Fluxo editorial (ver migrations/migracao_editorial.sql para o histórico
--- da migração que criou este schema sobre um banco de estoque pré-existente).
+-- da migração que criou este schema sobre o schema anterior).
 -- status/tipo como VARCHAR (validados no PHP), sem ENUM. Datas em DATETIME,
 -- sempre preenchidas pelo PHP (sem ON UPDATE CURRENT_TIMESTAMP/DEFAULT CURRENT_TIMESTAMP).
 -- ============================================================

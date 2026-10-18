@@ -87,7 +87,7 @@ relatorioAbrir('Resgates por período', 'Relatórios');
                         <td><?= htmlspecialchars($ln['livro']) ?></td>
                         <td><?= htmlspecialchars($ln['ultima_etapa']) ?> — <?= htmlspecialchars($ln['ultima_mesa']) ?></td>
                         <td><?= htmlspecialchars($ln['aberto_em']) ?><br><small>por <?= htmlspecialchars($ln['aberto_por']) ?></small></td>
-                        <td><span class="status <?= $ln['situacao'] === 'Concluído' ? 'disponivel' : 'baixo' ?>"><?= htmlspecialchars($ln['situacao']) ?></span></td>
+                        <td><span class="status <?= $ln['situacao'] === 'Concluído' ? 'ok' : 'atencao' ?>"><?= htmlspecialchars($ln['situacao']) ?></span></td>
                         <td><?= htmlspecialchars($ln['concluido_em'] ?: '—') ?></td>
                         <td><?= (int)$ln['dias'] ?></td>
                         <td style="max-width:220px;white-space:pre-line;"><?= htmlspecialchars($ln['local'] ?: '—') ?></td>

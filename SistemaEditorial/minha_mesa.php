@@ -90,7 +90,7 @@ unset($_SESSION['flash']);
                         </td>
                         <td><?= htmlspecialchars($l['isbn'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($l['etapa_nome']) ?></td>
-                        <td><?= htmlspecialchars($rodadaLabel) ?><?php if ((int)$l['excedente'] === 1): ?> <span class="status baixo">Cobrável</span><?php endif; ?></td>
+                        <td><?= htmlspecialchars($rodadaLabel) ?><?php if ((int)$l['excedente'] === 1): ?> <span class="status atencao">Cobrável</span><?php endif; ?></td>
                         <td><?= (int)$l['dias_parado'] === 0 ? 'menos de 1 dia' : (int)$l['dias_parado'] . ' dia' . ((int)$l['dias_parado'] > 1 ? 's' : '') ?></td>
                     </tr>
                 <?php endforeach; endif; ?>

@@ -361,7 +361,7 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
                     <div><?= htmlspecialchars(implode(' · ', $resumoRodadasTexto)) ?></div>
                 <?php endif; ?>
                 <?php if ($totalCobraveis > 0): ?>
-                    <span class="status baixo" style="margin-top:6px;display:inline-block;"><?= $totalCobraveis ?> rodada<?= $totalCobraveis > 1 ? 's' : '' ?> <?= $totalCobraveis > 1 ? 'cobráveis' : 'cobrável' ?> acumulada<?= $totalCobraveis > 1 ? 's' : '' ?></span>
+                    <span class="status atencao" style="margin-top:6px;display:inline-block;"><?= $totalCobraveis ?> rodada<?= $totalCobraveis > 1 ? 's' : '' ?> <?= $totalCobraveis > 1 ? 'cobráveis' : 'cobrável' ?> acumulada<?= $totalCobraveis > 1 ? 's' : '' ?></span>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -374,7 +374,7 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
         <div class="card"><div><p>Responsável atual (mesa)</p><h3 style="font-size:18px;"><?= htmlspecialchars($livro['responsavel_nome'] ?: '—') ?></h3><?php if ($diasComMesaAtual !== null): ?><span style="font-size:12px;color:#8a9b91;">com ela há <?= $diasComMesaAtual === 0 ? 'menos de 1 dia' : $diasComMesaAtual . ' dia' . ($diasComMesaAtual > 1 ? 's' : '') ?></span><?php endif; ?></div><div class="card-icon">👤</div></div>
         <div class="card"><div><p>Status</p><h3 style="font-size:18px;"><?= htmlspecialchars(NOMES_STATUS_LIVRO_DET[$livro['status']] ?? $livro['status']) ?></h3></div><div class="card-icon">📊</div></div>
         <div class="card"><div><p>Tem cópia?</p><h3 style="font-size:18px;"><?= ((int)$livro['tem_copia'] === 1) ? 'Sim' : 'Não' ?></h3></div><div class="card-icon">📄</div></div>
-        <div class="card"><div><p>Rodada atual</p><h3 style="font-size:18px;"><?= htmlspecialchars($rodadaAtualLabel) ?><?php if ($rodadaAtualExcedente): ?> <span class="status baixo" style="font-size:11px;">Cobrável</span><?php endif; ?></h3></div><div class="card-icon">🔁</div></div>
+        <div class="card"><div><p>Rodada atual</p><h3 style="font-size:18px;"><?= htmlspecialchars($rodadaAtualLabel) ?><?php if ($rodadaAtualExcedente): ?> <span class="status atencao" style="font-size:11px;">Cobrável</span><?php endif; ?></h3></div><div class="card-icon">🔁</div></div>
     </section>
 
     <?php if ($podeGerenciar): ?>
@@ -560,7 +560,7 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
                                 <?= htmlspecialchars(NOMES_TIPO_MOV[$m['tipo']] ?? $m['tipo']) ?>
                             <?php endif; ?>
                         </td>
-                        <td><?= htmlspecialchars($rodadaLinhaLabel) ?><?php if ((int)$m['excedente'] === 1): ?> <span class="status baixo">Cobrável</span><?php endif; ?></td>
+                        <td><?= htmlspecialchars($rodadaLinhaLabel) ?><?php if ((int)$m['excedente'] === 1): ?> <span class="status atencao">Cobrável</span><?php endif; ?></td>
                         <td><?= htmlspecialchars($m['responsavel_nome'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($m['registrado_por_nome'] ?: '—') ?></td>
                     </tr>

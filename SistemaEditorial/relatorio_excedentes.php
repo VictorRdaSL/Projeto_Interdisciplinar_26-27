@@ -76,7 +76,7 @@ relatorioAbrir('Rodadas excedentes por período', 'Relatórios');
                         <td><?= htmlspecialchars($ln['livro']) ?></td>
                         <td><?= htmlspecialchars($ln['pessoas'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($ln['etapa']) ?></td>
-                        <td><?= (int)$ln['rodada'] ?> <span class="status baixo">Cobrável</span></td>
+                        <td><?= (int)$ln['rodada'] ?> <span class="status atencao">Cobrável</span></td>
                         <td><?= $ln['limite'] === '' ? '—' : (int)$ln['limite'] ?></td>
                         <td><?= htmlspecialchars($ln['data']) ?></td>
                     </tr>
