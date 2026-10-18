@@ -19,7 +19,7 @@ const NOMES_PAPEIS = [
 
 function papelAtual(): string
 {
-    $papel = $_SESSION['usuario_role'] ?? 'usuario';
+    $papel = $_SESSION['usuario_perfil'] ?? 'usuario';
     return in_array($papel, PAPEIS_VALIDOS, true) ? $papel : 'usuario';
 }
 

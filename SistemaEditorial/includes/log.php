@@ -1,8 +1,9 @@
 <?php
 function registrarLog(mysqli $conn, int $usuarioId, string $acao, string $entidadeTipo, int $entidadeId, ?string $valorAnterior, ?string $valorNovo): void
 {
-    $stmt = $conn->prepare('INSERT INTO log_alteracoes (usuario_id, acao, entidade_tipo, entidade_id, valor_anterior, valor_novo) VALUES (?, ?, ?, ?, ?, ?)');
-    $stmt->bind_param('ississ', $usuarioId, $acao, $entidadeTipo, $entidadeId, $valorAnterior, $valorNovo);
+    $stmt = $conn->prepare('INSERT INTO log_alteracoes (usuario_id, acao, entidade_tipo, entidade_id, valor_anterior, valor_novo, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    $criadoEm = date('Y-m-d H:i:s');
+    $stmt->bind_param('ississs', $usuarioId, $acao, $entidadeTipo, $entidadeId, $valorAnterior, $valorNovo, $criadoEm);
     $stmt->execute();
 }
 

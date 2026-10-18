@@ -32,5 +32,5 @@ try {
         error_log('Erro ao conectar ao MySQL: ' . $e->getMessage());
         die('<h2>Erro ao conectar ao sistema</h2><p>Tente novamente mais tarde.</p>');
     }
-    die('<h2>Erro ao conectar ao MySQL</h2><p>Importe o arquivo <strong>banco.sql</strong> no phpMyAdmin, confirme se Apache e MySQL estão ligados no XAMPP, e se <code>config/config.php</code> existe e está correto.</p>');
+    die('<h2>Erro ao conectar ao MySQL</h2><p>Importe <strong>database/schema.sql</strong> e depois <strong>database/seed.sql</strong> no phpMyAdmin, confirme se Apache e MySQL estão ligados no XAMPP, e se <code>config/config.php</code> existe e está correto.</p>');
 }

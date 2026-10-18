@@ -9,7 +9,7 @@ require_once __DIR__ . '/fluxo_etapas.php';
 require_once __DIR__ . '/rodadas.php';
 require_once __DIR__ . '/log.php';
 
-// Nome exato semeado em seed_editorial.sql. Não há coluna de identificador
+// Nome exato semeado em database/seed.sql. Não há coluna de identificador
 // estável em `etapas` — se essa etapa for renomeada no futuro, o aviso de
 // ISBN vazio para de disparar silenciosamente.
 const NOME_ETAPA_CATALOGACAO = 'Catalogação — ISBN e ficha catalográfica';

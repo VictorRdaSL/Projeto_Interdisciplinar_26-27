@@ -7,7 +7,7 @@ return [
     'db' => [
         'host'    => 'localhost',
         'porta'   => 3306,
-        'nome'    => 'sistema_estoque',
+        'nome'    => 'waresys',
         'usuario' => 'root',
         'senha'   => '',
         'charset' => 'utf8mb4',
