@@ -5,6 +5,7 @@
 require_once __DIR__ . '/permissoes.php';
 require_once __DIR__ . '/periodo.php';
 require_once __DIR__ . '/csv.php';
+require_once __DIR__ . '/validacao.php';
 
 // Quantas linhas aparecem na tela; o CSV sempre leva todas.
 const LIMITE_LINHAS_TELA = 500;
@@ -57,8 +58,8 @@ function dataValidaIso(string $valor): bool
  */
 function lerPeriodoGet(): array
 {
-    $de = trim($_GET['filtro_de'] ?? '');
-    $ate = trim($_GET['filtro_ate'] ?? '');
+    $de = entradaTexto($_GET, 'filtro_de');
+    $ate = entradaTexto($_GET, 'filtro_ate');
     $erro = null;
     if (($de !== '' && !dataValidaIso($de)) || ($ate !== '' && !dataValidaIso($ate))) {
         $erro = 'Informe datas válidas no filtro de período.';

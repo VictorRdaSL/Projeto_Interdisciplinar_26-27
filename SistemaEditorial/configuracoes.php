@@ -126,10 +126,10 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
     }
     exigirEnvioUnico();
 
-    $novoNome = trim($_POST['novo_nome'] ?? '');
-    $novoEmail = trim($_POST['novo_email'] ?? '');
-    $novaSenha = (string)($_POST['nova_senha'] ?? '');
-    $novaConfirmarSenha = (string)($_POST['nova_confirmar_senha'] ?? '');
+    $novoNome = entradaTexto($_POST, 'novo_nome');
+    $novoEmail = entradaTexto($_POST, 'novo_email');
+    $novaSenha = entradaBruta($_POST, 'nova_senha');
+    $novaConfirmarSenha = entradaBruta($_POST, 'nova_confirmar_senha');
     $novoPapelCriado = $_POST['novo_papel'] ?? 'usuario';
 
     if ($novoNome === '' || $novoEmail === '' || $novaSenha === '' || $novaConfirmarSenha === '') {
@@ -175,11 +175,11 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         header('Location: configuracoes.php'); exit;
     }
     exigirEnvioUnico();
-    $nome = trim($_POST['nome'] ?? '');
+    $nome = entradaTexto($_POST, 'nome');
     $opcional = isset($_POST['opcional']) ? 1 : 0;
     $repetivel = isset($_POST['repetivel']) ? 1 : 0;
-    $rodadasStr = trim($_POST['rodadas_incluidas'] ?? '');
-    $diasStr = trim($_POST['dias_limite'] ?? '');
+    $rodadasStr = entradaTexto($_POST, 'rodadas_incluidas');
+    $diasStr = entradaTexto($_POST, 'dias_limite');
 
     if ($nome === '') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
@@ -212,11 +212,11 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         header('Location: configuracoes.php'); exit;
     }
     $etapaId = (int)($_POST['etapa_id'] ?? 0);
-    $nome = trim($_POST['nome'] ?? '');
+    $nome = entradaTexto($_POST, 'nome');
     $opcional = isset($_POST['opcional']) ? 1 : 0;
     $repetivel = isset($_POST['repetivel']) ? 1 : 0;
-    $rodadasStr = trim($_POST['rodadas_incluidas'] ?? '');
-    $diasStr = trim($_POST['dias_limite'] ?? '');
+    $rodadasStr = entradaTexto($_POST, 'rodadas_incluidas');
+    $diasStr = entradaTexto($_POST, 'dias_limite');
     $ativa = isset($_POST['ativa']) ? 1 : 0;
 
     $stmtAtual = $conn->prepare('SELECT * FROM etapas WHERE id = ?');
@@ -334,7 +334,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         header('Location: configuracoes.php'); exit;
     }
     exigirEnvioUnico();
-    $nome = trim($_POST['nome'] ?? '');
+    $nome = entradaTexto($_POST, 'nome');
     if ($nome === '') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
     } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) {
@@ -357,7 +357,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         header('Location: configuracoes.php'); exit;
     }
     $papelId = (int)($_POST['papel_id'] ?? 0);
-    $nome = trim($_POST['nome'] ?? '');
+    $nome = entradaTexto($_POST, 'nome');
     $ativo = isset($_POST['ativo']) ? 1 : 0;
 
     $stmtAtual = $conn->prepare('SELECT * FROM papeis WHERE id = ?');
@@ -418,9 +418,9 @@ if ($podeGerenciarEtapasPapeis) {
 // Log de auditoria: aberto a qualquer usuário logado (decisão confirmada no Passo 9).
 $logs = [];
 $filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
-$filtroAcao = trim($_GET['filtro_acao'] ?? '');
-$filtroDe = trim($_GET['filtro_de'] ?? '');
-$filtroAte = trim($_GET['filtro_ate'] ?? '');
+$filtroAcao = entradaTexto($_GET, 'filtro_acao');
+$filtroDe = entradaTexto($_GET, 'filtro_de');
+$filtroAte = entradaTexto($_GET, 'filtro_ate');
 
 $condicoes = [];
 $parametros = [];

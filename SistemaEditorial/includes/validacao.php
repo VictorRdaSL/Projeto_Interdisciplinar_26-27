@@ -43,3 +43,21 @@ function mensagemErroSegura(Throwable $e, string $acao): string
     error_log('[WareSys] Falha ao ' . $acao . ': ' . get_class($e) . ': ' . $e->getMessage() . ' em ' . $e->getFile() . ':' . $e->getLine());
     return 'Não foi possível ' . $acao . '. Tente novamente; se o problema continuar, avise o administrador.';
 }
+
+/**
+ * Texto vindo de $_GET/$_POST, sem espaços nas pontas. Se o parâmetro não existir ou não for texto
+ * (ex.: ?busca[]=x chega como lista), devolve ''. Sem isso, trim() de uma lista derruba a página
+ * com TypeError (erro 500) só por alguém alterar a URL.
+ */
+function entradaTexto(array $origem, string $chave): string
+{
+    $valor = $origem[$chave] ?? '';
+    return is_string($valor) ? trim($valor) : '';
+}
+
+/** Igual a entradaTexto(), mas sem trim (senhas: espaços nas pontas fazem parte da senha). */
+function entradaBruta(array $origem, string $chave): string
+{
+    $valor = $origem[$chave] ?? '';
+    return is_string($valor) ? $valor : '';
+}
