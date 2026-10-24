@@ -8,6 +8,7 @@
 require_once __DIR__ . '/fluxo_etapas.php';
 require_once __DIR__ . '/rodadas.php';
 require_once __DIR__ . '/log.php';
+require_once __DIR__ . '/procedures.php';
 
 // Nome exato semeado em database/seed.sql. Não há coluna de identificador
 // estável em `etapas` — se essa etapa for renomeada no futuro, o aviso de
@@ -358,48 +359,24 @@ function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array
     ];
 }
 
+// A regra inteira (validar, fechar a movimentação aberta, abrir a nova na MESMA etapa e rodada,
+// atualizar a mesa e gravar o log) vive na stored procedure sp_trocar_mesa (database/procedures.sql),
+// numa única transação. Esta função só chama a procedure e devolve o mesmo formato de antes.
+// Não chame dentro de uma transação aberta: a procedure faz COMMIT implícito dela.
 function passarParaOutraMesa(mysqli $conn, int $livroId, int $novoResponsavelId, int $registradoPorId): array
 {
-    $livro = buscarLivroParaMovimentar($conn, $livroId);
-    $responsavelAntigoId = (int)$livro['responsavel_atual_id'];
-
-    if (!usuarioExiste($conn, $novoResponsavelId)) {
-        throw new InvalidArgumentException('Usuário responsável inválido.');
-    }
-
     $agora = date('Y-m-d H:i:s');
-    $avisos = [];
-
-    $conn->begin_transaction();
-    try {
-        $movFechada = fecharMovimentacaoAtual($conn, $livroId, $agora);
-        // Mesma etapa, mesma rodada — trocar de mesa nunca conta como rodada nova.
-        $rodada = (int)$movFechada['rodada'];
-        $excedente = (bool)$movFechada['excedente'];
-        $etapaId = (int)$movFechada['etapa_id'];
-
-        $novaMovId = abrirMovimentacao($conn, $livroId, $etapaId, $novoResponsavelId, $registradoPorId, 'troca_responsavel', $rodada, $excedente, $agora);
-
-        $stmtL = $conn->prepare('UPDATE livros SET responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
-        $stmtL->bind_param('isi', $novoResponsavelId, $agora, $livroId);
-        $stmtL->execute();
-
-        registrarLog($conn, $registradoPorId, 'movimentacao.trocar_responsavel', 'livro', $livroId, nomeUsuario($conn, $responsavelAntigoId), nomeUsuario($conn, $novoResponsavelId));
-
-        $conn->commit();
-    } catch (Throwable $e) {
-        $conn->rollback();
-        throw $e;
-    }
+    $linhas = chamarProcedure($conn, 'CALL sp_trocar_mesa(?, ?, ?, ?)', 'iiis', [$livroId, $novoResponsavelId, $registradoPorId, $agora]);
+    $r = $linhas[0];
 
     return [
         'livro_id' => $livroId,
-        'movimentacao_id' => $novaMovId,
-        'etapa_id' => $etapaId,
-        'etapa_nome' => $livro['etapa_atual_nome'],
-        'rodada' => $rodada,
-        'excedente' => $excedente,
-        'avisos' => $avisos,
+        'movimentacao_id' => (int)$r['movimentacao_id'],
+        'etapa_id' => (int)$r['etapa_id'],
+        'etapa_nome' => $r['etapa_nome'],
+        'rodada' => (int)$r['rodada'],
+        'excedente' => (bool)(int)$r['excedente'],
+        'avisos' => [],
     ];
 }
 
