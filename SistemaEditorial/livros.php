@@ -3,13 +3,14 @@ require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/isbn.php';
+require_once __DIR__ . '/includes/validacao.php';
 
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
 // Permite chegar com a busca já preenchida (ex.: a partir do painel) — o
 // filtro em si continua sendo client-side, isso só define o valor inicial.
-$termoBuscaInicial = trim($_GET['busca'] ?? '');
+$termoBuscaInicial = entradaTexto($_GET, 'busca');
 
 // Situação do livro (etapa, mesa, movimentação aberta) e pessoas vinculadas vêm das views
 // vw_livros_situacao_atual e vw_livros_contribuidores (database/views.sql) — uma linha por

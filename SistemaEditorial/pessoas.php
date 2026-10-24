@@ -24,9 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($acao === 'salvar_pessoa') {
         $pessoaId = (int)($_POST['pessoa_id'] ?? 0);
-        $nome = trim($_POST['nome'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $telefone = trim($_POST['telefone'] ?? '');
+        $nome = entradaTexto($_POST, 'nome');
+        $email = entradaTexto($_POST, 'email');
+        $telefone = entradaTexto($_POST, 'telefone');
 
         if ($nome === '') voltarPessoas('erro', 'Informe o nome da pessoa.');
         if ($erroTam = erroTamanho($nome, LIMITE_NOME_PESSOA, 'O nome')) voltarPessoas('erro', $erroTam);

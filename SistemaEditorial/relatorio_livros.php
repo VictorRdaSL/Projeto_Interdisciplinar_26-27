@@ -7,7 +7,7 @@ require_once __DIR__ . '/includes/relatorios_layout.php';
 exigirPermissaoRelatorios();
 
 $filtroEtapa = (int)($_GET['filtro_etapa'] ?? 0);
-$filtroStatus = trim($_GET['filtro_status'] ?? '');
+$filtroStatus = entradaTexto($_GET, 'filtro_status');
 $filtroMesa = (int)($_GET['filtro_mesa'] ?? 0);
 if ($filtroStatus !== '' && !isset(ROTULOS_STATUS_LIVRO[$filtroStatus])) {
     $filtroStatus = '';

@@ -40,9 +40,28 @@ $pessoasDisponiveis = [];
 $r = $conn->query('SELECT id, nome FROM pessoas ORDER BY nome');
 while ($row = $r->fetch_assoc()) $pessoasDisponiveis[] = $row;
 
+// Papel desativado continua aparecendo (marcado "inativo") nas contribuições que o livro JÁ tem: sem isso o campo
+// voltava vazio e salvar apagava o vínculo em silêncio. Para vínculos novos, só papéis ativos.
 $papeisDisponiveis = [];
-$r = $conn->query("SELECT id, nome FROM papeis WHERE ativo = 1 ORDER BY nome");
+if ($editando) {
+    $stmtP = $conn->prepare('SELECT id, nome, ativo FROM papeis WHERE ativo = 1 OR id IN (SELECT papel_id FROM contribuicoes WHERE livro_id = ?) ORDER BY nome');
+    $stmtP->bind_param('i', $livroId);
+    $stmtP->execute();
+    $r = $stmtP->get_result();
+} else {
+    $r = $conn->query('SELECT id, nome, ativo FROM papeis WHERE ativo = 1 ORDER BY nome');
+}
 while ($row = $r->fetch_assoc()) $papeisDisponiveis[] = $row;
+
+// Vínculos (pessoa-papel) que o livro tem hoje, no banco — base para aceitar papel desativado só onde já existia.
+$paresExistentes = [];
+if ($editando) {
+    $stmtE = $conn->prepare('SELECT pessoa_id, papel_id FROM contribuicoes WHERE livro_id = ?');
+    $stmtE->bind_param('i', $livroId);
+    $stmtE->execute();
+    $re = $stmtE->get_result();
+    while ($row = $re->fetch_assoc()) $paresExistentes[(int)$row['pessoa_id'] . '-' . (int)$row['papel_id']] = true;
+}
 
 $usuariosDisponiveis = [];
 $r = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome');
@@ -77,19 +96,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $titulo = trim($_POST['titulo'] ?? '');
-        $isbnBruto = trim($_POST['isbn'] ?? '');
+        $titulo = entradaTexto($_POST, 'titulo');
+        $isbnBruto = entradaTexto($_POST, 'isbn');
         $temCopia = isset($_POST['tem_copia']) ? 1 : 0;
-        $observacoes = trim($_POST['observacoes'] ?? '');
+        $observacoes = entradaTexto($_POST, 'observacoes');
         $responsavelSelecionado = (int)($_POST['responsavel_atual_id'] ?? 0);
 
-        $contribuicoesPost = $_POST['contribuicoes'] ?? [];
+        $contribuicoesPost = is_array($_POST['contribuicoes'] ?? null) ? $_POST['contribuicoes'] : [];
         $vistos = [];
         $idsPessoas = array_map('intval', array_column($pessoasDisponiveis, 'id'));
         $idsPapeis = array_map('intval', array_column($papeisDisponiveis, 'id'));
         $idsUsuarios = array_map('intval', array_column($usuariosDisponiveis, 'id'));
+        $papeisInativos = [];
+        foreach ($papeisDisponiveis as $p) {
+            if ((int)$p['ativo'] === 0) $papeisInativos[(int)$p['id']] = $p['nome'];
+        }
         $contribuicaoInvalida = false;
+        $papelInativoNovo = null;
         foreach ($contribuicoesPost as $linha) {
+            if (!is_array($linha)) continue;
             $pessoaId = (int)($linha['pessoa_id'] ?? 0);
             $papelId = (int)($linha['papel_id'] ?? 0);
             if ($pessoaId <= 0 || $papelId <= 0) continue;
@@ -98,6 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 continue;
             }
             $chave = $pessoaId . '-' . $papelId;
+            if (isset($papeisInativos[$papelId]) && !isset($paresExistentes[$chave])) {
+                $papelInativoNovo = $papeisInativos[$papelId];
+                continue;
+            }
             if (isset($vistos[$chave])) continue;
             $vistos[$chave] = true;
             $contribuicoesForm[] = ['pessoa_id' => $pessoaId, 'papel_id' => $papelId];
@@ -117,6 +146,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $erro = 'Selecione o responsável inicial.';
         } elseif (!$editando && !in_array($responsavelSelecionado, $idsUsuarios, true)) {
             $erro = 'Responsável inicial inválido. Escolha um usuário da lista.';
+        } elseif ($papelInativoNovo !== null) {
+            $erro = 'O papel "' . $papelInativoNovo . '" está desativado: ele só pode ser mantido nas pessoas que já o tinham neste livro. Escolha outro papel para as demais.';
         } elseif ($contribuicaoInvalida) {
             $erro = 'Há uma pessoa ou um papel inválido nas pessoas vinculadas. Escolha apenas itens da lista.';
         } else {
@@ -334,7 +365,7 @@ function preencherOptions(selectEl, itens, rotuloPadrao, selecionadoId){
   itens.forEach(item => {
     const opt = document.createElement('option');
     opt.value = item.id;
-    opt.textContent = item.nome;
+    opt.textContent = item.nome + (item.ativo !== undefined && Number(item.ativo) === 0 ? ' (inativo)' : '');
     if (String(item.id) === String(selecionadoId)) opt.selected = true;
     selectEl.appendChild(opt);
   });
