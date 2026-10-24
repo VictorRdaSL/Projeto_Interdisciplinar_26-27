@@ -22,10 +22,11 @@ if (!$erroPeriodo) {
 
     $stmt = $conn->prepare("
         SELECT l.titulo, e.nome AS etapa_nome, e.rodadas_incluidas, m.rodada, m.data_entrada,
-               " . SQL_PESSOAS_PAPEIS . " AS pessoas_papeis
+               c.pessoas_papeis
         FROM movimentacoes m
         JOIN livros l ON l.id = m.livro_id
         JOIN etapas e ON e.id = m.etapa_id
+        LEFT JOIN vw_livros_contribuidores c ON c.livro_id = m.livro_id
         $whereSql
         ORDER BY m.data_entrada DESC, m.id DESC
     ");

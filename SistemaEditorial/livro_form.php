@@ -44,7 +44,7 @@ $r = $conn->query("SELECT id, nome FROM papeis WHERE ativo = 1 ORDER BY nome");
 while ($row = $r->fetch_assoc()) $papeisDisponiveis[] = $row;
 
 $usuariosDisponiveis = [];
-$r = $conn->query('SELECT id, nome FROM usuarios ORDER BY nome');
+$r = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome');
 while ($row = $r->fetch_assoc()) $usuariosDisponiveis[] = $row;
 
 $erro = '';

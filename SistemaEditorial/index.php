@@ -65,13 +65,10 @@ while ($row = $r->fetch_assoc()) {
 // Revisão têm rodadas_incluidas definido, então só elas podem ter excedente=1).
 $livrosExcedentes = [];
 $r = $conn->query("
-    SELECT l.id, l.titulo, e.nome AS etapa_nome, m.rodada, e.rodadas_incluidas, u.nome AS responsavel_nome
-    FROM livros l
-    JOIN movimentacoes m ON m.livro_id = l.id AND m.data_saida IS NULL AND m.excedente = 1
-    JOIN etapas e ON e.id = m.etapa_id
-    LEFT JOIN usuarios u ON u.id = l.responsavel_atual_id
-    WHERE l.status NOT IN ('concluido', 'cancelado')
-    ORDER BY m.rodada DESC
+    SELECT v.livro_id AS id, v.titulo, v.etapa_nome, v.rodada, v.rodadas_incluidas, v.mesa_nome AS responsavel_nome
+    FROM vw_livros_situacao_atual v
+    WHERE v.excedente = 1 AND v.movimentacao_id IS NOT NULL AND v.status NOT IN ('concluido', 'cancelado')
+    ORDER BY v.rodada DESC
 ");
 while ($row = $r->fetch_assoc()) $livrosExcedentes[] = $row;
 ?>

@@ -25,14 +25,6 @@ const ROTULOS_TIPO_MOVIMENTACAO = [
     'resgate'           => 'Resgate',
 ];
 
-// Subconsulta correlacionada (uma linha por livro, sem multiplicar linhas do
-// relatório): "Fulano (Autor), Beltrano (Organizador)". Usa o alias `l` de livros.
-const SQL_PESSOAS_PAPEIS = "(SELECT GROUP_CONCAT(CONCAT(pe.nome, ' (', pa.nome, ')') ORDER BY pe.nome SEPARATOR ', ')
-        FROM contribuicoes c
-        JOIN pessoas pe ON pe.id = c.pessoa_id
-        JOIN papeis pa ON pa.id = c.papel_id
-        WHERE c.livro_id = l.id)";
-
 function exigirPermissaoRelatorios(): void
 {
     if (!usuarioTemPermissao('relatorios.ver')) {

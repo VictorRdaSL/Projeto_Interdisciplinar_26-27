@@ -6,12 +6,16 @@ depósito legal), mostrando em que etapa ele está e com quem (a "mesa").
 INSTALAÇÃO
 1. Copie a pasta do projeto para C:\xampp\htdocs\ (ou X:\XAMPP\htdocs\).
 2. Abra o XAMPP Control Panel e inicie Apache e MySQL.
-3. Abra http://localhost/phpmyadmin e importe, NESTA ORDEM, os dois arquivos da
+3. Abra http://localhost/phpmyadmin e importe, NESTA ORDEM, os três arquivos da
    pasta database/ (na raiz do projeto, ao lado de SistemaEditorial):
      a) database/schema.sql  -> cria o banco "waresys" e todas as tabelas
      b) database/seed.sql    -> etapas, papéis, configuração e o usuário admin
+     c) database/views.sql   -> views de leitura (vw_*) que o sistema consulta
    (Na importação do phpMyAdmin não escolha um banco antes: o schema.sql cria o
-   banco sozinho. Em linha de comando: mysql -u root --default-character-set=utf8mb4 < database/schema.sql)
+   banco sozinho. Em linha de comando, para cada arquivo, na mesma ordem:
+   mysql -u root --default-character-set=utf8mb4 < database/schema.sql)
+   O views.sql pode ser rodado de novo a qualquer momento (CREATE OR REPLACE).
+   Sem o views.sql, as telas dão erro de tabela inexistente (vw_...).
 4. Copie config/config.example.php para config/config.php e ajuste usuário e
    senha do MySQL, se necessário. O config.php não vai para o Git.
 5. Abra http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/
