@@ -14,7 +14,7 @@ function csrf_field(): string
     return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token()) . '">';
 }
 
-function csrf_validar(?string $token): bool
+function csrf_validar(mixed $token): bool
 {
     return is_string($token) && !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }

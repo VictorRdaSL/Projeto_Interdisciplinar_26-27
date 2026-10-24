@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/sessao.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/csrf.php';
+require_once __DIR__ . '/includes/validacao.php';
 
 if (!empty($_SESSION['usuario_id'])) {
     header('Location: index.php');
@@ -15,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $erro = 'Sessão expirada. Recarregue a página e tente novamente.';
     } else {
-        $email = trim($_POST['email'] ?? '');
-        $senha = (string)($_POST['senha'] ?? '');
+        $email = entradaTexto($_POST, 'email');
+        $senha = entradaBruta($_POST, 'senha');
 
         if ($email === '' || $senha === '') {
             $erro = 'Informe e-mail e senha.';

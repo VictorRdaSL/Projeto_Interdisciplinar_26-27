@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuarioId = (int)$_SESSION['usuario_id'];
     $novaEtapaId = (int)($_POST['etapa_id'] ?? 0);
     $novoResponsavelId = (int)($_POST['responsavel_id'] ?? 0);
-    $localEncontrado = trim($_POST['local_encontrado'] ?? '');
+    $localEncontrado = entradaTexto($_POST, 'local_encontrado');
 
     try {
         $resultado = concluirResgate($conn, $livroId, $novaEtapaId, $novoResponsavelId, $localEncontrado, $usuarioId);
