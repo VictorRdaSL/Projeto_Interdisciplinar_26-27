@@ -115,7 +115,21 @@ function ultimaMovimentacao(mysqli $conn, int $livroId, ?int $etapaId = null): a
 
 $admin = $conn->query("SELECT id FROM usuarios WHERE email = 'admin@waresys.com'")->fetch_assoc();
 $usuarioId = (int)$admin['id'];
+// O cenário (e) precisa de um 2º usuário. Se o banco só tem o admin, o teste cria o seu próprio
+// (e remove no final) — assim a troca de mesa nunca fica de fora por falta de usuário.
+const EMAIL_USUARIO_TESTE_MESA = 'teste_fluxo_mesa@teste.invalid';
+$conn->query("DELETE FROM usuarios WHERE email = '" . EMAIL_USUARIO_TESTE_MESA . "'"); // sobra de uma execução interrompida
 $outroUsuarioRow = $conn->query("SELECT id, nome FROM usuarios WHERE id != $usuarioId LIMIT 1")->fetch_assoc();
+$usuarioTesteCriadoId = null;
+if (!$outroUsuarioRow) {
+    $agoraTeste = date('Y-m-d H:i:s');
+    $stmtU = $conn->prepare("INSERT INTO usuarios (nome, email, senha_hash, perfil, criado_em) VALUES ('Teste Fluxo Mesa', ?, 'sem-login', 'usuario', ?)");
+    $emailTeste = EMAIL_USUARIO_TESTE_MESA;
+    $stmtU->bind_param('ss', $emailTeste, $agoraTeste);
+    $stmtU->execute();
+    $usuarioTesteCriadoId = $conn->insert_id;
+    $outroUsuarioRow = ['id' => $usuarioTesteCriadoId, 'nome' => 'Teste Fluxo Mesa'];
+}
 $temSegundoUsuario = (bool)$outroUsuarioRow;
 
 $idOrcamento = etapaIdPorNome($conn, 'Orçamento');
@@ -214,6 +228,38 @@ if ($temSegundoUsuario) {
     checar('livros.responsavel_atual_id atualizado para o novo usuário', (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro2")->fetch_assoc()['responsavel_atual_id'] === $outroUsuarioId);
     // Devolve para o admin, só para manter o resto do script simples.
     passarParaOutraMesa($conn, $livro2, $usuarioId, $usuarioId);
+
+    // sp_trocar_mesa: falhas de validação chegam ao PHP como InvalidArgumentException em português.
+    foreach ([
+        'livro inexistente' => [fn() => passarParaOutraMesa($conn, 999999999, $outroUsuarioId, $usuarioId), 'Livro não encontrado.'],
+        'usuário responsável inexistente' => [fn() => passarParaOutraMesa($conn, $livro2, 999999999, $usuarioId), 'Usuário responsável inválido.'],
+    ] as $descricao => [$acao, $mensagemEsperada]) {
+        try {
+            $acao();
+            checar("Troca de mesa com $descricao foi REJEITADA", false);
+        } catch (InvalidArgumentException $e) {
+            checar("Troca de mesa com $descricao rejeitada com a mensagem certa", $e->getMessage() === $mensagemEsperada);
+        }
+    }
+
+    // Atomicidade: o registrado_por inexistente só falha no meio da procedure (chave estrangeira,
+    // depois de ela ter fechado a movimentação aberta) — o ROLLBACK tem que devolver tudo.
+    $abertasAntes = (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2 AND data_saida IS NULL")->fetch_assoc()['c'];
+    $mesaAntes = (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro2")->fetch_assoc()['responsavel_atual_id'];
+    $movsAntes = (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2")->fetch_assoc()['c'];
+    $logsAntes = (int)$conn->query("SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=$livro2")->fetch_assoc()['c'];
+    try {
+        passarParaOutraMesa($conn, $livro2, $outroUsuarioId, 999999999);
+        checar('Troca de mesa com registrado_por inexistente foi REJEITADA', false);
+    } catch (Throwable $e) {
+        checar('Troca de mesa com registrado_por inexistente foi rejeitada (erro do banco)', true);
+    }
+    checar('Falha no meio da troca de mesa: ROLLBACK manteve 1 movimentação aberta', (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2 AND data_saida IS NULL")->fetch_assoc()['c'] === $abertasAntes);
+    checar('Falha no meio da troca de mesa: ROLLBACK não mudou a mesa do livro', (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro2")->fetch_assoc()['responsavel_atual_id'] === $mesaAntes);
+    checar('Falha no meio da troca de mesa: ROLLBACK não deixou movimentação nem log novos', (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2")->fetch_assoc()['c'] === $movsAntes
+        && (int)$conn->query("SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=$livro2")->fetch_assoc()['c'] === $logsAntes);
+    // A conexão segue utilizável depois do erro (sem "Commands out of sync").
+    checar('Conexão utilizável depois de uma procedure que falhou', (int)$conn->query('SELECT 1 AS um')->fetch_assoc()['um'] === 1);
 } else {
     echo "(pulado: só existe 1 usuário cadastrado no banco)\n";
 }
@@ -336,6 +382,11 @@ foreach ($livrosDeTeste as $lid) {
 foreach ($pessoasDeTeste as $pid) {
     $conn->query("DELETE FROM log_alteracoes WHERE entidade_tipo='pessoa' AND entidade_id=$pid");
     $conn->query("DELETE FROM pessoas WHERE id=$pid");
+}
+if ($usuarioTesteCriadoId !== null) {
+    $conn->query("DELETE FROM log_alteracoes WHERE usuario_id=$usuarioTesteCriadoId");
+    $conn->query("DELETE FROM usuarios WHERE id=$usuarioTesteCriadoId");
+    echo "Usuário de teste removido: $usuarioTesteCriadoId\n";
 }
 echo "Livros de teste removidos: " . implode(', ', $livrosDeTeste) . "\n";
 echo "Pessoas de teste removidas: " . implode(', ', $pessoasDeTeste) . "\n";
