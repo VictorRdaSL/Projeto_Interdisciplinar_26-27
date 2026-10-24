@@ -129,9 +129,10 @@ $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
 
-$usuariosDisponiveis = [];
-$ru = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome');
-while ($row = $ru->fetch_assoc()) $usuariosDisponiveis[] = $row;
+// Só Gerente e Usuário comum podem ser mesa (o Administrador não faz parte do fluxo): ver includes/mesa.php.
+$usuariosDisponiveis = usuariosQuePodemSerMesa($conn);
+// Livro de antes da regra pode estar com um Administrador como mesa: nesse caso o formulário obriga a escolher.
+$mesaAtualValida = in_array((int)$livro['responsavel_atual_id'], array_map('intval', array_column($usuariosDisponiveis, 'id')), true);
 
 const NOMES_STATUS_LIVRO_DET = [
     'em_andamento' => 'Em andamento',
@@ -386,6 +387,9 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
     <section class="painel">
         <div class="painel-topo">
             <div><h2>Movimentar livro</h2>
+                <?php if (!$mesaAtualValida): ?>
+                    <p style="color:#955d15;font-weight:600;">⚠ Este livro está com um Administrador como responsável (mesa), o que não é permitido. Escolha um Gerente ou um Usuário no campo de responsável para continuar.</p>
+                <?php endif; ?>
                 <p>Etapa atual: <strong><?= htmlspecialchars($etapaAtual['nome']) ?></strong><?= (int)$etapaAtual['opcional'] === 1 ? ' (opcional)' : '' ?><?= (int)$etapaAtual['repetivel'] === 1 ? ' (repetível)' : '' ?>.</p>
             </div>
         </div>
@@ -410,7 +414,8 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
                         <input type="hidden" name="etapa_pulada_id" value="<?= (int)$a['etapa_pulada_id'] ?>">
                     <?php endif; ?>
                     <?php if ($a['modo'] !== 'concluir'): ?>
-                    <select name="responsavel_id" title="Responsável na nova etapa">
+                    <select name="responsavel_id" title="Responsável na nova etapa"<?= $mesaAtualValida ? '' : ' required' ?>>
+                        <?php if (!$mesaAtualValida): ?><option value="">— escolha o responsável —</option><?php endif; ?>
                         <?php foreach ($usuariosDisponiveis as $u): ?>
                             <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
                         <?php endforeach; ?>
@@ -433,7 +438,8 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
         <form method="post" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;">
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="repetir">
-            <select name="responsavel_id" title="Responsável na nova rodada">
+            <select name="responsavel_id" title="Responsável na nova rodada"<?= $mesaAtualValida ? '' : ' required' ?>>
+                <?php if (!$mesaAtualValida): ?><option value="">— escolha o responsável —</option><?php endif; ?>
                 <?php foreach ($usuariosDisponiveis as $u): ?>
                     <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
                 <?php endforeach; ?>
@@ -452,7 +458,8 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
                     <option value="<?= (int)$ev['id'] ?>"><?= htmlspecialchars($ev['nome']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <select name="responsavel_id" title="Responsável na etapa anterior">
+            <select name="responsavel_id" title="Responsável na etapa anterior"<?= $mesaAtualValida ? '' : ' required' ?>>
+                <?php if (!$mesaAtualValida): ?><option value="">— escolha o responsável —</option><?php endif; ?>
                 <?php foreach ($usuariosDisponiveis as $u): ?>
                     <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
                 <?php endforeach; ?>
@@ -477,6 +484,7 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="passar_mesa">
             <select name="novo_responsavel_id" required>
+                <?php if (!$mesaAtualValida): ?><option value="">— escolha o responsável —</option><?php endif; ?>
                 <?php foreach ($usuariosDisponiveis as $u): ?>
                     <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
                 <?php endforeach; ?>

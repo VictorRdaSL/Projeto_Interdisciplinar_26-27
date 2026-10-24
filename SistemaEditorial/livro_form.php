@@ -6,6 +6,7 @@ require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/validacao.php';
+require_once __DIR__ . '/includes/mesa.php';
 
 function buscarNomePorId(array $lista, int $id): string
 {
@@ -68,9 +69,9 @@ if ($editando) {
     while ($row = $re->fetch_assoc()) $paresExistentes[(int)$row['pessoa_id'] . '-' . (int)$row['papel_id']] = true;
 }
 
-$usuariosDisponiveis = [];
-$r = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome');
-while ($row = $r->fetch_assoc()) $usuariosDisponiveis[] = $row;
+// Só Gerente e Usuário comum podem ser mesa (o Administrador não faz parte do fluxo): ver includes/mesa.php.
+$usuariosDisponiveis = usuariosQuePodemSerMesa($conn);
+$idsMesaPossiveis = array_map('intval', array_column($usuariosDisponiveis, 'id'));
 
 $erro = '';
 $titulo = $editando ? $livroAtual['titulo'] : '';
@@ -111,7 +112,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $vistos = [];
         $idsPessoas = array_map('intval', array_column($pessoasDisponiveis, 'id'));
         $idsPapeis = array_map('intval', array_column($papeisDisponiveis, 'id'));
-        $idsUsuarios = array_map('intval', array_column($usuariosDisponiveis, 'id'));
         $papeisInativos = [];
         foreach ($papeisDisponiveis as $p) {
             if ((int)$p['ativo'] === 0) $papeisInativos[(int)$p['id']] = $p['nome'];
@@ -149,8 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $erro = $erroTamanho;
         } elseif (!$editando && $responsavelSelecionado <= 0) {
             $erro = 'Selecione o responsável inicial.';
-        } elseif (!$editando && !in_array($responsavelSelecionado, $idsUsuarios, true)) {
-            $erro = 'Responsável inicial inválido. Escolha um usuário da lista.';
+        } elseif (!$editando && ($erroMesa = erroResponsavelMesa($conn, $responsavelSelecionado)) !== null) {
+            $erro = $erroMesa;
         } elseif ($papelInativoNovo !== null) {
             $erro = 'O papel "' . $papelInativoNovo . '" está desativado: ele só pode ser mantido nas pessoas que já o tinham neste livro. Escolha outro papel para as demais.';
         } elseif ($contribuicaoInvalida) {
@@ -326,10 +326,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php if (!$editando): ?>
             <div class="campo full"><label for="responsavel_atual_id">Responsável inicial</label>
                 <select id="responsavel_atual_id" name="responsavel_atual_id" required>
+                    <?php if (!in_array($responsavelSelecionado, $idsMesaPossiveis, true)): ?>
+                        <option value=""><?= $usuariosDisponiveis ? '— escolha o responsável —' : '— nenhum Gerente ou Usuário cadastrado —' ?></option>
+                    <?php endif; ?>
                     <?php foreach ($usuariosDisponiveis as $u): ?>
                         <option value="<?= (int)$u['id'] ?>" <?= $responsavelSelecionado === (int)$u['id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php if (!$usuariosDisponiveis): ?>
+                    <p style="margin-top:8px;font-size:13px;color:#955d15;">O Administrador não pode ser responsável por um livro. Cadastre um Gerente ou um Usuário em Configurações antes de criar livros.</p>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
             <div class="campo full"><label for="observacoes">Observações</label><textarea id="observacoes" name="observacoes" maxlength="<?= LIMITE_OBSERVACOES ?>" placeholder="Texto livre, opcional..."><?= htmlspecialchars($observacoes) ?></textarea></div>

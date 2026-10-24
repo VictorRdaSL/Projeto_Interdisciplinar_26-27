@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/alertas.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/mesa.php';
 
 // Formulários de cadastro novo só valem uma vez por exibição (duplo clique / reenvio / "voltar").
 // Se um flash do primeiro envio ainda não foi mostrado, ele é preservado.
@@ -143,6 +144,13 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
                 $papelAnterior = $usuarioAtualLinha['perfil'];
                 if ($novoPapel === $papelAnterior) {
                     $_SESSION['flash'] = ['type' => 'info', 'message' => 'Nenhuma alteração: o usuário já tem esse papel.'];
+                } elseif ($novoPapel === 'admin' && ($livrosDoUsuario = livrosSobResponsabilidade($conn, $usuarioId))) {
+                    // O Administrador não pode ser mesa: antes de virar Admin, os livros dele precisam ir para outra mesa.
+                    $titulos = array_map(fn($l) => '"' . mb_strimwidth($l['titulo'], 0, 60, '…', 'UTF-8') . '"', array_slice($livrosDoUsuario, 0, 8));
+                    $resto = count($livrosDoUsuario) - count($titulos);
+                    $_SESSION['flash'] = ['type' => 'erro', 'message' =>
+                        'Não é possível tornar este usuário Administrador: o Administrador não pode ser responsável (mesa) de livros, e ele ainda é responsável por '
+                        . count($livrosDoUsuario) . ' livro(s). Passe-os para outra mesa antes: ' . implode(', ', $titulos) . ($resto > 0 ? " e mais $resto." : '.')];
                 } else {
                     $stmt = $conn->prepare('UPDATE usuarios SET perfil = ? WHERE id = ?');
                     $stmt->bind_param('si', $novoPapel, $usuarioId);

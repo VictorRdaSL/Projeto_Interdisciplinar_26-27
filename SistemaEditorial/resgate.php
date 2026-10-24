@@ -86,9 +86,8 @@ $etapasDisponiveis = [];
 $re = $conn->query('SELECT id, nome FROM etapas WHERE ativa = 1 ORDER BY ordem ASC');
 while ($row = $re->fetch_assoc()) $etapasDisponiveis[] = $row;
 
-$usuariosDisponiveis = [];
-$ru = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome');
-while ($row = $ru->fetch_assoc()) $usuariosDisponiveis[] = $row;
+// Só Gerente e Usuário comum podem ser mesa (o Administrador não faz parte do fluxo): ver includes/mesa.php.
+$usuariosDisponiveis = usuariosQuePodemSerMesa($conn);
 
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
