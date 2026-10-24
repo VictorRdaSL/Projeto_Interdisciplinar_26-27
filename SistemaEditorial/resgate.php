@@ -5,8 +5,9 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/movimentacoes.php';
 
-$livroId = (int)($_GET['id'] ?? 0);
+$livroId = idDaUrl($_GET, 'id');
 if ($livroId <= 0) {
+    $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Livro não encontrado.'];
     header('Location: livros.php');
     exit;
 }

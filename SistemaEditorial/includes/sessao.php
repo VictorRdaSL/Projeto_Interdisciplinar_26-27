@@ -1,6 +1,6 @@
 <?php
 // Ponto único de início de sessão, usado por toda página do sistema (inclusive
-// login.php e register.php) — garante que os atributos do cookie de sessão
+// login.php) — garante que os atributos do cookie de sessão
 // sejam sempre os mesmos, em vez de cada arquivo chamar session_start() direto.
 if (session_status() === PHP_SESSION_NONE) {
     $config = @include __DIR__ . '/../config/config.php';

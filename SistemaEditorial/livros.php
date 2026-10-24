@@ -4,6 +4,7 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/validacao.php';
+require_once __DIR__ . '/includes/formatacao.php';
 
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
@@ -116,7 +117,7 @@ function classeStatusLivro(string $status): string
                         <td><?= htmlspecialchars($l['isbn'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($l['pessoas_nomes'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($l['etapa_nome'] ?: '—') ?></td>
-                        <td><?= $l['etapa_desde'] ? date('d/m/Y', strtotime($l['etapa_desde'])) : '—' ?></td>
+                        <td><?= formatarDataHora($l['etapa_desde']) ?></td>
                         <td><?= htmlspecialchars($l['responsavel_nome'] ?: '—') ?></td>
                         <td><?= ((int)$l['tem_copia'] === 1) ? 'Sim' : 'Não' ?></td>
                         <td>

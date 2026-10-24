@@ -13,3 +13,6 @@ RedirectMatch 403 "(^|/)\.git(/|$)"
         Deny from all
     </IfModule>
 </FilesMatch>
+
+# Sem listagem de pastas (img/ e outras): quem abre a pasta no navegador recebe 403, não a lista de arquivos.
+Options -Indexes

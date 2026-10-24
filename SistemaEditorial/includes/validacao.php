@@ -61,3 +61,26 @@ function entradaBruta(array $origem, string $chave): string
     $valor = $origem[$chave] ?? '';
     return is_string($valor) ? $valor : '';
 }
+
+const LIMITE_DIAS_MAX = 3650;   // dias-limite (livro parado): 10 anos já é "sem limite" na prática
+const LIMITE_RODADAS_MAX = 99;  // rodadas incluídas numa etapa
+
+/**
+ * Inteiro positivo escrito só com dígitos, dentro de [1, $max]; qualquer outra coisa devolve null.
+ * Rejeita '1e3', '-5', '5.5', '0x1A' e números absurdos (o (int) do PHP aceitaria alguns e estouraria outros).
+ */
+function inteiroPositivo(string $texto, int $max): ?int
+{
+    if ($texto === '' || !ctype_digit($texto) || strlen($texto) > 9) {
+        return null;
+    }
+    $n = (int)$texto;
+    return ($n >= 1 && $n <= $max) ? $n : null;
+}
+
+/** Id numérico de ?id=... (só dígitos); devolve 0 se faltar, vier em branco, negativo ou em formato de lista. */
+function idDaUrl(array $origem, string $chave): int
+{
+    $valor = $origem[$chave] ?? '';
+    return (is_string($valor) && ctype_digit($valor)) ? (int)$valor : 0;
+}

@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/validacao.php';
+require_once __DIR__ . '/includes/formatacao.php';
 
 function voltarPessoas(string $tipo, string $mensagem): never {
     $_SESSION['flash'] = ['type' => $tipo, 'message' => $mensagem];
@@ -180,7 +181,7 @@ $podeGerenciar = usuarioTemPermissao('pessoas.gerenciar');
                         <td><strong><?= htmlspecialchars($p['nome']) ?></strong></td>
                         <td><?= htmlspecialchars($p['email'] ?: '—') ?></td>
                         <td><?= htmlspecialchars($p['telefone'] ?: '—') ?></td>
-                        <td><?= date('d/m/Y', strtotime($p['criado_em'])) ?></td>
+                        <td><?= formatarDataHora($p['criado_em']) ?></td>
                         <?php if ($podeGerenciar): ?>
                         <td>
                             <button type="button" class="acao-btn" title="Editar"

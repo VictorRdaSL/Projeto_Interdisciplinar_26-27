@@ -6,6 +6,7 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/alertas.php';
 require_once __DIR__ . '/includes/validacao.php';
+require_once __DIR__ . '/includes/formatacao.php';
 
 // Formulários de cadastro novo só valem uma vez por exibição (duplo clique / reenvio / "voltar").
 // Se um flash do primeiro envio ainda não foi mostrado, ele é preservado.
@@ -32,6 +33,42 @@ $agindoComoAdmin = papelAtual() === 'admin';
 // etapa por aqui desativa aquele aviso silenciosamente (risco já documentado).
 const NOME_ETAPA_CATALOGACAO_CONFIG = 'Catalogação — ISBN e ficha catalográfica';
 
+// Ação reconhecida, mas sem permissão: cada handler abaixo já a bloquearia, só que em silêncio. Aqui o usuário recebe a
+// explicação. Na prática só acontece com POST forjado (a tela esconde essas seções).
+$permissaoPorAcao = [
+    'alterar_dias_limite' => $podeConfigurarDiasLimite,
+    'alterar_papel' => $podeGerenciarUsuarios,
+    'criar_usuario' => $podeGerenciarUsuarios,
+    'criar_etapa' => $podeGerenciarEtapasPapeis,
+    'editar_etapa' => $podeGerenciarEtapasPapeis,
+    'mover_etapa' => $podeGerenciarEtapasPapeis,
+    'criar_papel' => $podeGerenciarEtapasPapeis,
+    'editar_papel' => $podeGerenciarEtapasPapeis,
+];
+$acaoRecebida = entradaTexto($_POST, 'acao');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($permissaoPorAcao[$acaoRecebida]) && !$permissaoPorAcao[$acaoRecebida]) {
+    $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não tem permissão para realizar esta ação.'];
+    header('Location: configuracoes.php');
+    exit;
+}
+
+function nomeEtapaJaExiste(mysqli $conn, string $nome, int $ignorarId): bool
+{
+    // A collation (utf8mb4_unicode_ci) já ignora maiúsculas e acentos; vale também para etapa desativada.
+    $stmt = $conn->prepare('SELECT 1 FROM etapas WHERE nome = ? AND id <> ? LIMIT 1');
+    $stmt->bind_param('si', $nome, $ignorarId);
+    $stmt->execute();
+    return (bool)$stmt->get_result()->fetch_row();
+}
+
+function nomePapelJaExiste(mysqli $conn, string $nome, int $ignorarId): bool
+{
+    $stmt = $conn->prepare('SELECT 1 FROM papeis WHERE nome = ? AND id <> ? LIMIT 1');
+    $stmt->bind_param('si', $nome, $ignorarId);
+    $stmt->execute();
+    return (bool)$stmt->get_result()->fetch_row();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_tema') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
@@ -55,9 +92,9 @@ if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POS
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
-        $novoDiasLimite = (int)($_POST['dias_limite_livro_parado'] ?? 0);
-        if ($novoDiasLimite <= 0) {
-            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe um número de dias maior que zero.'];
+        $novoDiasLimite = inteiroPositivo(entradaTexto($_POST, 'dias_limite_livro_parado'), LIMITE_DIAS_MAX);
+        if ($novoDiasLimite === null) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe um número inteiro de dias entre 1 e ' . LIMITE_DIAS_MAX . '.'];
         } else {
             $diasLimiteAntigo = (string)buscarDiasLimiteGlobal($conn);
             $stmt = $conn->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'dias_limite_livro_parado'");
@@ -104,13 +141,15 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não é possível remover o último administrador do sistema.'];
             } else {
                 $papelAnterior = $usuarioAtualLinha['perfil'];
-                $stmt = $conn->prepare('UPDATE usuarios SET perfil = ? WHERE id = ?');
-                $stmt->bind_param('si', $novoPapel, $usuarioId);
-                $stmt->execute();
-                if ($novoPapel !== $papelAnterior) {
+                if ($novoPapel === $papelAnterior) {
+                    $_SESSION['flash'] = ['type' => 'info', 'message' => 'Nenhuma alteração: o usuário já tem esse papel.'];
+                } else {
+                    $stmt = $conn->prepare('UPDATE usuarios SET perfil = ? WHERE id = ?');
+                    $stmt->bind_param('si', $novoPapel, $usuarioId);
+                    $stmt->execute();
                     registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.alterar_papel', 'usuario', $usuarioId, $papelAnterior, $novoPapel);
+                    $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Papel do usuário atualizado com sucesso.'];
                 }
-                $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Papel do usuário atualizado com sucesso.'];
             }
         }
     }
@@ -185,10 +224,12 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
     } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_ETAPA, 'O nome da etapa')) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
-    } elseif ($rodadasStr !== '' && (!ctype_digit($rodadasStr) || (int)$rodadasStr < 1)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro maior que zero, ou vazio para sem limite.'];
-    } elseif ($diasStr !== '' && (!ctype_digit($diasStr) || (int)$diasStr < 1)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro maior que zero, ou vazio para usar o padrão global.'];
+    } elseif (nomeEtapaJaExiste($conn, $nome, 0)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe uma etapa com esse nome (mesmo desativada). Escolha outro nome.'];
+    } elseif ($rodadasStr !== '' && inteiroPositivo($rodadasStr, LIMITE_RODADAS_MAX) === null) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro entre 1 e ' . LIMITE_RODADAS_MAX . ', ou vazio para sem limite.'];
+    } elseif ($diasStr !== '' && inteiroPositivo($diasStr, LIMITE_DIAS_MAX) === null) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro entre 1 e ' . LIMITE_DIAS_MAX . ', ou vazio para usar o padrão global.'];
     } else {
         $rodadas = $rodadasStr === '' ? null : (int)$rodadasStr;
         $dias = $diasStr === '' ? null : (int)$diasStr;
@@ -230,10 +271,12 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
     } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_ETAPA, 'O nome da etapa')) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
-    } elseif ($rodadasStr !== '' && (!ctype_digit($rodadasStr) || (int)$rodadasStr < 1)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro maior que zero, ou vazio para sem limite.'];
-    } elseif ($diasStr !== '' && (!ctype_digit($diasStr) || (int)$diasStr < 1)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro maior que zero, ou vazio para usar o padrão global.'];
+    } elseif (nomeEtapaJaExiste($conn, $nome, $etapaId)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe outra etapa com esse nome (mesmo desativada). Escolha outro nome.'];
+    } elseif ($rodadasStr !== '' && inteiroPositivo($rodadasStr, LIMITE_RODADAS_MAX) === null) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro entre 1 e ' . LIMITE_RODADAS_MAX . ', ou vazio para sem limite.'];
+    } elseif ($diasStr !== '' && inteiroPositivo($diasStr, LIMITE_DIAS_MAX) === null) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro entre 1 e ' . LIMITE_DIAS_MAX . ', ou vazio para usar o padrão global.'];
     } else {
         $rodadas = $rodadasStr === '' ? null : (int)$rodadasStr;
         $dias = $diasStr === '' ? null : (int)$diasStr;
@@ -339,6 +382,8 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
     } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
+    } elseif (nomePapelJaExiste($conn, $nome, 0)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe um papel com esse nome (mesmo desativado). Escolha outro nome.'];
     } else {
         $stmt = $conn->prepare('INSERT INTO papeis (nome, ativo) VALUES (?, 1)');
         $stmt->bind_param('s', $nome);
@@ -371,6 +416,8 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
     } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
+    } elseif (nomePapelJaExiste($conn, $nome, $papelId)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe outro papel com esse nome (mesmo desativado). Escolha outro nome.'];
     } else {
         $stmt = $conn->prepare('UPDATE papeis SET nome = ?, ativo = ? WHERE id = ?');
         $stmt->bind_param('sii', $nome, $ativo, $papelId);
@@ -529,7 +576,7 @@ unset($_SESSION['flash']);
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="alterar_dias_limite">
             <div class="campo"><label for="dias_limite_livro_parado">Dias-limite padrão</label>
-                <input type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" value="<?= (int)$diasLimiteAtual ?>" required>
+                <input type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" max="3650" value="<?= (int)$diasLimiteAtual ?>" required>
             </div>
             <button type="submit" class="btn-salvar">Salvar</button>
         </form>
@@ -553,7 +600,7 @@ unset($_SESSION['flash']);
                         <td><strong><?= htmlspecialchars($u['nome']) ?></strong></td>
                         <td><?= htmlspecialchars($u['email']) ?></td>
                         <td><span class="papel-badge papel-<?= htmlspecialchars($u['perfil']) ?>"><?= htmlspecialchars(nomePapel($u['perfil'])) ?></span></td>
-                        <td><?= date('d/m/Y', strtotime($u['criado_em'])) ?></td>
+                        <td><?= formatarDataHora($u['criado_em']) ?></td>
                         <td>
                             <?php if ($podeEditarEssaLinha): ?>
                             <form method="post" class="form-papel">
@@ -664,8 +711,8 @@ unset($_SESSION['flash']);
                                         <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($et['nome']) ?>" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
                                         <div class="campo"><label><input type="checkbox" name="opcional" <?= (int)$et['opcional'] === 1 ? 'checked' : '' ?>> Opcional</label></div>
                                         <div class="campo"><label><input type="checkbox" name="repetivel" <?= (int)$et['repetivel'] === 1 ? 'checked' : '' ?>> Repetível</label></div>
-                                        <div class="campo"><label>Rodadas incluídas (vazio = sem limite)</label><input type="number" name="rodadas_incluidas" min="1" value="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"></div>
-                                        <div class="campo"><label>Dias limite (vazio = padrão global)</label><input type="number" name="dias_limite" min="1" value="<?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '' ?>"></div>
+                                        <div class="campo"><label>Rodadas incluídas (vazio = sem limite)</label><input type="number" name="rodadas_incluidas" min="1" max="99" value="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"></div>
+                                        <div class="campo"><label>Dias limite (vazio = padrão global)</label><input type="number" name="dias_limite" min="1" max="3650" value="<?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '' ?>"></div>
                                         <div class="campo"><label><input type="checkbox" name="ativa" <?= (int)$et['ativa'] === 1 ? 'checked' : '' ?>> Ativa</label></div>
                                         <button type="submit" class="btn-salvar">Salvar</button>
                                     </form>
@@ -688,8 +735,8 @@ unset($_SESSION['flash']);
                 <div class="campo"><label for="nova_etapa_nome">Nome</label><input type="text" id="nova_etapa_nome" name="nome" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
                 <div class="campo"><label><input type="checkbox" name="opcional"> Opcional</label></div>
                 <div class="campo"><label><input type="checkbox" name="repetivel"> Repetível</label></div>
-                <div class="campo"><label for="nova_etapa_rodadas">Rodadas incluídas (vazio = sem limite)</label><input type="number" id="nova_etapa_rodadas" name="rodadas_incluidas" min="1"></div>
-                <div class="campo"><label for="nova_etapa_dias">Dias limite (vazio = padrão global)</label><input type="number" id="nova_etapa_dias" name="dias_limite" min="1"></div>
+                <div class="campo"><label for="nova_etapa_rodadas">Rodadas incluídas (vazio = sem limite)</label><input type="number" id="nova_etapa_rodadas" name="rodadas_incluidas" min="1" max="99"></div>
+                <div class="campo"><label for="nova_etapa_dias">Dias limite (vazio = padrão global)</label><input type="number" id="nova_etapa_dias" name="dias_limite" min="1" max="3650"></div>
                 <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar etapa</button></div>
             </form>
         </div>
