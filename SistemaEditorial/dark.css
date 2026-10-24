@@ -89,6 +89,7 @@
 [data-theme="escuro"] .tabela-detalhe td { border-bottom: 1px solid var(--d-borda); }
 
 /* Status e badges — cada um revisado para contraste próprio, não só invertido */
+[data-theme="escuro"] .status { background: var(--d-bg-hover); color: var(--d-texto-secundario); }
 [data-theme="escuro"] .ok,
 [data-theme="escuro"] .aviso-periodo-ok,
 [data-theme="escuro"] .papel-gerente,
