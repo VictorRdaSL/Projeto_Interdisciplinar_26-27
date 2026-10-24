@@ -75,8 +75,8 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
         } elseif (!$agindoComoAdmin && $novoPapel === 'admin') {
             $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem conceder o papel de Administrador.'];
         } else {
-            $totalAdmins = (int)$conn->query("SELECT COUNT(*) total FROM usuarios WHERE perfil = 'admin'")->fetch_assoc()['total'];
-            $stmtAtual = $conn->prepare('SELECT perfil FROM usuarios WHERE id = ?');
+            $totalAdmins = (int)$conn->query("SELECT COUNT(*) total FROM vw_usuarios_publico WHERE perfil = 'admin'")->fetch_assoc()['total'];
+            $stmtAtual = $conn->prepare('SELECT perfil FROM vw_usuarios_publico WHERE id = ?');
             $stmtAtual->bind_param('i', $usuarioId);
             $stmtAtual->execute();
             $usuarioAtualLinha = $stmtAtual->get_result()->fetch_assoc();
@@ -129,7 +129,7 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
     } elseif (!$agindoComoAdmin && $novoPapelCriado === 'admin') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem criar um usuário com o papel de Administrador.'];
     } else {
-        $stmtExiste = $conn->prepare('SELECT id FROM usuarios WHERE email = ?');
+        $stmtExiste = $conn->prepare('SELECT id FROM vw_usuarios_publico WHERE email = ?');
         $stmtExiste->bind_param('s', $novoEmail);
         $stmtExiste->execute();
         if ($stmtExiste->get_result()->fetch_assoc()) {
@@ -364,7 +364,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 }
 
 $usuarios = [];
-$r = $conn->query('SELECT id, nome, email, perfil, criado_em FROM usuarios ORDER BY nome');
+$r = $conn->query('SELECT id, nome, email, perfil, criado_em FROM vw_usuarios_publico ORDER BY nome');
 while ($row = $r->fetch_assoc()) $usuarios[] = $row;
 
 $diasLimiteAtual = buscarDiasLimiteGlobal($conn);

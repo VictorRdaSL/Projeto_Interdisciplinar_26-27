@@ -8,7 +8,7 @@ if (empty($_SESSION['usuario_id'])) {
 
 require_once __DIR__ . '/config/database.php';
 
-$stmt = $conn->prepare('SELECT nome, perfil, tema FROM usuarios WHERE id = ?');
+$stmt = $conn->prepare('SELECT nome, perfil, tema FROM vw_usuarios_publico WHERE id = ?');
 $stmt->bind_param('i', $_SESSION['usuario_id']);
 $stmt->execute();
 $usuarioAtual = $stmt->get_result()->fetch_assoc();

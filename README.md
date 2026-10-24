@@ -40,9 +40,10 @@ Desenvolver um sistema web capaz de:
 ## ⚙️ Instalação (XAMPP)
 
 1. Copie o projeto para `C:\xampp\htdocs\` e inicie **Apache** e **MySQL** no XAMPP.
-2. No phpMyAdmin (`http://localhost/phpmyadmin`), importe **nesta ordem** os arquivos da pasta `database/`:
+2. No phpMyAdmin (`http://localhost/phpmyadmin`), importe **nesta ordem** os três arquivos da pasta `database/`:
    1. `schema.sql` — cria o banco **`waresys`** e todas as tabelas;
-   2. `seed.sql` — etapas, papéis, configuração e o usuário administrador inicial.
+   2. `seed.sql` — etapas, papéis, configuração e o usuário administrador inicial;
+   3. `views.sql` — views de leitura (`vw_*`) usadas pelo sistema.
 3. Copie `SistemaEditorial/config/config.example.php` para `SistemaEditorial/config/config.php` e ajuste usuário/senha do MySQL, se necessário.
 4. Acesse `http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/`.
 

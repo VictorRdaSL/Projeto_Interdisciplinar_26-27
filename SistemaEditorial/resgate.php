@@ -88,7 +88,7 @@ $re = $conn->query('SELECT id, nome FROM etapas WHERE ativa = 1 ORDER BY ordem A
 while ($row = $re->fetch_assoc()) $etapasDisponiveis[] = $row;
 
 $usuariosDisponiveis = [];
-$ru = $conn->query('SELECT id, nome FROM usuarios ORDER BY nome');
+$ru = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome');
 while ($row = $ru->fetch_assoc()) $usuariosDisponiveis[] = $row;
 
 $flash = $_SESSION['flash'] ?? null;

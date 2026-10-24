@@ -11,24 +11,18 @@ $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
 // filtro em si continua sendo client-side, isso só define o valor inicial.
 $termoBuscaInicial = trim($_GET['busca'] ?? '');
 
-// GROUP_CONCAT é específico do MySQL/MariaDB (não é SQL padrão) — usado aqui
-// só para exibição/busca na listagem, não faz parte do schema em si.
-// mAtual é a movimentação aberta (0 ou 1 por livro, nunca mais que isso) — não
-// infla o GROUP_CONCAT de pessoas, que vem de um JOIN N:N separado.
+// Situação do livro (etapa, mesa, movimentação aberta) e pessoas vinculadas vêm das views
+// vw_livros_situacao_atual e vw_livros_contribuidores (database/views.sql) — uma linha por
+// livro, então não há GROUP BY nem risco de multiplicar linhas.
 $sql = "
-    SELECT l.id, l.titulo, l.isbn, l.status, l.tem_copia,
-           e.nome AS etapa_nome, u.nome AS responsavel_nome,
-           GROUP_CONCAT(DISTINCT pe.nome ORDER BY pe.nome SEPARATOR ', ') AS pessoas_nomes,
-           EXISTS(SELECT 1 FROM resgates r WHERE r.livro_id = l.id) AS ja_teve_resgate,
-           mAtual.data_entrada AS etapa_desde
-    FROM livros l
-    LEFT JOIN etapas e ON e.id = l.etapa_atual_id
-    LEFT JOIN usuarios u ON u.id = l.responsavel_atual_id
-    LEFT JOIN contribuicoes c ON c.livro_id = l.id
-    LEFT JOIN pessoas pe ON pe.id = c.pessoa_id
-    LEFT JOIN movimentacoes mAtual ON mAtual.livro_id = l.id AND mAtual.data_saida IS NULL
-    GROUP BY l.id
-    ORDER BY l.titulo
+    SELECT v.livro_id AS id, v.titulo, v.isbn, v.status, v.tem_copia,
+           v.etapa_nome, v.mesa_nome AS responsavel_nome,
+           c.pessoas_nomes,
+           EXISTS(SELECT 1 FROM resgates r WHERE r.livro_id = v.livro_id) AS ja_teve_resgate,
+           v.etapa_desde
+    FROM vw_livros_situacao_atual v
+    LEFT JOIN vw_livros_contribuidores c ON c.livro_id = v.livro_id
+    ORDER BY v.titulo
 ";
 $livros = [];
 $r = $conn->query($sql);
