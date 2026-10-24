@@ -16,6 +16,7 @@ require_once __DIR__ . '/rodadas.php';
 require_once __DIR__ . '/log.php';
 require_once __DIR__ . '/procedures.php';
 require_once __DIR__ . '/validacao.php';
+require_once __DIR__ . '/mesa.php';
 
 // Nome exato semeado em database/seed.sql. Não há coluna de identificador
 // estável em `etapas` — se essa etapa for renomeada no futuro, o aviso de
@@ -85,14 +86,6 @@ function avisoIsbnVazioAoSairDaCatalogacao(string $nomeEtapaFechada, ?string $is
     return null;
 }
 
-function usuarioExiste(mysqli $conn, int $usuarioId): bool
-{
-    $stmt = $conn->prepare('SELECT 1 FROM vw_usuarios_publico WHERE id = ?');
-    $stmt->bind_param('i', $usuarioId);
-    $stmt->execute();
-    return (bool)$stmt->get_result()->fetch_assoc();
-}
-
 function nomeUsuario(mysqli $conn, int $usuarioId): string
 {
     $stmt = $conn->prepare('SELECT nome FROM vw_usuarios_publico WHERE id = ?');
@@ -105,11 +98,15 @@ function nomeUsuario(mysqli $conn, int $usuarioId): string
 function resolverResponsavel(mysqli $conn, array $livro, ?int $novoResponsavelId): int
 {
     if ($novoResponsavelId === null) {
-        return (int)$livro['responsavel_atual_id'];
+        // Mantém a mesa de hoje. Se hoje ela é um Administrador (livro de antes da regra), não dá para
+        // simplesmente mantê-la: a pessoa precisa escolher um responsável válido junto com a ação.
+        $mesaAtual = (int)$livro['responsavel_atual_id'];
+        if (erroResponsavelMesa($conn, $mesaAtual) !== null) {
+            throw new InvalidArgumentException('Este livro está com um Administrador como responsável (mesa), o que não é permitido. Escolha um Gerente ou um Usuário como responsável para continuar.');
+        }
+        return $mesaAtual;
     }
-    if (!usuarioExiste($conn, $novoResponsavelId)) {
-        throw new InvalidArgumentException('Usuário responsável inválido.');
-    }
+    validarResponsavelMesa($conn, $novoResponsavelId);
     return $novoResponsavelId;
 }
 
@@ -383,6 +380,8 @@ function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 // Não chame dentro de uma transação aberta: a procedure faz COMMIT implícito dela.
 function passarParaOutraMesa(mysqli $conn, int $livroId, int $novoResponsavelId, int $registradoPorId): array
 {
+    // A procedure só confere se o usuário existe; a regra "Admin não pode ser mesa" fica aqui, no PHP.
+    validarResponsavelMesa($conn, $novoResponsavelId);
     $agora = date('Y-m-d H:i:s');
     $linhas = chamarProcedure($conn, 'CALL sp_trocar_mesa(?, ?, ?, ?)', 'iiis', [$livroId, $novoResponsavelId, $registradoPorId, $agora]);
     $r = $linhas[0];
@@ -495,9 +494,7 @@ function concluirResgate(mysqli $conn, int $livroId, int $novaEtapaId, int $novo
         if (!$novaEtapa || (int)$novaEtapa['ativa'] !== 1) {
             throw new InvalidArgumentException('Etapa informada inválida ou inativa.');
         }
-        if (!usuarioExiste($conn, $novoResponsavelId)) {
-            throw new InvalidArgumentException('Usuário responsável inválido.');
-        }
+        validarResponsavelMesa($conn, $novoResponsavelId);
 
         // Fecha a movimentação que ficou aberta desde antes do extravio (se ainda estiver aberta).
         $stmtMovAberta = $conn->prepare('SELECT id FROM movimentacoes WHERE livro_id = ? AND data_saida IS NULL ORDER BY data_entrada DESC, id DESC LIMIT 1');

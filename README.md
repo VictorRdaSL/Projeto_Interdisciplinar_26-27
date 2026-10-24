@@ -48,6 +48,8 @@ Desenvolver um sistema web capaz de:
 3. Copie `SistemaEditorial/config/config.example.php` para `SistemaEditorial/config/config.php` e ajuste usuário/senha do MySQL, se necessário.
 4. Acesse `http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/`.
 
+> O Administrador não faz parte do fluxo e não pode ser responsável por livros: depois do primeiro login, cadastre um Gerente ou Usuário em Configurações.
+
 **Login inicial (senha provisória — trocar antes de publicar):** `admin@waresys.com` / `admin123`. Instruções para trocar a senha estão em `SistemaEditorial/README.txt`.
 
 ---

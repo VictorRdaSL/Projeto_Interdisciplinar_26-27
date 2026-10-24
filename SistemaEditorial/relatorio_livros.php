@@ -2,6 +2,7 @@
 require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/relatorios.php';
+require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/relatorios_layout.php';
 
 exigirPermissaoRelatorios();
@@ -77,7 +78,8 @@ if (($_GET['export'] ?? '') === 'csv') {
 }
 
 $etapasFiltro = $conn->query('SELECT id, nome FROM etapas ORDER BY ordem, id')->fetch_all(MYSQLI_ASSOC);
-$usuariosFiltro = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome')->fetch_all(MYSQLI_ASSOC);
+// O Administrador não faz parte do fluxo (includes/mesa.php): não aparece como opção de mesa no filtro.
+$usuariosFiltro = usuariosQuePodemSerMesa($conn);
 
 relatorioAbrir('Relatório de livros', 'Relatórios');
 ?>

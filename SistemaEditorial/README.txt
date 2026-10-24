@@ -21,6 +21,10 @@ INSTALAÇÃO
    senha do MySQL, se necessário. O config.php não vai para o Git.
 5. Abra http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/
 
+IMPORTANTE: o Administrador não faz parte do fluxo da editora e não pode ser responsável por livros.
+Depois do primeiro login, cadastre pelo menos um Gerente ou Usuário em Configurações — sem isso
+não há quem escolher como responsável ao criar um livro.
+
 LOGIN INICIAL DO SISTEMA (SENHA PROVISÓRIA — troque antes de publicar):
 E-mail: admin@waresys.com
 Senha:  a senha provisória está no README.md da raiz do repositório (fica só lá).
