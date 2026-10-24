@@ -36,6 +36,7 @@ nav .nav-desabilitado .nav-tag{margin-left:auto;font-size:10px;background:#eef2e
 .flash{padding:14px 18px;border-radius:12px;margin-bottom:22px;font-size:14px;font-weight:600}
 .flash.sucesso{background:#dff4dd;color:#145d35;border:1px solid #bfe6ba}
 .flash.erro{background:#fff1e3;color:#955d15;border:1px solid #f0d2a6}
+.flash.info{background:#e6f0fb;color:#1d4e89;border:1px solid #bcd6f2}
 .grid-mov{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .form-grade{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .full{grid-column:1/-1}
@@ -59,8 +60,8 @@ nav .nav-desabilitado .nav-tag{margin-left:auto;font-size:10px;background:#eef2e
 .tabs-periodo{margin:0 0 20px 0;flex-wrap:wrap}
 .form-filtro-log{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;margin-bottom:22px}
 .form-filtro-log .campo{min-width:160px}
-.form-filtro-log .campo-botao{flex-direction:row;gap:10px}
-@media(max-width:700px){.form-filtro-log{flex-direction:column;align-items:stretch}.form-filtro-log .campo{min-width:0}}
+.form-filtro-log .campo-botao{flex-direction:row;flex-wrap:wrap;gap:10px}
+@media(max-width:700px){.form-filtro-log{flex-direction:column;flex-wrap:nowrap;align-items:stretch}.form-filtro-log .campo{min-width:0}}
 .topo-direita{display:flex;align-items:center;gap:20px}
 .notificacoes-wrap{position:relative}
 .notificacao-btn{position:relative;background:#ffffff;border:none;width:42px;height:42px;border-radius:12px;font-size:18px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.04)}
@@ -91,3 +92,11 @@ nav .nav-desabilitado .nav-tag{margin-left:auto;font-size:10px;background:#eef2e
 .tema-opcao.ativo{border-color:var(--verde-600);background:var(--verde-50);color:var(--verde-800)}
 .tema-icone{font-size:22px}
 @media(max-width:600px){.tema-opcoes{flex-direction:column}.tema-opcao{width:100%}}
+
+/* Links de conteúdo (título de livro nas listas, "Voltar"): cor do tema, sem sublinhado até passar o mouse.
+   Só dentro do <main> e sem classe: menu e botões (<a class="btn">) têm estilo próprio. */
+main a:not([class]) { color: var(--verde-700); text-decoration: none; font-weight: 600; }
+main a:not([class]):hover, main a:not([class]):focus-visible { text-decoration: underline; }
+.bem-vindo .btn { display: inline-block; padding: 6px 14px; font-size: 13px; text-decoration: none; }
+/* Listas de seleção soltas (formulários em linha das ações do livro) com o mesmo visual dos campos */
+main select { padding: 8px 10px; border: 1px solid #dfe9e2; border-radius: 8px; font-size: 13px; color: #53645a; background: #fafcfb; }
