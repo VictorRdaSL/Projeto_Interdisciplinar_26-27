@@ -5,6 +5,21 @@ require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/alertas.php';
+require_once __DIR__ . '/includes/validacao.php';
+
+// Formulários de cadastro novo só valem uma vez por exibição (duplo clique / reenvio / "voltar").
+// Se um flash do primeiro envio ainda não foi mostrado, ele é preservado.
+function exigirEnvioUnico(): void
+{
+    if (envio_unico_consumir($_POST['envio_id'] ?? null)) {
+        return;
+    }
+    if (empty($_SESSION['flash'])) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_ENVIO_DUPLICADO];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
 
 $podeGerenciarUsuarios = usuarioTemPermissao('config.usuarios');
 $podeConfigurarDiasLimite = usuarioTemPermissao('config.dias_limite');
@@ -109,6 +124,7 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
         header('Location: configuracoes.php');
         exit;
     }
+    exigirEnvioUnico();
 
     $novoNome = trim($_POST['novo_nome'] ?? '');
     $novoEmail = trim($_POST['novo_email'] ?? '');
@@ -118,8 +134,12 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
 
     if ($novoNome === '' || $novoEmail === '' || $novaSenha === '' || $novaConfirmarSenha === '') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Preencha todos os campos do novo usuário.'];
+    } elseif ($erroTam = erroTamanho($novoNome, LIMITE_NOME_USUARIO, 'O nome')) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
     } elseif (!filter_var($novoEmail, FILTER_VALIDATE_EMAIL)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe um e-mail válido para o novo usuário.'];
+    } elseif ($erroTam = erroTamanho($novoEmail, LIMITE_EMAIL, 'O e-mail')) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
     } elseif (strlen($novaSenha) < 6) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'A senha deve ter pelo menos 6 caracteres.'];
     } elseif ($novaSenha !== $novaConfirmarSenha) {
@@ -154,6 +174,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
+    exigirEnvioUnico();
     $nome = trim($_POST['nome'] ?? '');
     $opcional = isset($_POST['opcional']) ? 1 : 0;
     $repetivel = isset($_POST['repetivel']) ? 1 : 0;
@@ -162,6 +183,8 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 
     if ($nome === '') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
+    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_ETAPA, 'O nome da etapa')) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
     } elseif ($rodadasStr !== '' && (!ctype_digit($rodadasStr) || (int)$rodadasStr < 1)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro maior que zero, ou vazio para sem limite.'];
     } elseif ($diasStr !== '' && (!ctype_digit($diasStr) || (int)$diasStr < 1)) {
@@ -205,6 +228,8 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Etapa não encontrada.'];
     } elseif ($nome === '') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
+    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_ETAPA, 'O nome da etapa')) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
     } elseif ($rodadasStr !== '' && (!ctype_digit($rodadasStr) || (int)$rodadasStr < 1)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro maior que zero, ou vazio para sem limite.'];
     } elseif ($diasStr !== '' && (!ctype_digit($diasStr) || (int)$diasStr < 1)) {
@@ -308,9 +333,12 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
+    exigirEnvioUnico();
     $nome = trim($_POST['nome'] ?? '');
     if ($nome === '') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
+    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
     } else {
         $stmt = $conn->prepare('INSERT INTO papeis (nome, ativo) VALUES (?, 1)');
         $stmt->bind_param('s', $nome);
@@ -341,6 +369,8 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Papel não encontrado.'];
     } elseif ($nome === '') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
+    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
     } else {
         $stmt = $conn->prepare('UPDATE papeis SET nome = ?, ativo = ? WHERE id = ?');
         $stmt->bind_param('sii', $nome, $ativo, $papelId);
@@ -554,8 +584,9 @@ unset($_SESSION['flash']);
             <form method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="acao" value="criar_usuario">
-                <div class="campo"><label for="novo_nome">Nome</label><input type="text" id="novo_nome" name="novo_nome" required></div>
-                <div class="campo"><label for="novo_email">E-mail</label><input type="email" id="novo_email" name="novo_email" required></div>
+                <?= envio_unico_field() ?>
+                <div class="campo"><label for="novo_nome">Nome</label><input type="text" id="novo_nome" name="novo_nome" maxlength="<?= LIMITE_NOME_USUARIO ?>" required></div>
+                <div class="campo"><label for="novo_email">E-mail</label><input type="email" id="novo_email" name="novo_email" maxlength="<?= LIMITE_EMAIL ?>" required></div>
                 <div class="campo"><label for="nova_senha">Senha</label><input type="password" id="nova_senha" name="nova_senha" minlength="6" required></div>
                 <div class="campo"><label for="nova_confirmar_senha">Confirmar senha</label><input type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="6" required></div>
                 <div class="campo"><label for="novo_papel">Papel</label>
@@ -630,7 +661,7 @@ unset($_SESSION['flash']);
                                         <?php if ($ehCatalogacao): ?>
                                             <p style="font-size:12px;color:#b98439;">Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Renomear aqui desativa esse aviso.</p>
                                         <?php endif; ?>
-                                        <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($et['nome']) ?>" required></div>
+                                        <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($et['nome']) ?>" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
                                         <div class="campo"><label><input type="checkbox" name="opcional" <?= (int)$et['opcional'] === 1 ? 'checked' : '' ?>> Opcional</label></div>
                                         <div class="campo"><label><input type="checkbox" name="repetivel" <?= (int)$et['repetivel'] === 1 ? 'checked' : '' ?>> Repetível</label></div>
                                         <div class="campo"><label>Rodadas incluídas (vazio = sem limite)</label><input type="number" name="rodadas_incluidas" min="1" value="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"></div>
@@ -653,7 +684,8 @@ unset($_SESSION['flash']);
             <form method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="acao" value="criar_etapa">
-                <div class="campo"><label for="nova_etapa_nome">Nome</label><input type="text" id="nova_etapa_nome" name="nome" required></div>
+                <?= envio_unico_field() ?>
+                <div class="campo"><label for="nova_etapa_nome">Nome</label><input type="text" id="nova_etapa_nome" name="nome" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
                 <div class="campo"><label><input type="checkbox" name="opcional"> Opcional</label></div>
                 <div class="campo"><label><input type="checkbox" name="repetivel"> Repetível</label></div>
                 <div class="campo"><label for="nova_etapa_rodadas">Rodadas incluídas (vazio = sem limite)</label><input type="number" id="nova_etapa_rodadas" name="rodadas_incluidas" min="1"></div>
@@ -684,7 +716,7 @@ unset($_SESSION['flash']);
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="acao" value="editar_papel">
                                     <input type="hidden" name="papel_id" value="<?= (int)$pp['id'] ?>">
-                                    <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($pp['nome']) ?>" required></div>
+                                    <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($pp['nome']) ?>" maxlength="<?= LIMITE_NOME_PAPEL ?>" required></div>
                                     <div class="campo"><label><input type="checkbox" name="ativo" <?= (int)$pp['ativo'] === 1 ? 'checked' : '' ?>> Ativo</label></div>
                                     <button type="submit" class="btn-salvar">Salvar</button>
                                 </form>
@@ -701,7 +733,8 @@ unset($_SESSION['flash']);
             <form method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="acao" value="criar_papel">
-                <div class="campo"><label for="novo_papel_nome">Nome</label><input type="text" id="novo_papel_nome" name="nome" required></div>
+                <?= envio_unico_field() ?>
+                <div class="campo"><label for="novo_papel_nome">Nome</label><input type="text" id="novo_papel_nome" name="nome" maxlength="<?= LIMITE_NOME_PAPEL ?>" required></div>
                 <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar papel</button></div>
             </form>
         </div>
@@ -768,6 +801,7 @@ unset($_SESSION['flash']);
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
 </main>
 
+<script src="envio_unico.js"></script>
 <?php if ($podeGerenciarEtapasPapeis): ?>
 <script>
 function confirmarEdicaoEtapa(form, ativaOriginal, qtdLivros) {

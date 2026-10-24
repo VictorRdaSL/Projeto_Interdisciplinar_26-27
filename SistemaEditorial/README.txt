@@ -23,7 +23,7 @@ INSTALAÇÃO
 
 LOGIN INICIAL DO SISTEMA (SENHA PROVISÓRIA — troque antes de publicar):
 E-mail: admin@waresys.com
-Senha:  admin123
+Senha:  a senha provisória está no README.md da raiz do repositório (fica só lá).
 
 COMO TROCAR A SENHA (por enquanto não existe tela para isso — está previsto
 para um próximo passo, junto com a gestão de usuários):
@@ -49,3 +49,8 @@ FUNÇÕES
 TESTES
 php tests/fluxo_completo.php (somente em ambiente de desenvolvimento; cria e
 apaga seus próprios dados de teste).
+
+PUBLICAÇÃO
+Publique SOMENTE a pasta SistemaEditorial/ no servidor, nunca a raiz do repositório
+(ela contém .git/, database/ e documentos internos). Os arquivos .htaccess bloqueiam
+esses itens e os .txt/.md/.sql no Apache, mas o certo é nem enviá-los.

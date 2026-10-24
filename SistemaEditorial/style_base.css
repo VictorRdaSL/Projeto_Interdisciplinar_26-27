@@ -1207,3 +1207,20 @@ form {
 
 
 }
+/* Formulário em envio (envio_unico.js): impede novo clique e indica que está processando */
+.enviando { opacity: .6; cursor: wait; pointer-events: none; }
+
+/* Valores longos (título de 255 caracteres sem espaço, nome de 120...): quebram dentro da própria
+   caixa em vez de alargar a página. `min-width: 0` deixa o <main> encolher (item flex do body);
+   `overflow-wrap: anywhere` também reduz a largura mínima do conteúdo, ao contrário de break-word. */
+main { min-width: 0; }
+main :is(h1, h2, h3, p, strong, label, li, summary):not(td *, th *), .flash { overflow-wrap: anywhere; }
+/* Tabelas: `anywhere` aqui espremeria as colunas curtas em telas estreitas ("Orçament-o"), então a célula só
+   quebra o valor gigante sem espaço (título de 255 caracteres) e limita a própria largura; o resto rola no
+   .tabela-container. */
+main td { overflow-wrap: break-word; max-width: 420px; }
+select, input, textarea { max-width: 100%; }
+/* Formulários em linha (ações do livro): ocupam no máximo a largura da caixa e quebram de linha */
+main form { max-width: 100%; }
+main form[style*="inline-flex"] { flex-wrap: wrap; }
+main select { min-width: 0; text-overflow: ellipsis; }
