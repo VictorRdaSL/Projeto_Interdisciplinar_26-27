@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/isbn.php';
+require_once __DIR__ . '/includes/validacao.php';
 
 function buscarNomePorId(array $lista, int $id): string
 {
@@ -67,6 +68,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $erro = 'Sessão expirada. Recarregue a página e tente novamente.';
     } else {
+        // Cadastro novo só passa uma vez por exibição do formulário (duplo clique / reenvio).
+        if (!$editando && !envio_unico_consumir($_POST['envio_id'] ?? null)) {
+            if (empty($_SESSION['flash'])) {
+                $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_ENVIO_DUPLICADO];
+            }
+            header('Location: livros.php');
+            exit;
+        }
+
         $titulo = trim($_POST['titulo'] ?? '');
         $isbnBruto = trim($_POST['isbn'] ?? '');
         $temCopia = isset($_POST['tem_copia']) ? 1 : 0;
@@ -75,10 +85,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $contribuicoesPost = $_POST['contribuicoes'] ?? [];
         $vistos = [];
+        $idsPessoas = array_map('intval', array_column($pessoasDisponiveis, 'id'));
+        $idsPapeis = array_map('intval', array_column($papeisDisponiveis, 'id'));
+        $idsUsuarios = array_map('intval', array_column($usuariosDisponiveis, 'id'));
+        $contribuicaoInvalida = false;
         foreach ($contribuicoesPost as $linha) {
             $pessoaId = (int)($linha['pessoa_id'] ?? 0);
             $papelId = (int)($linha['papel_id'] ?? 0);
             if ($pessoaId <= 0 || $papelId <= 0) continue;
+            if (!in_array($pessoaId, $idsPessoas, true) || !in_array($papelId, $idsPapeis, true)) {
+                $contribuicaoInvalida = true;
+                continue;
+            }
             $chave = $pessoaId . '-' . $papelId;
             if (isset($vistos[$chave])) continue;
             $vistos[$chave] = true;
@@ -89,10 +107,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($titulo === '') {
             $erro = 'Informe o título do livro.';
+        } elseif ($erroTamanho = erroTamanho($titulo, LIMITE_TITULO_LIVRO, 'O título')) {
+            $erro = $erroTamanho;
         } elseif ($isbnBruto !== '' && !isbnValido($isbnBruto)) {
             $erro = 'ISBN inválido. Informe um ISBN-13 válido (13 dígitos, com dígito verificador correto), ou deixe o campo vazio.';
+        } elseif ($erroTamanho = erroTamanho($observacoes, LIMITE_OBSERVACOES, 'As observações')) {
+            $erro = $erroTamanho;
         } elseif (!$editando && $responsavelSelecionado <= 0) {
             $erro = 'Selecione o responsável inicial.';
+        } elseif (!$editando && !in_array($responsavelSelecionado, $idsUsuarios, true)) {
+            $erro = 'Responsável inicial inválido. Escolha um usuário da lista.';
+        } elseif ($contribuicaoInvalida) {
+            $erro = 'Há uma pessoa ou um papel inválido nas pessoas vinculadas. Escolha apenas itens da lista.';
         } else {
             if ($isbnNormalizado !== '') {
                 $sqlDup = 'SELECT id FROM livros WHERE isbn = ?' . ($editando ? ' AND id != ?' : '');
@@ -151,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $stmtEtapa = $conn->query('SELECT id FROM etapas WHERE ativa = 1 ORDER BY ordem ASC LIMIT 1');
                     $etapaInicial = $stmtEtapa->fetch_assoc();
-                    if (!$etapaInicial) throw new Exception('Nenhuma etapa ativa cadastrada — não é possível criar um livro.');
+                    if (!$etapaInicial) throw new InvalidArgumentException('Nenhuma etapa ativa cadastrada — não é possível criar um livro.');
                     $etapaInicialId = (int)$etapaInicial['id'];
 
                     $stmtI = $conn->prepare('INSERT INTO livros (titulo, isbn, tem_copia, observacoes, etapa_atual_id, responsavel_atual_id, status, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -200,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             } catch (Throwable $e) {
                 $conn->rollback();
-                $erro = 'Não foi possível salvar o livro: ' . $e->getMessage();
+                $erro = mensagemErroSegura($e, 'salvar o livro');
             }
         }
     }
@@ -252,7 +278,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <form method="post">
             <?= csrf_field() ?>
-            <div class="campo full"><label for="titulo">Título</label><input type="text" id="titulo" name="titulo" value="<?= htmlspecialchars($titulo) ?>" required></div>
+            <?php if (!$editando) echo envio_unico_field(); ?>
+            <div class="campo full"><label for="titulo">Título</label><input type="text" id="titulo" name="titulo" value="<?= htmlspecialchars($titulo) ?>" maxlength="<?= LIMITE_TITULO_LIVRO ?>" required></div>
             <div class="campo"><label for="isbn">ISBN (opcional)</label><input type="text" id="isbn" name="isbn" value="<?= htmlspecialchars($isbn) ?>" placeholder="Ex: 978-3-16-148410-0"></div>
             <div class="campo"><label for="tem_copia">Tem cópia?</label>
                 <select id="tem_copia" name="tem_copia">
@@ -269,7 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </select>
             </div>
             <?php endif; ?>
-            <div class="campo full"><label for="observacoes">Observações</label><textarea id="observacoes" name="observacoes" placeholder="Texto livre, opcional..."><?= htmlspecialchars($observacoes) ?></textarea></div>
+            <div class="campo full"><label for="observacoes">Observações</label><textarea id="observacoes" name="observacoes" maxlength="<?= LIMITE_OBSERVACOES ?>" placeholder="Texto livre, opcional..."><?= htmlspecialchars($observacoes) ?></textarea></div>
 
             <div class="campo full">
                 <label>Pessoas vinculadas (autores, organizadores, ilustradores)</label>
@@ -289,6 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
 </main>
 
+<script src="envio_unico.js"></script>
 <script>
 const PESSOAS = <?= json_encode($pessoasDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 const PAPEIS = <?= json_encode($papeisDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;

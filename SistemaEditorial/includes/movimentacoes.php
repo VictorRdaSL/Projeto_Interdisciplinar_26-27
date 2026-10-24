@@ -4,19 +4,34 @@
  * concluir. Cada função abre/fecha sua própria transação, para poder ser
  * chamada isoladamente (inclusive por script de teste), sem depender de
  * uma tela orquestrando o commit.
+ *
+ * Concorrência: toda função abre a transação ANTES de ler o livro e a primeira
+ * leitura trava a linha dele (SELECT ... FOR UPDATE). Duas ações simultâneas no
+ * mesmo livro se enfileiram; a segunda relê o livro já atualizado e é validada
+ * contra o estado real (antes, as duas liam o mesmo estado e deixavam o livro
+ * com 2 movimentações abertas).
  */
 require_once __DIR__ . '/fluxo_etapas.php';
 require_once __DIR__ . '/rodadas.php';
 require_once __DIR__ . '/log.php';
 require_once __DIR__ . '/procedures.php';
+require_once __DIR__ . '/validacao.php';
 
 // Nome exato semeado em database/seed.sql. Não há coluna de identificador
 // estável em `etapas` — se essa etapa for renomeada no futuro, o aviso de
 // ISBN vazio para de disparar silenciosamente.
 const NOME_ETAPA_CATALOGACAO = 'Catalogação — ISBN e ficha catalográfica';
 
+// Exige transação já aberta pelo chamador: o FOR UPDATE só segura a trava até o commit/rollback.
 function buscarLivroParaMovimentar(mysqli $conn, int $livroId): array
 {
+    // Trava só a linha do livro (o JOIN com etapas, abaixo, não trava a etapa). O SELECT seguinte
+    // é a primeira leitura sem trava da transação, então já enxerga o que a ação anterior gravou.
+    $stmtTrava = $conn->prepare('SELECT id FROM livros WHERE id = ? FOR UPDATE');
+    $stmtTrava->bind_param('i', $livroId);
+    $stmtTrava->execute();
+    $stmtTrava->get_result()->free();
+
     $stmt = $conn->prepare('
         SELECT l.*, e.ordem AS etapa_atual_ordem, e.nome AS etapa_atual_nome,
                e.opcional AS etapa_atual_opcional, e.repetivel AS etapa_atual_repetivel,
@@ -100,55 +115,55 @@ function resolverResponsavel(mysqli $conn, array $livro, ?int $novoResponsavelId
 
 function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $etapaPuladaId = null, ?int $novoResponsavelId = null): array
 {
-    $livro = buscarLivroParaMovimentar($conn, $livroId);
-    $etapaOrigemOrdem = (int)$livro['etapa_atual_ordem'];
-    $etapaOrigemNome = $livro['etapa_atual_nome'];
-
-    $etapaDestino = buscarEtapa($conn, $etapaDestinoId);
-    if (!$etapaDestino || (int)$etapaDestino['ativa'] !== 1) {
-        throw new InvalidArgumentException('Etapa de destino inválida ou inativa.');
-    }
-    if ((int)$etapaDestino['ordem'] <= $etapaOrigemOrdem) {
-        throw new InvalidArgumentException('Avançar só permite ir para uma etapa seguinte na ordem.');
-    }
-
-    $etapaPulada = null;
-    if ($etapaPuladaId !== null) {
-        $etapaPulada = buscarEtapa($conn, $etapaPuladaId);
-        if (!$etapaPulada || (int)$etapaPulada['ativa'] !== 1) {
-            throw new InvalidArgumentException('Etapa a pular inválida ou inativa.');
-        }
-        if ((int)$etapaPulada['opcional'] !== 1) {
-            throw new InvalidArgumentException('Não é permitido pular uma etapa obrigatória.');
-        }
-        if ((int)$etapaPulada['ordem'] <= $etapaOrigemOrdem || (int)$etapaPulada['ordem'] >= (int)$etapaDestino['ordem']) {
-            throw new InvalidArgumentException('Etapa a pular deve estar entre a etapa atual e o destino.');
-        }
-    }
-
-    // Toda etapa ativa estritamente entre a origem e o destino precisa já ter
-    // sido concluída antes pelo livro, ou ser exatamente a etapa marcada como
-    // pulada agora — nunca pode ficar sem nenhum registro e sem checagem. Sem
-    // isso, um destino distante permitiria pular etapas obrigatórias nunca
-    // feitas (inclusive outras opcionais) sem deixar rastro nenhum.
-    $stmtEntre = $conn->prepare('SELECT * FROM etapas WHERE ativa = 1 AND ordem > ? AND ordem < ? ORDER BY ordem');
-    $stmtEntre->bind_param('ii', $etapaOrigemOrdem, $etapaDestino['ordem']);
-    $stmtEntre->execute();
-    $rEntre = $stmtEntre->get_result();
-    while ($etapaEntre = $rEntre->fetch_assoc()) {
-        if ($etapaPulada && (int)$etapaEntre['id'] === (int)$etapaPulada['id']) {
-            continue;
-        }
-        if (!etapaJaConcluidaParaLivro($conn, $livroId, (int)$etapaEntre['id'])) {
-            throw new InvalidArgumentException('Não é possível avançar direto para "' . $etapaDestino['nome'] . '": a etapa "' . $etapaEntre['nome'] . '" ainda não foi concluída.');
-        }
-    }
-
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
     $conn->begin_transaction();
     try {
+        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $etapaOrigemOrdem = (int)$livro['etapa_atual_ordem'];
+        $etapaOrigemNome = $livro['etapa_atual_nome'];
+
+        $etapaDestino = buscarEtapa($conn, $etapaDestinoId);
+        if (!$etapaDestino || (int)$etapaDestino['ativa'] !== 1) {
+            throw new InvalidArgumentException('Etapa de destino inválida ou inativa.');
+        }
+        if ((int)$etapaDestino['ordem'] <= $etapaOrigemOrdem) {
+            throw new InvalidArgumentException('Avançar só permite ir para uma etapa seguinte na ordem.');
+        }
+
+        $etapaPulada = null;
+        if ($etapaPuladaId !== null) {
+            $etapaPulada = buscarEtapa($conn, $etapaPuladaId);
+            if (!$etapaPulada || (int)$etapaPulada['ativa'] !== 1) {
+                throw new InvalidArgumentException('Etapa a pular inválida ou inativa.');
+            }
+            if ((int)$etapaPulada['opcional'] !== 1) {
+                throw new InvalidArgumentException('Não é permitido pular uma etapa obrigatória.');
+            }
+            if ((int)$etapaPulada['ordem'] <= $etapaOrigemOrdem || (int)$etapaPulada['ordem'] >= (int)$etapaDestino['ordem']) {
+                throw new InvalidArgumentException('Etapa a pular deve estar entre a etapa atual e o destino.');
+            }
+        }
+
+        // Toda etapa ativa estritamente entre a origem e o destino precisa já ter
+        // sido concluída antes pelo livro, ou ser exatamente a etapa marcada como
+        // pulada agora — nunca pode ficar sem nenhum registro e sem checagem. Sem
+        // isso, um destino distante permitiria pular etapas obrigatórias nunca
+        // feitas (inclusive outras opcionais) sem deixar rastro nenhum.
+        $stmtEntre = $conn->prepare('SELECT * FROM etapas WHERE ativa = 1 AND ordem > ? AND ordem < ? ORDER BY ordem');
+        $stmtEntre->bind_param('ii', $etapaOrigemOrdem, $etapaDestino['ordem']);
+        $stmtEntre->execute();
+        $rEntre = $stmtEntre->get_result();
+        while ($etapaEntre = $rEntre->fetch_assoc()) {
+            if ($etapaPulada && (int)$etapaEntre['id'] === (int)$etapaPulada['id']) {
+                continue;
+            }
+            if (!etapaJaConcluidaParaLivro($conn, $livroId, (int)$etapaEntre['id'])) {
+                throw new InvalidArgumentException('Não é possível avançar direto para "' . $etapaDestino['nome'] . '": a etapa "' . $etapaEntre['nome'] . '" ainda não foi concluída.');
+            }
+        }
+
         $responsavelId = resolverResponsavel($conn, $livro, $novoResponsavelId);
 
         fecharMovimentacaoAtual($conn, $livroId, $agora);
@@ -191,18 +206,19 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
 
 function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $novoResponsavelId = null): array
 {
-    $livro = buscarLivroParaMovimentar($conn, $livroId);
-    if ((int)$livro['etapa_atual_repetivel'] !== 1) {
-        throw new InvalidArgumentException('Esta etapa não é repetível.');
-    }
-
-    $etapaAtualId = (int)$livro['etapa_atual_id'];
-    $etapaAtualNome = $livro['etapa_atual_nome'];
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
     $conn->begin_transaction();
     try {
+        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        if ((int)$livro['etapa_atual_repetivel'] !== 1) {
+            throw new InvalidArgumentException('Esta etapa não é repetível.');
+        }
+
+        $etapaAtualId = (int)$livro['etapa_atual_id'];
+        $etapaAtualNome = $livro['etapa_atual_nome'];
+
         $responsavelId = resolverResponsavel($conn, $livro, $novoResponsavelId);
 
         fecharMovimentacaoAtual($conn, $livroId, $agora);
@@ -239,23 +255,23 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $no
 
 function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $novoResponsavelId = null): array
 {
-    $livro = buscarLivroParaMovimentar($conn, $livroId);
-    $etapaOrigemNome = $livro['etapa_atual_nome'];
-    $etapaOrigemOrdem = (int)$livro['etapa_atual_ordem'];
-
-    $etapaDestino = buscarEtapa($conn, $etapaDestinoId);
-    if (!$etapaDestino || (int)$etapaDestino['ativa'] !== 1) {
-        throw new InvalidArgumentException('Etapa de destino inválida ou inativa.');
-    }
-    if ((int)$etapaDestino['ordem'] >= $etapaOrigemOrdem) {
-        throw new InvalidArgumentException('Voltar etapa só permite ir para uma etapa anterior na ordem.');
-    }
-
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
     $conn->begin_transaction();
     try {
+        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $etapaOrigemNome = $livro['etapa_atual_nome'];
+        $etapaOrigemOrdem = (int)$livro['etapa_atual_ordem'];
+
+        $etapaDestino = buscarEtapa($conn, $etapaDestinoId);
+        if (!$etapaDestino || (int)$etapaDestino['ativa'] !== 1) {
+            throw new InvalidArgumentException('Etapa de destino inválida ou inativa.');
+        }
+        if ((int)$etapaDestino['ordem'] >= $etapaOrigemOrdem) {
+            throw new InvalidArgumentException('Voltar etapa só permite ir para uma etapa anterior na ordem.');
+        }
+
         $responsavelId = resolverResponsavel($conn, $livro, $novoResponsavelId);
 
         fecharMovimentacaoAtual($conn, $livroId, $agora);
@@ -292,17 +308,18 @@ function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regis
 
 function concluirLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 {
-    $livro = buscarLivroParaMovimentar($conn, $livroId);
-    if ((int)$livro['etapa_atual_finaliza'] !== 1) {
-        throw new InvalidArgumentException('A etapa atual não finaliza o livro.');
-    }
-
-    $etapaAtualNome = $livro['etapa_atual_nome'];
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
     $conn->begin_transaction();
     try {
+        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        if ((int)$livro['etapa_atual_finaliza'] !== 1) {
+            throw new InvalidArgumentException('A etapa atual não finaliza o livro.');
+        }
+
+        $etapaAtualNome = $livro['etapa_atual_nome'];
+
         $movFechada = fecharMovimentacaoAtual($conn, $livroId, $agora);
         $avisoIsbn = avisoIsbnVazioAoSairDaCatalogacao($etapaAtualNome, $livro['isbn']);
         if ($avisoIsbn) $avisos[] = $avisoIsbn;
@@ -332,12 +349,13 @@ function concluirLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 
 function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 {
-    $livro = buscarLivroParaMovimentar($conn, $livroId);
-    $etapaAtualNome = $livro['etapa_atual_nome'];
     $agora = date('Y-m-d H:i:s');
 
     $conn->begin_transaction();
     try {
+        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $etapaAtualNome = $livro['etapa_atual_nome'];
+
         $movFechada = fecharMovimentacaoAtual($conn, $livroId, $agora);
 
         $stmtL = $conn->prepare("UPDATE livros SET status = 'cancelado', atualizado_em = ? WHERE id = ?");
@@ -392,30 +410,32 @@ function buscarResgateAbertoPorLivro(mysqli $conn, int $livroId): ?array
 // status 'em_andamento', e aqui é exatamente o contrário que se valida.
 function iniciarResgate(mysqli $conn, int $livroId, int $registradoPorId): array
 {
-    $stmt = $conn->prepare('SELECT * FROM livros WHERE id = ?');
-    $stmt->bind_param('i', $livroId);
-    $stmt->execute();
-    $livro = $stmt->get_result()->fetch_assoc();
-    if (!$livro) {
-        throw new InvalidArgumentException('Livro não encontrado.');
-    }
-    if ($livro['status'] !== 'em_andamento') {
-        throw new InvalidArgumentException('Só é possível iniciar um resgate para um livro em andamento.');
-    }
-
-    $stmtMov = $conn->prepare('SELECT * FROM movimentacoes WHERE livro_id = ? AND data_saida IS NULL ORDER BY data_entrada DESC, id DESC LIMIT 1');
-    $stmtMov->bind_param('i', $livroId);
-    $stmtMov->execute();
-    $movAtual = $stmtMov->get_result()->fetch_assoc();
-    if (!$movAtual) {
-        throw new InvalidArgumentException('Não há movimentação aberta para referenciar o resgate.');
-    }
-
     $agora = date('Y-m-d H:i:s');
-    $movRefId = (int)$movAtual['id'];
 
     $conn->begin_transaction();
     try {
+        // Lê já com a linha travada (ver nota no topo do arquivo): dois "iniciar resgate"
+        // simultâneos não conseguem abrir dois resgates para o mesmo livro.
+        $stmt = $conn->prepare('SELECT * FROM livros WHERE id = ? FOR UPDATE');
+        $stmt->bind_param('i', $livroId);
+        $stmt->execute();
+        $livro = $stmt->get_result()->fetch_assoc();
+        if (!$livro) {
+            throw new InvalidArgumentException('Livro não encontrado.');
+        }
+        if ($livro['status'] !== 'em_andamento') {
+            throw new InvalidArgumentException('Só é possível iniciar um resgate para um livro em andamento.');
+        }
+
+        $stmtMov = $conn->prepare('SELECT * FROM movimentacoes WHERE livro_id = ? AND data_saida IS NULL ORDER BY data_entrada DESC, id DESC LIMIT 1');
+        $stmtMov->bind_param('i', $livroId);
+        $stmtMov->execute();
+        $movAtual = $stmtMov->get_result()->fetch_assoc();
+        if (!$movAtual) {
+            throw new InvalidArgumentException('Não há movimentação aberta para referenciar o resgate.');
+        }
+        $movRefId = (int)$movAtual['id'];
+
         $stmtL = $conn->prepare("UPDATE livros SET status = 'extraviado', atualizado_em = ? WHERE id = ?");
         $stmtL->bind_param('si', $agora, $livroId);
         $stmtL->execute();
@@ -442,39 +462,43 @@ function iniciarResgate(mysqli $conn, int $livroId, int $registradoPorId): array
 
 function concluirResgate(mysqli $conn, int $livroId, int $novaEtapaId, int $novoResponsavelId, string $localEncontrado, int $registradoPorId): array
 {
-    $stmt = $conn->prepare('SELECT * FROM livros WHERE id = ?');
-    $stmt->bind_param('i', $livroId);
-    $stmt->execute();
-    $livro = $stmt->get_result()->fetch_assoc();
-    if (!$livro) {
-        throw new InvalidArgumentException('Livro não encontrado.');
-    }
-    if ($livro['status'] !== 'extraviado') {
-        throw new InvalidArgumentException('Este livro não está extraviado.');
-    }
-
-    $resgate = buscarResgateAbertoPorLivro($conn, $livroId);
-    if (!$resgate) {
-        throw new InvalidArgumentException('Não há resgate em aberto para este livro.');
-    }
-
-    $novaEtapa = buscarEtapa($conn, $novaEtapaId);
-    if (!$novaEtapa || (int)$novaEtapa['ativa'] !== 1) {
-        throw new InvalidArgumentException('Etapa informada inválida ou inativa.');
-    }
-    if (!usuarioExiste($conn, $novoResponsavelId)) {
-        throw new InvalidArgumentException('Usuário responsável inválido.');
-    }
     $localEncontrado = trim($localEncontrado);
     if ($localEncontrado === '') {
         throw new InvalidArgumentException('Informe onde o livro foi encontrado.');
     }
+    if (mb_strlen($localEncontrado, 'UTF-8') > LIMITE_LOCAL_ENCONTRADO) {
+        throw new InvalidArgumentException('O local onde o livro foi encontrado deve ter no máximo ' . LIMITE_LOCAL_ENCONTRADO . ' caracteres (foram digitados ' . mb_strlen($localEncontrado, 'UTF-8') . ').');
+    }
 
     $agora = date('Y-m-d H:i:s');
-    $resgateId = (int)$resgate['id'];
 
     $conn->begin_transaction();
     try {
+        $stmt = $conn->prepare('SELECT * FROM livros WHERE id = ? FOR UPDATE');
+        $stmt->bind_param('i', $livroId);
+        $stmt->execute();
+        $livro = $stmt->get_result()->fetch_assoc();
+        if (!$livro) {
+            throw new InvalidArgumentException('Livro não encontrado.');
+        }
+        if ($livro['status'] !== 'extraviado') {
+            throw new InvalidArgumentException('Este livro não está extraviado.');
+        }
+
+        $resgate = buscarResgateAbertoPorLivro($conn, $livroId);
+        if (!$resgate) {
+            throw new InvalidArgumentException('Não há resgate em aberto para este livro.');
+        }
+        $resgateId = (int)$resgate['id'];
+
+        $novaEtapa = buscarEtapa($conn, $novaEtapaId);
+        if (!$novaEtapa || (int)$novaEtapa['ativa'] !== 1) {
+            throw new InvalidArgumentException('Etapa informada inválida ou inativa.');
+        }
+        if (!usuarioExiste($conn, $novoResponsavelId)) {
+            throw new InvalidArgumentException('Usuário responsável inválido.');
+        }
+
         // Fecha a movimentação que ficou aberta desde antes do extravio (se ainda estiver aberta).
         $stmtMovAberta = $conn->prepare('SELECT id FROM movimentacoes WHERE livro_id = ? AND data_saida IS NULL ORDER BY data_entrada DESC, id DESC LIMIT 1');
         $stmtMovAberta->bind_param('i', $livroId);

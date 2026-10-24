@@ -69,10 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mensagem .= ' ' . implode(' ', $resultado['avisos']);
         }
         $_SESSION['flash'] = ['type' => 'sucesso', 'message' => $mensagem];
-    } catch (InvalidArgumentException $e) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $e->getMessage()];
     } catch (Throwable $e) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não foi possível concluir a ação: ' . $e->getMessage()];
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => mensagemErroSegura($e, 'concluir a ação')];
     }
 
     header('Location: livro_detalhes.php?id=' . $livroId);
@@ -572,5 +570,6 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
 
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
 </main>
+<script src="envio_unico.js"></script>
 </body>
 </html>
