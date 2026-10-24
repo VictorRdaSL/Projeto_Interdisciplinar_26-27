@@ -4,6 +4,7 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/log.php';
+require_once __DIR__ . '/includes/validacao.php';
 
 function voltarPessoas(string $tipo, string $mensagem): never {
     $_SESSION['flash'] = ['type' => $tipo, 'message' => $mensagem];
@@ -28,9 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $telefone = trim($_POST['telefone'] ?? '');
 
         if ($nome === '') voltarPessoas('erro', 'Informe o nome da pessoa.');
+        if ($erroTam = erroTamanho($nome, LIMITE_NOME_PESSOA, 'O nome')) voltarPessoas('erro', $erroTam);
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             voltarPessoas('erro', 'Informe um e-mail válido, ou deixe o campo vazio.');
         }
+        if ($erroTam = erroTamanho($email, LIMITE_EMAIL, 'O e-mail')) voltarPessoas('erro', $erroTam);
+        if ($erroTam = erroTamanho($telefone, LIMITE_TELEFONE, 'O telefone')) voltarPessoas('erro', $erroTam);
         $emailParam = $email !== '' ? $email : null;
         $telefoneParam = $telefone !== '' ? $telefone : null;
 
@@ -53,10 +57,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $conn->commit();
             } catch (Throwable $e) {
                 $conn->rollback();
-                voltarPessoas('erro', 'Não foi possível atualizar a pessoa: ' . $e->getMessage());
+                voltarPessoas('erro', mensagemErroSegura($e, 'atualizar a pessoa'));
             }
             voltarPessoas('sucesso', 'Pessoa atualizada com sucesso.');
         } else {
+            // Cadastro novo só passa uma vez por exibição do formulário (duplo clique / reenvio).
+            if (!envio_unico_consumir($_POST['envio_id'] ?? null)) {
+                if (empty($_SESSION['flash'])) voltarPessoas('erro', MSG_ENVIO_DUPLICADO);
+                header('Location: pessoas.php');
+                exit;
+            }
             $agora = date('Y-m-d H:i:s');
             $conn->begin_transaction();
             try {
@@ -68,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $conn->commit();
             } catch (Throwable $e) {
                 $conn->rollback();
-                voltarPessoas('erro', 'Não foi possível cadastrar a pessoa: ' . $e->getMessage());
+                voltarPessoas('erro', mensagemErroSegura($e, 'cadastrar a pessoa'));
             }
             voltarPessoas('sucesso', 'Pessoa cadastrada com sucesso.');
         }
@@ -96,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             voltarPessoas('erro', 'Não é possível excluir "' . $antes['nome'] . '": ela está vinculada a um ou mais livros.');
         } catch (Throwable $e) {
             $conn->rollback();
-            voltarPessoas('erro', 'Não foi possível excluir a pessoa: ' . $e->getMessage());
+            voltarPessoas('erro', mensagemErroSegura($e, 'excluir a pessoa'));
         }
     }
 }
@@ -207,17 +217,19 @@ $podeGerenciar = usuarioTemPermissao('pessoas.gerenciar');
         <div class="modal-topo"><h2 id="pessoa-modal-titulo">Nova Pessoa</h2><p>Autor, organizador ou ilustrador.</p></div>
         <form method="post">
             <?= csrf_field() ?>
+            <?= envio_unico_field() ?>
             <input type="hidden" name="acao" value="salvar_pessoa">
             <input type="hidden" name="pessoa_id" id="pessoa_id" value="0">
-            <div class="campo full"><label for="pessoa_nome">Nome</label><input type="text" id="pessoa_nome" name="nome" required></div>
-            <div class="campo"><label for="pessoa_email">E-mail</label><input type="email" id="pessoa_email" name="email"></div>
-            <div class="campo"><label for="pessoa_telefone">Telefone</label><input type="text" id="pessoa_telefone" name="telefone"></div>
+            <div class="campo full"><label for="pessoa_nome">Nome</label><input type="text" id="pessoa_nome" name="nome" maxlength="<?= LIMITE_NOME_PESSOA ?>" required></div>
+            <div class="campo"><label for="pessoa_email">E-mail</label><input type="email" id="pessoa_email" name="email" maxlength="<?= LIMITE_EMAIL ?>"></div>
+            <div class="campo"><label for="pessoa_telefone">Telefone</label><input type="text" id="pessoa_telefone" name="telefone" maxlength="<?= LIMITE_TELEFONE ?>"></div>
             <div class="form-botoes"><a href="javascript:void(0)" class="btn-cancelar" onclick="fecharPessoa()">Cancelar</a><button type="submit" class="btn-salvar">Salvar</button></div>
         </form>
     </div>
 </div>
 <?php endif; ?>
 
+<script src="envio_unico.js"></script>
 <script>
 function abrirNovaPessoa(){
   document.getElementById('pessoa-modal-titulo').textContent = 'Nova Pessoa';

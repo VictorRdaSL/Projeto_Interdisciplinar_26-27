@@ -33,10 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate concluído. Livro de volta em andamento, na etapa ' . $resultado['etapa_nome'] . '.'];
         header('Location: livro_detalhes.php?id=' . $livroId);
         exit;
-    } catch (InvalidArgumentException $e) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $e->getMessage()];
     } catch (Throwable $e) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não foi possível concluir o resgate: ' . $e->getMessage()];
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => mensagemErroSegura($e, 'concluir o resgate')];
     }
 
     header('Location: resgate.php?id=' . $livroId);
@@ -150,7 +148,7 @@ unset($_SESSION['flash']);
         </div>
         <form method="post">
             <?= csrf_field() ?>
-            <div class="campo full"><label for="local_encontrado">Onde o livro foi encontrado</label><input type="text" id="local_encontrado" name="local_encontrado" required></div>
+            <div class="campo full"><label for="local_encontrado">Onde o livro foi encontrado</label><input type="text" id="local_encontrado" name="local_encontrado" maxlength="<?= LIMITE_LOCAL_ENCONTRADO ?>" required></div>
             <div class="campo"><label for="etapa_id">Etapa em que ele realmente está</label>
                 <select id="etapa_id" name="etapa_id" required>
                     <?php foreach ($etapasDisponiveis as $e): ?>
@@ -174,5 +172,6 @@ unset($_SESSION['flash']);
 
     <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
 </main>
+<script src="envio_unico.js"></script>
 </body>
 </html>
