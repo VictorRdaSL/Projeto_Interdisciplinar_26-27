@@ -663,6 +663,18 @@ td {
     font-size: 11px;
 
     font-weight: bold;
+
+    /* O selo não parte em duas linhas (o fundo ficava quebrado em colunas estreitas) */
+    display: inline-block;
+
+    white-space: nowrap;
+
+    margin: 2px 4px 2px 0;
+
+    /* Selo neutro (ex.: "Em andamento"); .ok, .atencao e as variações abaixo sobrescrevem */
+    background: #eef2ef;
+
+    color: #53645a;
 }
 
 
