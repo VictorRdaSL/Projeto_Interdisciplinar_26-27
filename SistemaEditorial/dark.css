@@ -99,6 +99,7 @@
 [data-theme="escuro"] .aviso-periodo,
 [data-theme="escuro"] .flash.erro { background: var(--d-amber-bg); color: var(--d-amber-texto); }
 [data-theme="escuro"] .flash.erro { border-color: #5a4318; }
+[data-theme="escuro"] .flash.info { background: #1b2a3d; color: #a9c9ee; border-color: #2c4a6e; }
 [data-theme="escuro"] .papel-usuario { background: #1c2731; color: #9bb6c7; }
 [data-theme="escuro"] .status.info { background: #132a3f; color: #6cb2f0; }
 [data-theme="escuro"] .status.pulo { background: #2a1f3d; color: #b394e0; }
@@ -143,3 +144,9 @@
 [data-theme="escuro"] .tema-opcao { background: var(--d-bg-input); border-color: var(--d-borda); color: var(--d-texto-secundario); }
 [data-theme="escuro"] .tema-opcao:hover { border-color: var(--d-accent); }
 [data-theme="escuro"] .tema-opcao.ativo { border-color: var(--d-accent); background: var(--d-accent-suave-bg); color: var(--d-accent-suave-texto); }
+
+/* Controles nativos (lista aberta do select, barras de rolagem, seletor de data) no tema escuro */
+[data-theme="escuro"] { color-scheme: dark; }
+[data-theme="escuro"] main a:not([class]) { color: var(--d-accent); }
+[data-theme="escuro"] main select { background: var(--d-bg-input); border-color: var(--d-borda); color: var(--d-texto); }
+[data-theme="escuro"] option { background: var(--d-bg-elevado); color: var(--d-texto); }

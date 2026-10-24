@@ -5,8 +5,9 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/movimentacoes.php';
 
-$livroId = (int)($_GET['id'] ?? 0);
+$livroId = idDaUrl($_GET, 'id');
 if ($livroId <= 0) {
+    $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Livro não encontrado.'];
     header('Location: livros.php');
     exit;
 }
@@ -332,7 +333,7 @@ $totalCobraveis = (int)$stmtCobraveis->get_result()->fetch_assoc()['total'];
 
 <main>
     <header class="topo">
-        <div><p class="bem-vindo"><a href="livros.php">← Voltar para Livros</a></p><h2><?= htmlspecialchars($livro['titulo']) ?></h2></div>
+        <div><p class="bem-vindo"><a href="livros.php" class="btn">← Voltar para Livros</a></p><h2><?= htmlspecialchars($livro['titulo']) ?></h2></div>
         <div class="perfil">
             <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
             <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>

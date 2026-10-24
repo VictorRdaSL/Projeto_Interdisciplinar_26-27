@@ -21,8 +21,13 @@ if (!usuarioTemPermissao('livros.gerenciar')) {
     exit;
 }
 
-$livroId = (int)($_GET['id'] ?? 0);
+$livroId = idDaUrl($_GET, 'id');
 $editando = $livroId > 0;
+if (isset($_GET['id']) && !$editando) {
+    $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Livro não encontrado.'];
+    header('Location: livros.php');
+    exit;
+}
 
 if ($editando) {
     $stmt = $conn->prepare('SELECT * FROM livros WHERE id = ?');
