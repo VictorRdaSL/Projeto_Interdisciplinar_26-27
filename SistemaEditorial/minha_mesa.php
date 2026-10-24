@@ -6,13 +6,11 @@ require_once __DIR__ . '/includes/permissoes.php';
 $usuarioId = (int)$_SESSION['usuario_id'];
 
 $stmt = $conn->prepare('
-    SELECT l.id, l.titulo, l.isbn, e.nome AS etapa_nome, e.rodadas_incluidas,
-           m.rodada, m.excedente, m.data_entrada
-    FROM livros l
-    JOIN etapas e ON e.id = l.etapa_atual_id
-    JOIN movimentacoes m ON m.livro_id = l.id AND m.data_saida IS NULL
-    WHERE l.responsavel_atual_id = ? AND l.status = \'em_andamento\'
-    ORDER BY m.data_entrada ASC
+    SELECT v.livro_id AS id, v.titulo, v.isbn, v.etapa_nome, v.rodadas_incluidas,
+           v.rodada, v.excedente, v.etapa_desde AS data_entrada
+    FROM vw_livros_situacao_atual v
+    WHERE v.mesa_id = ? AND v.status = \'em_andamento\' AND v.movimentacao_id IS NOT NULL
+    ORDER BY v.etapa_desde ASC
 ');
 $stmt->bind_param('i', $usuarioId);
 $stmt->execute();

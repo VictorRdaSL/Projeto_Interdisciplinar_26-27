@@ -16,21 +16,19 @@ if ($filtroStatus !== '' && !isset(ROTULOS_STATUS_LIVRO[$filtroStatus])) {
 $condicoes = [];
 $parametros = [];
 $tipos = '';
-if ($filtroEtapa > 0) { $condicoes[] = 'l.etapa_atual_id = ?'; $parametros[] = $filtroEtapa; $tipos .= 'i'; }
-if ($filtroStatus !== '') { $condicoes[] = 'l.status = ?'; $parametros[] = $filtroStatus; $tipos .= 's'; }
-if ($filtroMesa > 0) { $condicoes[] = 'l.responsavel_atual_id = ?'; $parametros[] = $filtroMesa; $tipos .= 'i'; }
+if ($filtroEtapa > 0) { $condicoes[] = 'v.etapa_id = ?'; $parametros[] = $filtroEtapa; $tipos .= 'i'; }
+if ($filtroStatus !== '') { $condicoes[] = 'v.status = ?'; $parametros[] = $filtroStatus; $tipos .= 's'; }
+if ($filtroMesa > 0) { $condicoes[] = 'v.mesa_id = ?'; $parametros[] = $filtroMesa; $tipos .= 'i'; }
 $whereSql = $condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '';
 
 $stmt = $conn->prepare("
-    SELECT l.id, l.titulo, l.isbn, l.tem_copia, l.status, l.observacoes,
-           e.nome AS etapa_nome, e.rodadas_incluidas,
-           u.nome AS mesa_nome,
-           " . SQL_PESSOAS_PAPEIS . " AS pessoas_papeis
-    FROM livros l
-    JOIN etapas e ON e.id = l.etapa_atual_id
-    LEFT JOIN usuarios u ON u.id = l.responsavel_atual_id
+    SELECT v.livro_id AS id, v.titulo, v.isbn, v.tem_copia, v.status, v.observacoes,
+           v.etapa_nome, v.rodadas_incluidas, v.mesa_nome,
+           c.pessoas_papeis
+    FROM vw_livros_situacao_atual v
+    LEFT JOIN vw_livros_contribuidores c ON c.livro_id = v.livro_id
     $whereSql
-    ORDER BY l.titulo, l.id
+    ORDER BY v.titulo, v.livro_id
 ");
 if ($parametros) $stmt->bind_param($tipos, ...$parametros);
 $stmt->execute();
@@ -79,7 +77,7 @@ if (($_GET['export'] ?? '') === 'csv') {
 }
 
 $etapasFiltro = $conn->query('SELECT id, nome FROM etapas ORDER BY ordem, id')->fetch_all(MYSQLI_ASSOC);
-$usuariosFiltro = $conn->query('SELECT id, nome FROM usuarios ORDER BY nome')->fetch_all(MYSQLI_ASSOC);
+$usuariosFiltro = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome')->fetch_all(MYSQLI_ASSOC);
 
 relatorioAbrir('Relatório de livros', 'Relatórios');
 ?>

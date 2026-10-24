@@ -131,7 +131,7 @@ unset($_SESSION['flash']);
 $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
 
 $usuariosDisponiveis = [];
-$ru = $conn->query('SELECT id, nome FROM usuarios ORDER BY nome');
+$ru = $conn->query('SELECT id, nome FROM vw_usuarios_publico ORDER BY nome');
 while ($row = $ru->fetch_assoc()) $usuariosDisponiveis[] = $row;
 
 const NOMES_STATUS_LIVRO_DET = [

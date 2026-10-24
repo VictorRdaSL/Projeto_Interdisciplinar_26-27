@@ -71,7 +71,7 @@ function avisoIsbnVazioAoSairDaCatalogacao(string $nomeEtapaFechada, ?string $is
 
 function usuarioExiste(mysqli $conn, int $usuarioId): bool
 {
-    $stmt = $conn->prepare('SELECT 1 FROM usuarios WHERE id = ?');
+    $stmt = $conn->prepare('SELECT 1 FROM vw_usuarios_publico WHERE id = ?');
     $stmt->bind_param('i', $usuarioId);
     $stmt->execute();
     return (bool)$stmt->get_result()->fetch_assoc();
@@ -79,7 +79,7 @@ function usuarioExiste(mysqli $conn, int $usuarioId): bool
 
 function nomeUsuario(mysqli $conn, int $usuarioId): string
 {
-    $stmt = $conn->prepare('SELECT nome FROM usuarios WHERE id = ?');
+    $stmt = $conn->prepare('SELECT nome FROM vw_usuarios_publico WHERE id = ?');
     $stmt->bind_param('i', $usuarioId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();

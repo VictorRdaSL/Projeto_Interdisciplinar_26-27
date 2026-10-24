@@ -17,16 +17,14 @@ function buscarLivrosParados(mysqli $conn): array
 {
     $limiteGlobal = buscarDiasLimiteGlobal($conn);
 
-    // Movimentação aberta é 1:1 por livro — join simples, sem agregação.
+    // Livro + etapa + mesa + movimentação aberta vêm da view (movimentacao_id NULL = sem
+    // movimentação aberta, o que o JOIN interno da consulta antiga excluía).
     $stmt = $conn->prepare("
-        SELECT l.id, l.titulo, e.nome AS etapa_nome, e.dias_limite AS etapa_dias_limite,
-               e.rodadas_incluidas, u.nome AS responsavel_nome,
-               m.rodada, m.excedente, m.data_entrada
-        FROM livros l
-        JOIN etapas e ON e.id = l.etapa_atual_id
-        LEFT JOIN usuarios u ON u.id = l.responsavel_atual_id
-        JOIN movimentacoes m ON m.livro_id = l.id AND m.data_saida IS NULL
-        WHERE l.status NOT IN ('concluido', 'cancelado')
+        SELECT v.livro_id AS id, v.titulo, v.etapa_nome, v.etapa_dias_limite,
+               v.rodadas_incluidas, v.mesa_nome AS responsavel_nome,
+               v.rodada, v.excedente, v.etapa_desde AS data_entrada
+        FROM vw_livros_situacao_atual v
+        WHERE v.movimentacao_id IS NOT NULL AND v.status NOT IN ('concluido', 'cancelado')
     ");
     $stmt->execute();
     $r = $stmt->get_result();
