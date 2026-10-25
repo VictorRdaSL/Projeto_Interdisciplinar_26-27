@@ -5,6 +5,13 @@ if (!file_exists($configPath)) {
 }
 $config = require $configPath;
 
+// Caminho base do sistema na URL (CSS, JS, imagens e links do menu das telas novas). Vem de config.php ('base_url');
+// se a chave não existir num config.php antigo, deriva do script em execução (as telas ficam na raiz de SistemaEditorial/).
+if (!defined('BASE_URL')) {
+    $baseUrl = $config['base_url'] ?? str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+    define('BASE_URL', $baseUrl === '.' ? '' : rtrim((string)$baseUrl, '/'));
+}
+
 // Sem isso, o PHP usa o fuso do php.ini (frequentemente UTC ou Europe/Berlin),
 // enquanto o MySQL usa o horário do sistema — perto da meia-noite os dois
 // discordavam sobre qual é "hoje", quebrando filtros de período por data.
