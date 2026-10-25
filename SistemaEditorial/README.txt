@@ -54,6 +54,12 @@ FUNÇÕES
   limite de livro parado e, para Administrador, etapas e papéis de autoria
 - busca por título, pessoa ou ISBN
 
+INTERFACE
+Todos os estilos, scripts e ícones da interface vêm de design-system/ (CSS próprio, fonte
+Inter e ícones Lucide locais, sem CDN). Os caminhos são montados a partir do 'base_url' do
+config/config.php (veja a instalação acima). O tema claro/escuro é salvo por usuário, em
+Configurações. O CSS antigo do sistema foi removido.
+
 TESTES
 php tests/fluxo_completo.php (somente em ambiente de desenvolvimento; cria e
 apaga seus próprios dados de teste).

@@ -54,6 +54,12 @@ Desenvolver um sistema web capaz de:
 
 ---
 
+## 🎨 Interface
+
+Toda a interface usa o design system do WareSys, em `SistemaEditorial/design-system/`: CSS próprio (`fontes.css`, `tokens.css`, `base.css`, `layout.css` e `components.css`), fonte Inter e ícones Lucide **locais** (nada de CDN, funciona sem internet) e tema claro/escuro por usuário. O CSS antigo do sistema foi removido. Os caminhos dos estilos, scripts e links do menu partem do `base_url` de `config/config.php`.
+
+---
+
 ## 👨‍💻 Desenvolvimento
 
 Projeto desenvolvido como parte das atividades acadêmicas da **FATEC**, com foco no desenvolvimento de uma aplicação web para gerenciamento de controle editorial.

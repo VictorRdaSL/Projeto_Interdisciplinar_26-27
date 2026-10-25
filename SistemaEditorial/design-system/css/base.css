@@ -4,9 +4,9 @@
    Reset leve, tipografia padrão, links, foco visível e utilitários de texto.
    Depende de tokens.css.
 
-   ATENÇÃO: este arquivo estiliza elementos globais (body, h1, a...). Não
-   carregue junto com o style.css / style_base.css antigos na mesma página —
-   eles também mexem em * e body. A migração é feita tela a tela.
+   ATENÇÃO: este arquivo estiliza elementos globais (body, h1, a...). Toda
+   tela do sistema carrega só o design system; o CSS antigo (style.css,
+   style_base.css, dark.css e auth.css) foi removido no Passo IV-10.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
