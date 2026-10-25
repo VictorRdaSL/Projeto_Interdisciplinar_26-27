@@ -3,6 +3,8 @@ require_once __DIR__ . '/includes/sessao.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/validacao.php';
+require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/tema.php';
 
 if (!empty($_SESSION['usuario_id'])) {
     header('Location: index.php');
@@ -41,43 +43,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+// Tela de entrada: sem sessão não há tema do usuário, então ela abre sempre no tema claro.
+// Caminhos de CSS, JS e links pela BASE_URL; fonte e ícones locais (design system).
+$ws_base = BASE_URL;
 ?>
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR" data-theme="<?= escaparHtml(temaDoUsuario()) ?>">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WareSys | Entrar</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="auth.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · WareSys</title>
+  <!-- Design system WareSys: fonte Inter local primeiro, depois os 4 CSS nesta ordem -->
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/fontes.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/tokens.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/base.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/layout.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/components.css">
 </head>
-<body class="auth-page">
-<div class="auth-card">
-    <div class="logo auth-logo">
-        <div class="logo-icon">S</div>
-        <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
-    </div>
-    <h2>Entrar</h2>
-    <p class="auth-sub">Acesse o controle editorial.</p>
+<body>
+  <main class="ws-login">
+    <!-- Painel da marca: cinza profundo, cor lisa -->
+    <section class="ws-login__marca" aria-label="WareSys">
+      <a class="ws-logo ws-logo--assinatura ws-logo--negativa" href="<?= escaparHtml($ws_base) ?>/login.php" aria-label="WareSys">
+        <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+        <span class="ws-logo__wordmark">WareSys</span>
+      </a>
+      <div class="ws-pilha">
+        <p class="ws-eyebrow">Controle editorial · para editoras</p>
+        <p class="ws-display ws-login__frase">Ordem<br>que se lê.</p>
+        <p class="ws-login__texto">Cada livro com sua etapa, seu responsável e suas rodadas à vista. Sem caderno, planilha ou grupo de WhatsApp.</p>
+      </div>
+      <p class="ws-login__texto" style="font-size:12px">Projeto acadêmico · Engenharia de Software · FATEC</p>
+    </section>
 
-    <?php if ($erro): ?>
-        <div class="flash erro"><?= htmlspecialchars($erro) ?></div>
-    <?php endif; ?>
-
-    <form method="post" class="form-auth" novalidate>
+    <section class="ws-login__area" aria-labelledby="login-titulo">
+      <form class="ws-login__form" method="post" novalidate>
         <?= csrf_field() ?>
-        <div class="campo">
-            <label for="email">E-mail</label>
-            <input type="email" id="email" name="email" value="<?= htmlspecialchars($email) ?>" required>
+        <div class="ws-pilha ws-pilha--peq">
+          <h1 id="login-titulo">Entrar</h1>
+          <p class="ws-texto-suave">Use o e-mail e a senha cadastrados pelo Gerente ou Administrador.</p>
         </div>
-        <div class="campo">
-            <label for="senha">Senha</label>
-            <input type="password" id="senha" name="senha" required>
-        </div>
-        <button type="submit" class="btn-salvar full">Entrar</button>
-    </form>
 
-    <p class="auth-footer">Ainda não tem conta? Peça a um Gerente ou Administrador para cadastrá-lo em Configurações.</p>
-</div>
+        <?php if ($erro !== ''): ?>
+        <div class="ws-alerta ws-alerta--cobrado" role="alert">
+          <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
+          <div class="ws-alerta__corpo"><p><?= escaparHtml($erro) ?></p></div>
+        </div>
+        <?php endif; ?>
+
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="email">E-mail</label>
+          <input class="ws-input" id="email" name="email" type="email" value="<?= escaparHtml($email) ?>" autocomplete="username" required>
+        </div>
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="senha">Senha</label>
+          <input class="ws-input" id="senha" name="senha" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="ws-btn ws-btn--primario ws-btn--bloco" type="submit">Entrar <span class="ws-btn__seta" aria-hidden="true">→</span></button>
+        <p class="ws-login__rodape">Sem acesso? Peça a um Gerente ou Administrador para criar sua conta em Configurações.</p>
+      </form>
+    </section>
+  </main>
+
+  <!-- Ícones Lucide (local; traço 1,5 aplicado pelo waresys.js) + comportamentos -->
+  <script src="<?= escaparHtml($ws_base) ?>/design-system/js/lucide.min.js"></script>
+  <script src="<?= escaparHtml($ws_base) ?>/design-system/js/waresys.js" defer></script>
 </body>
 </html>
