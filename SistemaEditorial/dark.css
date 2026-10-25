@@ -151,3 +151,8 @@
 [data-theme="escuro"] main a:not([class]) { color: var(--d-accent); }
 [data-theme="escuro"] main select { background: var(--d-bg-input); border-color: var(--d-borda); color: var(--d-texto); }
 [data-theme="escuro"] option { background: var(--d-bg-elevado); color: var(--d-texto); }
+
+/* Formulário de etapa (Passo 19) */
+[data-theme="escuro"] .grupo-titulo { color: var(--d-texto); border-bottom-color: var(--d-borda); }
+[data-theme="escuro"] .campo .ajuda { color: var(--d-texto-terciario); }
+[data-theme="escuro"] .campo-check input { accent-color: var(--d-accent); }
