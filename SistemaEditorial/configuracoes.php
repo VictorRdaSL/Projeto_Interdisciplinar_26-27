@@ -53,6 +53,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($permissaoPorAcao[$acaoRecebi
     exit;
 }
 
+/**
+ * Campos do formulário de etapa, em blocos (Identificação, Regras, Limites, Situação). Só apresentação: os
+ * `name` dos campos que são enviados (nome, opcional, repetivel, rodadas_incluidas, dias_limite, ativa) são os mesmos
+ * de sempre e a validação continua nos handlers acima. Ordem e "Finaliza o livro" são só informativos (sem `name`,
+ * não são enviados): a ordem muda pelas setas da lista e "finaliza_livro" não é editável por esta tela.
+ */
+function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0): void
+{
+    ?>
+            <div class="full" role="group" aria-labelledby="<?= $p ?>_t1">
+                <h3 class="grupo-titulo" id="<?= $p ?>_t1">Identificação</h3>
+                <div class="form-grade">
+                    <div class="campo full"><label for="<?= $p ?>_nome">Nome da etapa</label><input type="text" id="<?= $p ?>_nome" name="nome" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
+                    <div class="campo"><label for="<?= $p ?>_ordem">Ordem</label><input type="number" id="<?= $p ?>_ordem" value="<?= $edicao ? '' : $ordemNova ?>" readonly tabindex="-1">
+                        <p class="ajuda"><?= $edicao ? 'Para mudar a ordem, use as setas ↑ ↓ da lista.' : 'A etapa nova entra no final do fluxo; depois use as setas ↑ ↓ da lista.' ?></p></div>
+                </div>
+            </div>
+            <div class="full" role="group" aria-labelledby="<?= $p ?>_t2">
+                <h3 class="grupo-titulo" id="<?= $p ?>_t2">Regras</h3>
+                <div class="form-grade">
+                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_opcional" name="opcional"><label for="<?= $p ?>_opcional">Etapa opcional</label></div></div>
+                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_repetivel" name="repetivel"><label for="<?= $p ?>_repetivel">Pode ser repetida</label></div></div>
+                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_finaliza" disabled><label for="<?= $p ?>_finaliza">Finaliza o livro</label></div>
+                        <p class="ajuda">Não é editável nesta tela.</p></div>
+                </div>
+            </div>
+            <div class="full" role="group" aria-labelledby="<?= $p ?>_t3">
+                <h3 class="grupo-titulo" id="<?= $p ?>_t3">Limites</h3>
+                <div class="form-grade">
+                    <div class="campo"><label for="<?= $p ?>_rodadas">Rodadas incluídas</label><input type="number" id="<?= $p ?>_rodadas" name="rodadas_incluidas" min="1" max="<?= LIMITE_RODADAS_MAX ?>"><p class="ajuda">Vazio = sem limite de rodadas</p></div>
+                    <div class="campo"><label for="<?= $p ?>_dias">Dias limite</label><input type="number" id="<?= $p ?>_dias" name="dias_limite" min="1" max="<?= LIMITE_DIAS_MAX ?>"><p class="ajuda">Vazio = usa o padrão global</p></div>
+                </div>
+            </div>
+            <div class="full" role="group" aria-labelledby="<?= $p ?>_t4">
+                <h3 class="grupo-titulo" id="<?= $p ?>_t4">Situação</h3>
+                <div class="form-grade">
+                    <?php if ($edicao): ?>
+                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_ativa" name="ativa"><label for="<?= $p ?>_ativa">Etapa ativa</label></div></div>
+                    <?php else: ?>
+                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_ativa" checked disabled><label for="<?= $p ?>_ativa">Etapa ativa</label></div>
+                        <p class="ajuda">Toda etapa nova começa ativa.</p></div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="form-botoes">
+                <?php if ($edicao): ?>
+                    <a href="javascript:void(0)" class="btn-cancelar" onclick="fecharEtapa()">Cancelar</a>
+                <?php else: ?>
+                    <a href="javascript:void(0)" class="btn-cancelar" onclick="this.closest('form').reset()">Cancelar</a>
+                <?php endif; ?>
+                <button type="submit" class="btn-salvar">Salvar</button>
+            </div>
+<?php
+}
+
 function nomeEtapaJaExiste(mysqli $conn, string $nome, int $ignorarId): bool
 {
     // A collation (utf8mb4_unicode_ci) já ignora maiúsculas e acentos; vale também para etapa desativada.
@@ -666,13 +721,12 @@ unset($_SESSION['flash']);
         </div>
         <div class="tabela-container">
             <table>
-                <thead><tr><th>Ordem</th><th>Etapa</th><th>Opcional</th><th>Repetível</th><th>Rodadas incluídas</th><th>Dias limite</th><th>Status</th><th>Livros agora</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Ordem</th><th>Nome</th><th>Opcional</th><th>Repetível</th><th>Rodadas incluídas</th><th>Dias limite</th><th>Ativa</th><th>Livros agora</th><th>Ações</th></tr></thead>
                 <tbody>
                 <?php foreach ($etapas as $idxEt => $et):
                     $qtdLivrosEtapa = $contagemPorEtapa[(int)$et['id']] ?? 0;
                     $temVizinhoAcima = $idxEt > 0;
                     $temVizinhoAbaixo = $idxEt < count($etapas) - 1;
-                    $ehCatalogacao = $et['nome'] === NOME_ETAPA_CATALOGACAO_CONFIG;
                     $msgMoverEtapa = $qtdLivrosEtapa > 0
                         ? ($qtdLivrosEtapa . ' livro(s) estão nesta etapa agora. Mudar a ordem só afeta movimentações futuras, eles não são afetados. Continuar?')
                         : null;
@@ -683,9 +737,9 @@ unset($_SESSION['flash']);
                         <td><?= htmlspecialchars($et['nome']) ?></td>
                         <td><?= (int)$et['opcional'] === 1 ? 'Sim' : 'Não' ?></td>
                         <td><?= (int)$et['repetivel'] === 1 ? 'Sim' : 'Não' ?></td>
-                        <td><?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : 'Sem limite' ?></td>
-                        <td><?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : 'Padrão global' ?></td>
-                        <td><span class="status <?= (int)$et['ativa'] === 1 ? 'ok' : 'atencao' ?>"><?= (int)$et['ativa'] === 1 ? 'Ativa' : 'Inativa' ?></span></td>
+                        <td><?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '—' ?></td>
+                        <td><?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '—' ?></td>
+                        <td><span class="status <?= (int)$et['ativa'] === 1 ? 'ok' : 'atencao' ?>"><?= (int)$et['ativa'] === 1 ? 'Sim' : 'Não' ?></span></td>
                         <td><?= $qtdLivrosEtapa ?></td>
                         <td>
                             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">
@@ -697,6 +751,8 @@ unset($_SESSION['flash']);
                                     <input type="hidden" name="direcao" value="up">
                                     <button type="submit" class="acao-btn" title="Mover para cima"<?= $confirmMoverJs ? " onclick='return confirm(" . $confirmMoverJs . ")'" : '' ?>>↑</button>
                                 </form>
+                                <?php else: ?>
+                                <form aria-hidden="true" style="visibility:hidden"><span class="acao-btn">↑</span></form>
                                 <?php endif; ?>
                                 <?php if ($temVizinhoAbaixo): ?>
                                 <form method="post">
@@ -706,25 +762,20 @@ unset($_SESSION['flash']);
                                     <input type="hidden" name="direcao" value="down">
                                     <button type="submit" class="acao-btn" title="Mover para baixo"<?= $confirmMoverJs ? " onclick='return confirm(" . $confirmMoverJs . ")'" : '' ?>>↓</button>
                                 </form>
+                                <?php else: ?>
+                                <form aria-hidden="true" style="visibility:hidden"><span class="acao-btn">↓</span></form>
                                 <?php endif; ?>
-                                <details>
-                                    <summary class="acao-btn" style="display:inline-block;cursor:pointer;">Editar</summary>
-                                    <form method="post" style="margin-top:10px;min-width:260px;" onsubmit="return confirmarEdicaoEtapa(this, <?= (int)$et['ativa'] ?>, <?= $qtdLivrosEtapa ?>)">
-                                        <?= csrf_field() ?>
-                                        <input type="hidden" name="acao" value="editar_etapa">
-                                        <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
-                                        <?php if ($ehCatalogacao): ?>
-                                            <p style="font-size:12px;color:#b98439;">Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Renomear aqui desativa esse aviso.</p>
-                                        <?php endif; ?>
-                                        <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($et['nome']) ?>" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
-                                        <div class="campo"><label><input type="checkbox" name="opcional" <?= (int)$et['opcional'] === 1 ? 'checked' : '' ?>> Opcional</label></div>
-                                        <div class="campo"><label><input type="checkbox" name="repetivel" <?= (int)$et['repetivel'] === 1 ? 'checked' : '' ?>> Repetível</label></div>
-                                        <div class="campo"><label>Rodadas incluídas (vazio = sem limite)</label><input type="number" name="rodadas_incluidas" min="1" max="99" value="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"></div>
-                                        <div class="campo"><label>Dias limite (vazio = padrão global)</label><input type="number" name="dias_limite" min="1" max="3650" value="<?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '' ?>"></div>
-                                        <div class="campo"><label><input type="checkbox" name="ativa" <?= (int)$et['ativa'] === 1 ? 'checked' : '' ?>> Ativa</label></div>
-                                        <button type="submit" class="btn-salvar">Salvar</button>
-                                    </form>
-                                </details>
+                                <button type="button" class="acao-btn" title="Editar etapa" onclick="abrirEditarEtapa(this)"
+                                    data-id="<?= (int)$et['id'] ?>"
+                                    data-nome="<?= htmlspecialchars($et['nome'], ENT_QUOTES) ?>"
+                                    data-ordem="<?= (int)$et['ordem'] ?>"
+                                    data-opcional="<?= (int)$et['opcional'] ?>"
+                                    data-repetivel="<?= (int)$et['repetivel'] ?>"
+                                    data-finaliza="<?= (int)$et['finaliza_livro'] ?>"
+                                    data-rodadas="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"
+                                    data-dias="<?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '' ?>"
+                                    data-ativa="<?= (int)$et['ativa'] ?>"
+                                    data-qtd="<?= $qtdLivrosEtapa ?>">Editar</button>
                             </div>
                         </td>
                     </tr>
@@ -735,20 +786,14 @@ unset($_SESSION['flash']);
 
         <div class="secao-simples" style="margin-top:24px;">
             <h2 style="font-size:16px;">+ Nova etapa</h2>
-            <p style="font-size:13px;color:#8a9b91;margin-bottom:10px;">Entra no final do fluxo — use as setas da tabela pra reposicionar depois.</p>
             <form method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="acao" value="criar_etapa">
                 <?= envio_unico_field() ?>
-                <div class="campo"><label for="nova_etapa_nome">Nome</label><input type="text" id="nova_etapa_nome" name="nome" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
-                <div class="campo"><label><input type="checkbox" name="opcional"> Opcional</label></div>
-                <div class="campo"><label><input type="checkbox" name="repetivel"> Repetível</label></div>
-                <div class="campo"><label for="nova_etapa_rodadas">Rodadas incluídas (vazio = sem limite)</label><input type="number" id="nova_etapa_rodadas" name="rodadas_incluidas" min="1" max="99"></div>
-                <div class="campo"><label for="nova_etapa_dias">Dias limite (vazio = padrão global)</label><input type="number" id="nova_etapa_dias" name="dias_limite" min="1" max="3650"></div>
-                <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar etapa</button></div>
+                <?php camposFormEtapa('nova_etapa', false, $etapas ? (int)max(array_column($etapas, 'ordem')) + 1 : 1); ?>
             </form>
         </div>
-    </section>
+</section>
 
     <section class="painel" style="margin-top:30px;">
         <div class="painel-topo">
@@ -858,10 +903,49 @@ unset($_SESSION['flash']);
 
 <script src="envio_unico.js"></script>
 <?php if ($podeGerenciarEtapasPapeis): ?>
+<div class="modal" id="modal-etapa" style="display:none;">
+    <div class="modal-box">
+        <a href="javascript:void(0)" class="fechar" onclick="fecharEtapa()">×</a>
+        <div class="modal-topo"><h2>Editar etapa</h2><p>Alterações valem para as próximas movimentações; o que já foi registrado não muda.</p></div>
+        <form method="post" id="form-editar-etapa" onsubmit="return confirmarEdicaoEtapa(this)">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="editar_etapa">
+            <input type="hidden" name="etapa_id" id="ed_etapa_id" value="0">
+            <div class="flash erro full" id="ed_etapa_aviso" hidden style="margin-bottom:0;">Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Renomear aqui desativa esse aviso.</div>
+            <?php camposFormEtapa('ed_etapa', true); ?>
+        </form>
+    </div>
+</div>
 <script>
-function confirmarEdicaoEtapa(form, ativaOriginal, qtdLivros) {
+const NOME_ETAPA_CATALOGACAO = <?= json_encode(NOME_ETAPA_CATALOGACAO_CONFIG, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+function abrirEditarEtapa(botao) {
+  var d = botao.dataset, f = document.getElementById('form-editar-etapa');
+  document.getElementById('ed_etapa_id').value = d.id;
+  document.getElementById('ed_etapa_nome').value = d.nome;
+  document.getElementById('ed_etapa_ordem').value = d.ordem;
+  document.getElementById('ed_etapa_opcional').checked = d.opcional === '1';
+  document.getElementById('ed_etapa_repetivel').checked = d.repetivel === '1';
+  document.getElementById('ed_etapa_finaliza').checked = d.finaliza === '1';
+  document.getElementById('ed_etapa_rodadas').value = d.rodadas;
+  document.getElementById('ed_etapa_dias').value = d.dias;
+  document.getElementById('ed_etapa_ativa').checked = d.ativa === '1';
+  f.dataset.ativaOriginal = d.ativa;
+  f.dataset.qtdLivros = d.qtd;
+  document.getElementById('ed_etapa_aviso').hidden = d.nome !== NOME_ETAPA_CATALOGACAO;
+  document.getElementById('modal-etapa').style.display = 'flex';
+  document.getElementById('ed_etapa_nome').focus();
+}
+function fecharEtapa() {
+  document.getElementById('modal-etapa').style.display = 'none';
+}
+document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') fecharEtapa(); });
+
+// Desativar uma etapa que ainda tem livros pede confirmação (mesma regra e mesmo texto de antes).
+function confirmarEdicaoEtapa(form) {
   var chkAtiva = form.querySelector('input[name="ativa"]');
-  if (ativaOriginal === 1 && chkAtiva && !chkAtiva.checked && qtdLivros > 0) {
+  var qtdLivros = Number(form.dataset.qtdLivros || 0);
+  if (form.dataset.ativaOriginal === '1' && chkAtiva && !chkAtiva.checked && qtdLivros > 0) {
     return confirm(qtdLivros + ' livro(s) estão nesta etapa agora. Eles continuam nela até serem movidos manualmente — desativar não os afeta. Desativar mesmo assim?');
   }
   return true;

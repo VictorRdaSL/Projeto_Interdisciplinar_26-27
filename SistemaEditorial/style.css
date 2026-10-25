@@ -100,3 +100,10 @@ main a:not([class]):hover, main a:not([class]):focus-visible { text-decoration: 
 .bem-vindo .btn { display: inline-block; padding: 6px 14px; font-size: 13px; text-decoration: none; }
 /* Listas de seleção soltas (formulários em linha das ações do livro) com o mesmo visual dos campos */
 main select { padding: 8px 10px; border: 1px solid #dfe9e2; border-radius: 8px; font-size: 13px; color: #53645a; background: #fafcfb; }
+
+/* Formulário de etapa (Passo 19): título de bloco, caixa de marcar em linha e texto de ajuda */
+.grupo-titulo{font-size:15px;color:var(--verde-900);padding-bottom:6px;border-bottom:1px solid #e3ebe6;margin-bottom:-4px}
+.campo-check{display:flex;align-items:center;gap:10px}
+.campo-check input{width:auto;padding:0;margin:0;accent-color:var(--verde-600)}
+.campo-check label{cursor:pointer;font-weight:600}
+.campo .ajuda{font-size:12px;color:#8a9b91;margin:0}
