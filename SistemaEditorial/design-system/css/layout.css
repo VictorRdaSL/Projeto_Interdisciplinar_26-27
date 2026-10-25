@@ -280,6 +280,7 @@
 
 .ws-topo__subtitulo {
   color: var(--ws-cor-texto-suave);
+  overflow-wrap: anywhere;
 }
 
 .ws-topo__voltar {
