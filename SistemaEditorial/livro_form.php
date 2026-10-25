@@ -345,7 +345,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="text" id="filtro-pessoas" placeholder="Filtrar pessoas nos campos abaixo..." oninput="agendarFiltroPessoasForm()" style="margin-bottom:10px;padding:13px;border:1px solid #dfe9e2;border-radius:10px;width:100%;">
                 <div id="lista-contribuicoes"></div>
                 <button type="button" class="btn" onclick="adicionarLinhaContribuicao()">+ Adicionar pessoa</button>
-                <a href="pessoas.php" target="_blank" class="btn-cancelar" style="text-decoration:none;display:inline-block;margin-left:8px;">+ Cadastrar nova pessoa (abre em outra aba)</a>
             </div>
 
             <div class="form-botoes">
