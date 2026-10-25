@@ -192,7 +192,7 @@ require __DIR__ . '/includes/cabecalho.php';
                   <th scope="col">Última etapa conhecida</th>
                   <th scope="col">Em resgate desde</th>
                   <th scope="col">Status</th>
-                  <th scope="col"><span class="ws-sr-only">Ações</span></th>
+                  <th scope="col">Ações</th>
                 </tr>
               </thead>
               <tbody>
