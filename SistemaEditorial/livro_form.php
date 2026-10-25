@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/mesa.php';
+require_once __DIR__ . '/includes/formatacao.php';
 
 function buscarNomePorId(array $lista, int $id): string
 {
@@ -74,6 +75,8 @@ $usuariosDisponiveis = usuariosQuePodemSerMesa($conn);
 $idsMesaPossiveis = array_map('intval', array_column($usuariosDisponiveis, 'id'));
 
 $erro = '';
+// Campo a que a mensagem de $erro se refere (titulo, isbn, observacoes, responsavel, pessoas); vazio = erro geral.
+$erroCampo = '';
 $titulo = $editando ? $livroAtual['titulo'] : '';
 $isbn = $editando ? ($livroAtual['isbn'] ?? '') : '';
 $temCopia = $editando ? (int)$livroAtual['tem_copia'] : 0;
@@ -104,7 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $titulo = entradaTexto($_POST, 'titulo');
         $isbnBruto = entradaTexto($_POST, 'isbn');
-        $temCopia = isset($_POST['tem_copia']) ? 1 : 0;
+        $isbn = $isbnBruto; // o que foi digitado volta ao campo se houver erro (antes o campo voltava ao valor antigo)
+        // O select envia '' para "Não" e '1' para "Sim"; isset() dava 1 nos dois casos.
+        $temCopia = entradaTexto($_POST, 'tem_copia') === '1' ? 1 : 0;
         $observacoes = entradaTexto($_POST, 'observacoes');
         $responsavelSelecionado = (int)($_POST['responsavel_atual_id'] ?? 0);
 
@@ -141,20 +146,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($titulo === '') {
             $erro = 'Informe o título do livro.';
+            $erroCampo = 'titulo';
         } elseif ($erroTamanho = erroTamanho($titulo, LIMITE_TITULO_LIVRO, 'O título')) {
             $erro = $erroTamanho;
+            $erroCampo = 'titulo';
         } elseif ($isbnBruto !== '' && !isbnValido($isbnBruto)) {
             $erro = 'ISBN inválido. Informe um ISBN-13 válido (13 dígitos, com dígito verificador correto), ou deixe o campo vazio.';
+            $erroCampo = 'isbn';
         } elseif ($erroTamanho = erroTamanho($observacoes, LIMITE_OBSERVACOES, 'As observações')) {
             $erro = $erroTamanho;
+            $erroCampo = 'observacoes';
         } elseif (!$editando && $responsavelSelecionado <= 0) {
             $erro = 'Selecione o responsável inicial.';
+            $erroCampo = 'responsavel';
         } elseif (!$editando && ($erroMesa = erroResponsavelMesa($conn, $responsavelSelecionado)) !== null) {
             $erro = $erroMesa;
+            $erroCampo = 'responsavel';
         } elseif ($papelInativoNovo !== null) {
             $erro = 'O papel "' . $papelInativoNovo . '" está desativado: ele só pode ser mantido nas pessoas que já o tinham neste livro. Escolha outro papel para as demais.';
+            $erroCampo = 'pessoas';
         } elseif ($contribuicaoInvalida) {
             $erro = 'Há uma pessoa ou um papel inválido nas pessoas vinculadas. Escolha apenas itens da lista.';
+            $erroCampo = 'pessoas';
         } else {
             if ($isbnNormalizado !== '') {
                 $sqlDup = 'SELECT id FROM livros WHERE isbn = ?' . ($editando ? ' AND id != ?' : '');
@@ -167,6 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtDup->execute();
                 if ($stmtDup->get_result()->fetch_assoc()) {
                     $erro = 'Já existe outro livro cadastrado com esse ISBN.';
+                    $erroCampo = 'isbn';
                 }
             }
         }
@@ -267,177 +281,289 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+
+// ---- Apresentação (Passo IV-6): só leitura, nada aqui muda regra ou gravação.
+// Ids dos campos (destino do link do resumo de erro).
+$idsCampoErro = [
+    'titulo' => 'titulo', 'isbn' => 'isbn', 'observacoes' => 'observacoes',
+    'responsavel' => 'responsavel_atual_id', 'pessoas' => 'pessoas-vinculadas',
+];
+/** aria-describedby: junta só os ids que valem agora (erro quando há erro, ajuda sempre que existe). */
+function ariaDescr(array $ids): string
+{
+    $ativos = array_keys(array_filter($ids));
+    return $ativos ? ' aria-describedby="' . escaparHtml(implode(' ', $ativos)) . '"' : '';
+}
+$temErroCampo = fn(string $campo): bool => $erro !== '' && $erroCampo === $campo;
+
+// Primeira etapa ativa (onde o livro entra) e etapas ativas com limite de rodadas, para a coluna lateral.
+$primeiraEtapa = $conn->query('SELECT nome FROM etapas WHERE ativa = 1 ORDER BY ordem ASC LIMIT 1')->fetch_assoc();
+$nomePrimeiraEtapa = $primeiraEtapa['nome'] ?? null;
+$etapasComLimite = $conn->query('SELECT nome, rodadas_incluidas FROM etapas WHERE ativa = 1 AND rodadas_incluidas IS NOT NULL ORDER BY ordem')->fetch_all(MYSQLI_ASSOC);
+
+$tituloPagina = $editando ? 'Editar livro' : 'Novo livro';
+$paginaAtual = 'livros';
+require __DIR__ . '/includes/cabecalho.php';
 ?>
-<!DOCTYPE html>
-<html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WareSys | <?= $editando ? 'Editar Livro' : 'Novo Livro' ?></title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="dark.css">
-</head>
-<body>
-<aside class="sidebar">
-    <div class="logo">
-        <div class="logo-icon">S</div>
-        <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
-    </div>
-    <nav>
-        <a href="index.php"><span>⌂</span>Painel</a>
-        <a href="minha_mesa.php"><span>🗄</span>Minha mesa</a>
-        <a href="livros.php" class="ativo"><span>📚</span>Livros</a>
-        <a href="pessoas.php"><span>👤</span>Pessoas</a>
-        <a href="relatorios.php"><span>📄</span>Relatórios</a>
-        <a href="configuracoes.php"><span>⚙</span>Configurações</a>
-    </nav>
-    <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
-</aside>
-
-<main>
-    <header class="topo">
-        <div><p class="bem-vindo"><?= $editando ? 'Editando' : 'Cadastrar novo' ?></p><h2><?= $editando ? htmlspecialchars($livroAtual['titulo']) : 'Novo Livro' ?></h2></div>
-        <div class="perfil">
-            <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
-            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
-            <a href="logout.php" class="btn btn-sair">Sair</a>
+      <header class="ws-topo">
+        <div class="ws-topo__titulos">
+          <a class="ws-topo__voltar ws-link-limpo" href="<?= $editando ? 'livro_detalhes.php?id=' . $livroId : 'livros.php' ?>"><i data-lucide="arrow-left" class="ws-icone--peq"></i><?= $editando ? 'Livro' : 'Livros' ?></a>
+<?php if ($editando): ?>
+          <p class="ws-eyebrow ws-eyebrow--destaque">Livro <?= escaparHtml(codigoLivro($livroId)) ?></p>
+<?php endif; ?>
+          <h1 class="ws-topo__titulo"><?= $editando ? 'Editar livro' : 'Novo livro' ?></h1>
+<?php if ($editando): ?>
+          <p class="ws-topo__subtitulo"><?= escaparHtml($livroAtual['titulo']) ?></p>
+<?php elseif ($nomePrimeiraEtapa !== null): ?>
+          <p class="ws-topo__subtitulo">O livro entra em <?= escaparHtml($nomePrimeiraEtapa) ?>, na mesa escolhida.</p>
+<?php else: ?>
+          <p class="ws-topo__subtitulo">Nenhuma etapa ativa cadastrada: não é possível criar um livro.</p>
+<?php endif; ?>
         </div>
-    </header>
+      </header>
 
-    <?php if ($erro): ?>
-        <div class="flash erro"><?= htmlspecialchars($erro) ?></div>
-    <?php endif; ?>
+      <div class="ws-conteudo">
+        <div class="ws-grade">
+          <div class="ws-col-8 ws-pilha">
 
-    <section class="painel">
-        <div class="painel-topo">
-            <div><h2><?= $editando ? 'Editar Livro' : 'Novo Livro' ?></h2><p>Título, ISBN (opcional), cópia e observações.</p></div>
+<?php if ($erro !== ''): ?>
+            <div class="ws-alerta ws-alerta--cobrado" role="alert" id="resumo-erro">
+              <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
+              <div class="ws-alerta__corpo">
+                <p class="ws-alerta__titulo">O livro não foi salvo.<?= isset($idsCampoErro[$erroCampo]) ? ' Corrija 1 campo.' : '' ?></p>
+<?php if (isset($idsCampoErro[$erroCampo])): ?>
+                <p><a href="#<?= escaparHtml($idsCampoErro[$erroCampo]) ?>"><?= escaparHtml($erro) ?></a></p>
+<?php else: ?>
+                <p><?= escaparHtml($erro) ?></p>
+<?php endif; ?>
+              </div>
+            </div>
+<?php endif; ?>
+
+            <form class="ws-form ws-card ws-card--superficie" method="post" novalidate>
+              <?= csrf_field() ?>
+<?php if (!$editando) echo '              ' . envio_unico_field() . "\n"; ?>
+
+              <fieldset class="ws-grupo-campos">
+                <legend><h2>Dados do livro</h2></legend>
+                <div class="ws-form__grade">
+                  <div class="ws-campo ws-campo--inteiro<?= $temErroCampo('titulo') ? ' ws-campo--erro' : '' ?>">
+                    <label class="ws-campo__rotulo" for="titulo">Título</label>
+                    <input class="ws-input" type="text" id="titulo" name="titulo" value="<?= escaparHtml($titulo) ?>" maxlength="<?= LIMITE_TITULO_LIVRO ?>" required<?= $temErroCampo('titulo') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['titulo-erro' => $temErroCampo('titulo')]) ?>>
+<?php if ($temErroCampo('titulo')): ?>
+                    <p class="ws-campo__erro" id="titulo-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
+<?php endif; ?>
+                  </div>
+
+                  <div class="ws-campo<?= $temErroCampo('isbn') ? ' ws-campo--erro' : '' ?>">
+                    <label class="ws-campo__rotulo" for="isbn">ISBN <span class="ws-campo__opcional">(opcional)</span></label>
+                    <input class="ws-input ws-input--codigo" type="text" id="isbn" name="isbn" value="<?= escaparHtml($isbn) ?>" inputmode="numeric"<?= $temErroCampo('isbn') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['isbn-erro' => $temErroCampo('isbn'), 'isbn-ajuda' => true]) ?>>
+<?php if ($temErroCampo('isbn')): ?>
+                    <p class="ws-campo__erro" id="isbn-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
+<?php endif; ?>
+                    <p class="ws-campo__ajuda" id="isbn-ajuda">ISBN-13. Pode ficar vazio até a Catalogação.</p>
+                  </div>
+
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="tem_copia">Tem cópia?</label>
+                    <select class="ws-select" id="tem_copia" name="tem_copia">
+                      <option value="">Não</option>
+                      <option value="1"<?= $temCopia ? ' selected' : '' ?>>Sim</option>
+                    </select>
+                  </div>
+
+<?php if (!$editando): ?>
+                  <div class="ws-campo ws-campo--inteiro<?= $temErroCampo('responsavel') ? ' ws-campo--erro' : '' ?>">
+                    <label class="ws-campo__rotulo" for="responsavel_atual_id">Responsável inicial</label>
+                    <select class="ws-select" id="responsavel_atual_id" name="responsavel_atual_id" required<?= $temErroCampo('responsavel') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['responsavel-erro' => $temErroCampo('responsavel'), 'responsavel-ajuda' => $nomePrimeiraEtapa !== null]) ?>>
+<?php if (!in_array($responsavelSelecionado, $idsMesaPossiveis, true)): ?>
+                      <option value=""><?= $usuariosDisponiveis ? 'Escolha o responsável' : 'Nenhum Gerente ou Usuário cadastrado' ?></option>
+<?php endif; ?>
+<?php foreach ($usuariosDisponiveis as $u): ?>
+                      <option value="<?= (int)$u['id'] ?>"<?= $responsavelSelecionado === (int)$u['id'] ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
+<?php endforeach; ?>
+                    </select>
+<?php if ($temErroCampo('responsavel')): ?>
+                    <p class="ws-campo__erro" id="responsavel-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
+<?php endif; ?>
+<?php if ($nomePrimeiraEtapa !== null): ?>
+                    <p class="ws-campo__ajuda" id="responsavel-ajuda">Quem recebe o livro em <?= escaparHtml($nomePrimeiraEtapa) ?>.</p>
+<?php endif; ?>
+<?php if (!$usuariosDisponiveis): ?>
+                    <div class="ws-alerta ws-alerta--limite" role="status">
+                      <i class="ws-alerta__icone" data-lucide="triangle-alert"></i>
+                      <div class="ws-alerta__corpo">
+                        <p>O Administrador não pode ser responsável por um livro. Cadastre um Gerente ou um Usuário em Configurações antes de criar livros.</p>
+                      </div>
+                    </div>
+<?php endif; ?>
+                  </div>
+<?php endif; ?>
+                </div>
+              </fieldset>
+
+              <fieldset class="ws-grupo-campos" id="pessoas-vinculadas"<?= $temErroCampo('pessoas') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['pessoas-erro' => $temErroCampo('pessoas'), 'pessoas-ajuda' => true]) ?>>
+                <legend><h2>Pessoas vinculadas</h2></legend>
+                <p class="ws-texto-suave" id="pessoas-ajuda" style="margin-top:-8px">Autores, organizadores e ilustradores. Não são usuários do sistema.</p>
+<?php if ($temErroCampo('pessoas')): ?>
+                <p class="ws-campo__erro" id="pessoas-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
+<?php endif; ?>
+
+                <div class="ws-campo">
+                  <label class="ws-campo__rotulo" for="filtro-pessoas">Filtrar pessoas</label>
+                  <div class="ws-busca">
+                    <i class="ws-busca__icone ws-icone--peq" data-lucide="search"></i>
+                    <input class="ws-input" type="search" id="filtro-pessoas" placeholder="Filtrar pessoas nos campos abaixo" oninput="agendarFiltroPessoasForm()" autocomplete="off">
+                  </div>
+                </div>
+
+                <div id="lista-contribuicoes" class="ws-pilha"></div>
+
+                <div class="ws-linha">
+                  <button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" onclick="adicionarLinhaContribuicao()"><i data-lucide="plus"></i>Adicionar pessoa</button>
+                </div>
+              </fieldset>
+
+              <fieldset class="ws-grupo-campos">
+                <legend><h2>Observações</h2></legend>
+                <div class="ws-campo<?= $temErroCampo('observacoes') ? ' ws-campo--erro' : '' ?>">
+                  <label class="ws-campo__rotulo" for="observacoes">Observações do livro <span class="ws-campo__opcional">(opcional)</span></label>
+                  <textarea class="ws-textarea" id="observacoes" name="observacoes" maxlength="<?= LIMITE_OBSERVACOES ?>" placeholder="Pedidos da autora, prazos combinados, materiais pendentes."<?= $temErroCampo('observacoes') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['obs-erro' => $temErroCampo('observacoes'), 'obs-ajuda' => true]) ?>><?= escaparHtml($observacoes) ?></textarea>
+<?php if ($temErroCampo('observacoes')): ?>
+                  <p class="ws-campo__erro" id="obs-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
+<?php endif; ?>
+                  <p class="ws-campo__ajuda" id="obs-ajuda">Texto livre. Fica no livro, não na etapa.</p>
+                </div>
+              </fieldset>
+
+              <div class="ws-form__acoes">
+                <button class="ws-btn ws-btn--primario" type="submit">Salvar livro <span class="ws-btn__seta" aria-hidden="true">→</span></button>
+                <a class="ws-btn ws-btn--link" href="<?= $editando ? 'livro_detalhes.php?id=' . $livroId : 'livros.php' ?>">Cancelar</a>
+              </div>
+            </form>
+          </div>
+
+          <aside class="ws-col-4 ws-pilha" aria-label="<?= $editando ? 'Etapa e mesa do livro' : 'Como o livro entra no fluxo' ?>">
+<?php if ($editando): ?>
+            <section class="ws-card">
+              <p class="ws-eyebrow ws-eyebrow--destaque">Etapa e mesa</p>
+              <h2 class="ws-card__titulo">Mudam na página do livro</h2>
+              <p class="ws-card__texto">Editar aqui não move o livro no fluxo. Para avançar, voltar ou passar para outra mesa, use Movimentar livro.</p>
+              <a class="ws-btn ws-btn--link" href="livro_detalhes.php?id=<?= $livroId ?>">Ver o livro <span class="ws-btn__seta" aria-hidden="true">→</span></a>
+            </section>
+<?php else: ?>
+<?php if ($nomePrimeiraEtapa !== null): ?>
+            <section class="ws-card">
+              <p class="ws-eyebrow ws-eyebrow--destaque">Depois de salvar</p>
+              <h2 class="ws-card__titulo">O livro entra em <?= escaparHtml($nomePrimeiraEtapa) ?></h2>
+              <p class="ws-card__texto">A primeira movimentação é criada na mesa escolhida. Etapa, mesa e rodada passam a aparecer no histórico.</p>
+            </section>
+<?php endif; ?>
+<?php if ($etapasComLimite): ?>
+            <section class="ws-card">
+              <h2 class="ws-card__titulo">Rodadas incluídas</h2>
+<?php foreach ($etapasComLimite as $ec): ?>
+              <?= htmlContadorRodadas($ec['nome'], (int)$ec['rodadas_incluidas'], null) . "\n" ?>
+<?php endforeach; ?>
+              <p class="ws-texto-suave">A última rodada incluída acende o alerta; o que passa disso é cobrado.</p>
+            </section>
+<?php endif; ?>
+<?php endif; ?>
+          </aside>
         </div>
-        <form method="post">
-            <?= csrf_field() ?>
-            <?php if (!$editando) echo envio_unico_field(); ?>
-            <div class="campo full"><label for="titulo">Título</label><input type="text" id="titulo" name="titulo" value="<?= htmlspecialchars($titulo) ?>" maxlength="<?= LIMITE_TITULO_LIVRO ?>" required></div>
-            <div class="campo"><label for="isbn">ISBN (opcional)</label><input type="text" id="isbn" name="isbn" value="<?= htmlspecialchars($isbn) ?>" placeholder="Ex: 978-3-16-148410-0"></div>
-            <div class="campo"><label for="tem_copia">Tem cópia?</label>
-                <select id="tem_copia" name="tem_copia">
-                    <option value="">Não</option>
-                    <option value="1" <?= $temCopia ? 'selected' : '' ?>>Sim</option>
-                </select>
-            </div>
-            <?php if (!$editando): ?>
-            <div class="campo full"><label for="responsavel_atual_id">Responsável inicial</label>
-                <select id="responsavel_atual_id" name="responsavel_atual_id" required>
-                    <?php if (!in_array($responsavelSelecionado, $idsMesaPossiveis, true)): ?>
-                        <option value=""><?= $usuariosDisponiveis ? '— escolha o responsável —' : '— nenhum Gerente ou Usuário cadastrado —' ?></option>
-                    <?php endif; ?>
-                    <?php foreach ($usuariosDisponiveis as $u): ?>
-                        <option value="<?= (int)$u['id'] ?>" <?= $responsavelSelecionado === (int)$u['id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if (!$usuariosDisponiveis): ?>
-                    <p style="margin-top:8px;font-size:13px;color:#955d15;">O Administrador não pode ser responsável por um livro. Cadastre um Gerente ou um Usuário em Configurações antes de criar livros.</p>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-            <div class="campo full"><label for="observacoes">Observações</label><textarea id="observacoes" name="observacoes" maxlength="<?= LIMITE_OBSERVACOES ?>" placeholder="Texto livre, opcional..."><?= htmlspecialchars($observacoes) ?></textarea></div>
+      </div>
 
-            <div class="campo full">
-                <label>Pessoas vinculadas (autores, organizadores, ilustradores)</label>
-                <input type="text" id="filtro-pessoas" placeholder="Filtrar pessoas nos campos abaixo..." oninput="agendarFiltroPessoasForm()" style="margin-bottom:10px;padding:13px;border:1px solid #dfe9e2;border-radius:10px;width:100%;">
-                <div id="lista-contribuicoes"></div>
-                <button type="button" class="btn" onclick="adicionarLinhaContribuicao()">+ Adicionar pessoa</button>
-            </div>
+      <script src="envio_unico.js"></script>
+      <script>
+      const PESSOAS = <?= json_encode($pessoasDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      const PAPEIS = <?= json_encode($papeisDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      const CONTRIBUICOES_INICIAIS = <?= json_encode($contribuicoesForm, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
-            <div class="form-botoes">
-                <a href="<?= $editando ? 'livro_detalhes.php?id='.$livroId : 'livros.php' ?>" class="btn-cancelar">Cancelar</a>
-                <button type="submit" class="btn-salvar">Salvar</button>
-            </div>
-        </form>
-    </section>
+      let contribIndex = 0;
 
-    <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
-</main>
+      // Construção via DOM (createElement/textContent), nunca innerHTML com string
+      // concatenada — nome de pessoa é dado do usuário, não pode virar HTML/JS.
+      function preencherOptions(selectEl, itens, rotuloPadrao, selecionadoId){
+        const optPadrao = document.createElement('option');
+        optPadrao.value = '';
+        optPadrao.textContent = rotuloPadrao;
+        selectEl.appendChild(optPadrao);
+        itens.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = item.nome + (item.ativo !== undefined && Number(item.ativo) === 0 ? ' (inativo)' : '');
+          if (String(item.id) === String(selecionadoId)) opt.selected = true;
+          selectEl.appendChild(opt);
+        });
+      }
 
-<script src="envio_unico.js"></script>
-<script>
-const PESSOAS = <?= json_encode($pessoasDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-const PAPEIS = <?= json_encode($papeisDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-const CONTRIBUICOES_INICIAIS = <?= json_encode($contribuicoesForm, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      // Um campo do design system: .ws-campo > label.ws-campo__rotulo + select.ws-select (label ligado por for/id).
+      function criarCampoSelect(rotulo, id, nome, classeExtra){
+        const campo = document.createElement('div');
+        campo.className = 'ws-campo';
+        const label = document.createElement('label');
+        label.className = 'ws-campo__rotulo';
+        label.htmlFor = id;
+        label.textContent = rotulo;
+        const select = document.createElement('select');
+        select.className = 'ws-select' + (classeExtra ? ' ' + classeExtra : '');
+        select.id = id;
+        select.name = nome;
+        campo.appendChild(label);
+        campo.appendChild(select);
+        return { campo, select };
+      }
 
-let contribIndex = 0;
+      function adicionarLinhaContribuicao(pessoaId, papelId){
+        const i = contribIndex++;
+        const linha = document.createElement('div');
+        linha.className = 'ws-linha-campos';
 
-// Construção via DOM (createElement/textContent), nunca innerHTML com string
-// concatenada — nome de pessoa é dado do usuário, não pode virar HTML/JS.
-function preencherOptions(selectEl, itens, rotuloPadrao, selecionadoId){
-  const optPadrao = document.createElement('option');
-  optPadrao.value = '';
-  optPadrao.textContent = rotuloPadrao;
-  selectEl.appendChild(optPadrao);
-  itens.forEach(item => {
-    const opt = document.createElement('option');
-    opt.value = item.id;
-    opt.textContent = item.nome + (item.ativo !== undefined && Number(item.ativo) === 0 ? ' (inativo)' : '');
-    if (String(item.id) === String(selecionadoId)) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
-}
+        const pessoa = criarCampoSelect('Pessoa', 'pessoa-' + i, 'contribuicoes[' + i + '][pessoa_id]', 'select-pessoa');
+        preencherOptions(pessoa.select, PESSOAS, 'Selecione a pessoa', pessoaId);
+        const papel = criarCampoSelect('Papel', 'papel-' + i, 'contribuicoes[' + i + '][papel_id]');
+        preencherOptions(papel.select, PAPEIS, 'Selecione o papel', papelId);
 
-function adicionarLinhaContribuicao(pessoaId, papelId){
-  const i = contribIndex++;
-  const div = document.createElement('div');
-  div.className = 'form-grade';
-  div.style.marginBottom = '10px';
+        const btnRemover = document.createElement('button');
+        btnRemover.type = 'button';
+        btnRemover.className = 'ws-btn ws-btn--secundario ws-btn--icone';
+        const icone = document.createElement('i');
+        icone.setAttribute('data-lucide', 'trash-2');
+        btnRemover.appendChild(icone);
+        // O nome da pessoa escolhida entra no rótulo do botão (leitor de tela); textContent, nunca HTML.
+        function atualizarRotuloRemover(){
+          const opcao = pessoa.select.options[pessoa.select.selectedIndex];
+          btnRemover.setAttribute('aria-label', opcao && opcao.value !== '' ? 'Remover ' + opcao.textContent : 'Remover esta pessoa');
+        }
+        atualizarRotuloRemover();
+        pessoa.select.addEventListener('change', atualizarRotuloRemover);
+        btnRemover.onclick = function(){ linha.remove(); };
 
-  const campoPessoa = document.createElement('div');
-  campoPessoa.className = 'campo';
-  const labelPessoa = document.createElement('label');
-  labelPessoa.textContent = 'Pessoa';
-  const selectPessoa = document.createElement('select');
-  selectPessoa.className = 'select-pessoa';
-  selectPessoa.name = 'contribuicoes[' + i + '][pessoa_id]';
-  preencherOptions(selectPessoa, PESSOAS, 'Selecione a pessoa...', pessoaId);
-  campoPessoa.appendChild(labelPessoa);
-  campoPessoa.appendChild(selectPessoa);
+        linha.appendChild(pessoa.campo);
+        linha.appendChild(papel.campo);
+        linha.appendChild(btnRemover);
+        document.getElementById('lista-contribuicoes').appendChild(linha);
+        // Linhas criadas depois do carregamento precisam ganhar o ícone (o waresys.js só desenha os que já existiam).
+        if (window.WareSys && typeof window.WareSys.iniciarIcones === 'function') window.WareSys.iniciarIcones();
+      }
 
-  const campoPapel = document.createElement('div');
-  campoPapel.className = 'campo';
-  const labelPapel = document.createElement('label');
-  labelPapel.textContent = 'Papel';
-  const selectPapel = document.createElement('select');
-  selectPapel.name = 'contribuicoes[' + i + '][papel_id]';
-  preencherOptions(selectPapel, PAPEIS, 'Selecione o papel...', papelId);
-  campoPapel.appendChild(labelPapel);
-  campoPapel.appendChild(selectPapel);
+      CONTRIBUICOES_INICIAIS.forEach(c => adicionarLinhaContribuicao(c.pessoa_id, c.papel_id));
+      if (CONTRIBUICOES_INICIAIS.length === 0) adicionarLinhaContribuicao();
 
-  const btnRemover = document.createElement('button');
-  btnRemover.type = 'button';
-  btnRemover.className = 'btn-cancelar';
-  btnRemover.style.alignSelf = 'flex-end';
-  btnRemover.textContent = 'Remover';
-  btnRemover.onclick = function(){ div.remove(); };
-
-  div.appendChild(campoPessoa);
-  div.appendChild(campoPapel);
-  div.appendChild(btnRemover);
-  document.getElementById('lista-contribuicoes').appendChild(div);
-}
-
-CONTRIBUICOES_INICIAIS.forEach(c => adicionarLinhaContribuicao(c.pessoa_id, c.papel_id));
-if (CONTRIBUICOES_INICIAIS.length === 0) adicionarLinhaContribuicao();
-
-let filtroPessoasFormTimeout = null;
-function agendarFiltroPessoasForm(){
-  clearTimeout(filtroPessoasFormTimeout);
-  filtroPessoasFormTimeout = setTimeout(aplicarFiltroPessoasForm, 300);
-}
-function aplicarFiltroPessoasForm(){
-  const termo = document.getElementById('filtro-pessoas').value.trim().toLowerCase();
-  document.querySelectorAll('.select-pessoa').forEach(select => {
-    Array.from(select.options).forEach(opt => {
-      if (opt.value === '') return;
-      opt.hidden = termo !== '' && !opt.textContent.toLowerCase().includes(termo);
-    });
-  });
-}
-</script>
-</body>
-</html>
+      let filtroPessoasFormTimeout = null;
+      function agendarFiltroPessoasForm(){
+        clearTimeout(filtroPessoasFormTimeout);
+        filtroPessoasFormTimeout = setTimeout(aplicarFiltroPessoasForm, 300);
+      }
+      function aplicarFiltroPessoasForm(){
+        const termo = document.getElementById('filtro-pessoas').value.trim().toLowerCase();
+        document.querySelectorAll('.select-pessoa').forEach(select => {
+          Array.from(select.options).forEach(opt => {
+            if (opt.value === '') return;
+            opt.hidden = termo !== '' && !opt.textContent.toLowerCase().includes(termo);
+          });
+        });
+      }
+      </script>
+<?php require __DIR__ . '/includes/rodape.php'; ?>
