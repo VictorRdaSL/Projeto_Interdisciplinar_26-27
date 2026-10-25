@@ -1900,7 +1900,8 @@ a.ws-kpi:hover {
   min-height: var(--ws-controle-altura);
 }
 
-@media (max-width: 1023px) {
+/* Com a sidebar de 240px, 5 colunas só cabem a partir de ~1200px de janela: abaixo disso, 2 colunas */
+@media (max-width: 1199px) {
   .ws-filtros {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
