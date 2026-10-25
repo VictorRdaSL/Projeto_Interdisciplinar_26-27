@@ -86,6 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($acao === 'excluir_pessoa') {
+        // Excluir é irreversível: só grava com o campo de confirmação, que apenas o botão de confirmar do modal preenche.
+        if (entradaTexto($_POST, 'confirmacao') !== '1') {
+            voltarPessoas('erro', 'Esta ação precisa de confirmação. Use o botão de confirmar na janela que se abre; nada foi gravado.');
+        }
         $pessoaId = (int)($_POST['pessoa_id'] ?? 0);
         $stmtAntes = $conn->prepare('SELECT nome FROM pessoas WHERE id = ?');
         $stmtAntes->bind_param('i', $pessoaId);
@@ -116,159 +120,220 @@ $pessoas = [];
 $r = $conn->query('SELECT id, nome, email, telefone, criado_em FROM pessoas ORDER BY nome');
 while ($row = $r->fetch_assoc()) $pessoas[] = $row;
 
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
+
+// O flash da sessão é lido, exibido e apagado pelo includes/rodape.php (toast).
 $podeGerenciar = usuarioTemPermissao('pessoas.gerenciar');
+
+$tituloPagina = 'Pessoas';
+$paginaAtual = 'pessoas';
+require __DIR__ . '/includes/cabecalho.php';
 ?>
-<!DOCTYPE html>
-<html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WareSys | Pessoas</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="dark.css">
-</head>
-<body>
-<aside class="sidebar">
-    <div class="logo">
-        <div class="logo-icon">S</div>
-        <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
-    </div>
-    <nav>
-        <a href="index.php"><span>⌂</span>Painel</a>
-        <a href="minha_mesa.php"><span>🗄</span>Minha mesa</a>
-        <a href="livros.php"><span>📚</span>Livros</a>
-        <a href="pessoas.php" class="ativo"><span>👤</span>Pessoas</a>
-        <a href="relatorios.php"><span>📄</span>Relatórios</a>
-        <a href="configuracoes.php"><span>⚙</span>Configurações</a>
-    </nav>
-    <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
-</aside>
-
-<main>
-    <header class="topo">
-        <div><p class="bem-vindo">Autores, organizadores e ilustradores</p><h2>Pessoas</h2></div>
-        <div class="perfil">
-            <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
-            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
-            <a href="logout.php" class="btn btn-sair">Sair</a>
+      <header class="ws-topo">
+        <div class="ws-topo__titulos">
+          <h1 class="ws-topo__titulo">Pessoas</h1>
+          <p class="ws-topo__subtitulo"><?= $pessoas ? escaparHtml(qtdTexto(count($pessoas), 'pessoa cadastrada', 'pessoas cadastradas')) : 'Nenhuma pessoa cadastrada' ?></p>
         </div>
-    </header>
-
-    <?php if ($flash): ?>
-        <div class="flash <?= htmlspecialchars($flash['type']) ?>"><?= htmlspecialchars($flash['message']) ?></div>
-    <?php endif; ?>
-
-    <section class="painel" id="pessoas">
-        <div class="painel-topo">
-            <div><h2>Pessoas cadastradas</h2><p>Não são usuários do sistema — são autores, organizadores e ilustradores vinculados a livros.</p></div>
-            <div class="pesquisa"><span>🔍</span><input id="busca" type="text" placeholder="Pesquisar por nome ou e-mail..." oninput="agendarFiltroPessoas()"></div>
+<?php if ($podeGerenciar): ?>
+        <div class="ws-topo__acoes">
+          <button class="ws-btn ws-btn--primario" type="button" data-ws-modal-abrir="modal-pessoa" data-pessoa-nova><i data-lucide="user-plus"></i>Nova pessoa</button>
         </div>
-        <?php if ($podeGerenciar): ?>
-        <div class="acoes" style="margin-bottom:20px;">
-            <button type="button" class="btn btn-principal" onclick="abrirNovaPessoa()">+ Nova Pessoa</button>
-        </div>
-        <?php endif; ?>
-        <div class="tabela-container">
-            <table id="tabela-pessoas">
-                <thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Cadastrada em</th><?php if ($podeGerenciar): ?><th>Ações</th><?php endif; ?></tr></thead>
-                <tbody>
-                <?php if (!$pessoas): ?>
-                    <tr><td colspan="<?= $podeGerenciar ? 5 : 4 ?>" class="vazio">Nenhuma pessoa cadastrada.</td></tr>
-                <?php else: foreach ($pessoas as $p): ?>
-                    <tr data-nome="<?= htmlspecialchars($p['nome'], ENT_QUOTES) ?>" data-email="<?= htmlspecialchars($p['email'] ?? '', ENT_QUOTES) ?>">
-                        <td><strong><?= htmlspecialchars($p['nome']) ?></strong></td>
-                        <td><?= htmlspecialchars($p['email'] ?: '—') ?></td>
-                        <td><?= htmlspecialchars($p['telefone'] ?: '—') ?></td>
-                        <td><?= formatarDataHora($p['criado_em']) ?></td>
-                        <?php if ($podeGerenciar): ?>
-                        <td>
-                            <button type="button" class="acao-btn" title="Editar"
-                                data-id="<?= (int)$p['id'] ?>"
-                                data-nome="<?= htmlspecialchars($p['nome'], ENT_QUOTES) ?>"
-                                data-email="<?= htmlspecialchars($p['email'] ?? '', ENT_QUOTES) ?>"
-                                data-telefone="<?= htmlspecialchars($p['telefone'] ?? '', ENT_QUOTES) ?>"
-                                onclick="abrirEditarPessoa(this)">✏️</button>
-                            <form method="post" style="display:inline" onsubmit="return confirm('Excluir esta pessoa?');">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="acao" value="excluir_pessoa">
-                                <input type="hidden" name="pessoa_id" value="<?= (int)$p['id'] ?>">
-                                <button type="submit" class="acao-btn" title="Excluir">🗑️</button>
-                            </form>
-                        </td>
-                        <?php endif; ?>
-                    </tr>
-                <?php endforeach; endif; ?>
-                <tr id="busca-sem-resultado" style="display:none;">
-                    <td colspan="<?= $podeGerenciar ? 5 : 4 ?>" class="vazio">Nenhuma pessoa encontrada para essa busca.</td>
+<?php endif; ?>
+      </header>
+
+      <div class="ws-conteudo">
+<?php if (!$pessoas): ?>
+        <section class="ws-secao" aria-labelledby="vazio-titulo">
+          <div class="ws-vazio">
+            <i class="ws-vazio__icone" data-lucide="users"></i>
+            <h2 class="ws-h2" id="vazio-titulo">Nenhuma pessoa cadastrada.</h2>
+            <p class="ws-vazio__texto">Autores, organizadores e ilustradores vinculados a livros aparecem aqui.</p>
+<?php if ($podeGerenciar): ?>
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-abrir="modal-pessoa" data-pessoa-nova>Cadastrar a primeira pessoa</button>
+<?php endif; ?>
+          </div>
+        </section>
+<?php else: ?>
+        <section class="ws-secao" aria-labelledby="busca-titulo">
+          <h2 class="ws-sr-only" id="busca-titulo">Busca</h2>
+          <div class="ws-filtros">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="busca">Buscar</label>
+              <div class="ws-busca">
+                <i class="ws-busca__icone ws-icone--peq" data-lucide="search"></i>
+                <input class="ws-input" id="busca" type="search" placeholder="Nome ou e-mail" oninput="agendarFiltroPessoas()" autocomplete="off">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ws-secao" aria-labelledby="lista-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="lista-titulo">Pessoas cadastradas</h2>
+              <p>Autores, organizadores e ilustradores. Não são usuários do sistema.</p>
+            </div>
+          </div>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" id="pessoas-tabela-wrap" tabindex="0" role="region" aria-labelledby="lista-titulo">
+            <table class="ws-tabela ws-tabela--empilhar" id="tabela-pessoas">
+              <thead>
+                <tr>
+                  <th scope="col">Nome</th>
+                  <th scope="col">E-mail</th>
+                  <th scope="col">Telefone</th>
+                  <th scope="col">Cadastrada em</th>
+<?php if ($podeGerenciar): ?>
+                  <th scope="col">Ações</th>
+<?php endif; ?>
                 </tr>
-                </tbody>
+              </thead>
+              <tbody>
+<?php foreach ($pessoas as $p): $pid = (int)$p['id']; ?>
+                <tr data-nome="<?= escaparHtml($p['nome']) ?>" data-email="<?= escaparHtml($p['email'] ?? '') ?>">
+                  <td class="ws-tabela__titulo" data-rotulo="Nome"><?= escaparHtml($p['nome']) ?></td>
+                  <td data-rotulo="E-mail"><?php if ($p['email']): ?><?= escaparHtml($p['email']) ?><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
+                  <td data-rotulo="Telefone"><?php if ($p['telefone']): ?><?= escaparHtml($p['telefone']) ?><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
+                  <td class="ws-tabela__codigo" data-rotulo="Cadastrada em"><?= escaparHtml(formatarDataHora($p['criado_em'])) ?></td>
+<?php if ($podeGerenciar): ?>
+                  <td class="ws-tabela__acoes" data-rotulo="Ações">
+                    <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="button" data-ws-modal-abrir="modal-pessoa"
+                      data-id="<?= $pid ?>"
+                      data-nome="<?= escaparHtml($p['nome']) ?>"
+                      data-email="<?= escaparHtml($p['email'] ?? '') ?>"
+                      data-telefone="<?= escaparHtml($p['telefone'] ?? '') ?>"
+                      aria-label="<?= escaparHtml('Editar ' . $p['nome']) ?>" title="Editar"><i data-lucide="pencil"></i></button>
+                    <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="button" data-ws-modal-abrir="modal-excluir"
+                      data-id="<?= $pid ?>"
+                      data-nome="<?= escaparHtml($p['nome']) ?>"
+                      aria-label="<?= escaparHtml('Excluir ' . $p['nome']) ?>" title="Excluir"><i data-lucide="trash-2"></i></button>
+                  </td>
+<?php endif; ?>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
             </table>
-        </div>
-    </section>
+          </div>
 
-    <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
-</main>
+          <!-- Busca sem resultado (mostrado pelo script abaixo) -->
+          <div class="ws-vazio" id="busca-sem-resultado" style="display:none;">
+            <i class="ws-vazio__icone" data-lucide="search"></i>
+            <h2 class="ws-h2">Nenhuma pessoa encontrada para essa busca.</h2>
+            <p class="ws-vazio__texto">Confira o nome ou o e-mail.</p>
+            <button class="ws-btn ws-btn--secundario" type="button" onclick="limparBuscaPessoas()">Limpar busca</button>
+          </div>
+        </section>
+<?php endif; ?>
+      </div>
 
 <?php if ($podeGerenciar): ?>
-<div class="modal" id="modal-pessoa" style="display:none;">
-    <div class="modal-box">
-        <a href="javascript:void(0)" class="fechar" onclick="fecharPessoa()">×</a>
-        <div class="modal-topo"><h2 id="pessoa-modal-titulo">Nova Pessoa</h2><p>Autor, organizador ou ilustrador.</p></div>
-        <form method="post">
-            <?= csrf_field() ?>
-            <?= envio_unico_field() ?>
-            <input type="hidden" name="acao" value="salvar_pessoa">
-            <input type="hidden" name="pessoa_id" id="pessoa_id" value="0">
-            <div class="campo full"><label for="pessoa_nome">Nome</label><input type="text" id="pessoa_nome" name="nome" maxlength="<?= LIMITE_NOME_PESSOA ?>" required></div>
-            <div class="campo"><label for="pessoa_email">E-mail</label><input type="email" id="pessoa_email" name="email" maxlength="<?= LIMITE_EMAIL ?>"></div>
-            <div class="campo"><label for="pessoa_telefone">Telefone</label><input type="text" id="pessoa_telefone" name="telefone" maxlength="<?= LIMITE_TELEFONE ?>"></div>
-            <div class="form-botoes"><a href="javascript:void(0)" class="btn-cancelar" onclick="fecharPessoa()">Cancelar</a><button type="submit" class="btn-salvar">Salvar</button></div>
+      <!-- Modal: nova pessoa / editar pessoa (um só, preenchido pelo script abaixo) -->
+      <dialog class="ws-modal" id="modal-pessoa" aria-labelledby="modal-pessoa-titulo">
+        <form class="ws-modal__caixa" method="post">
+          <?= csrf_field() ?>
+          <?= envio_unico_field() ?>
+          <input type="hidden" name="acao" value="salvar_pessoa">
+          <input type="hidden" name="pessoa_id" id="pessoa_id" value="0">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-pessoa-titulo">Nova pessoa</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo ws-pilha">
+            <p class="ws-texto-suave">Autor, organizador ou ilustrador. Não é usuário do sistema.</p>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="pessoa_nome">Nome</label>
+              <input class="ws-input" type="text" id="pessoa_nome" name="nome" maxlength="<?= LIMITE_NOME_PESSOA ?>" required autofocus>
+            </div>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="pessoa_email">E-mail <span class="ws-campo__opcional">(opcional)</span></label>
+              <input class="ws-input" type="email" id="pessoa_email" name="email" maxlength="<?= LIMITE_EMAIL ?>">
+            </div>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="pessoa_telefone">Telefone <span class="ws-campo__opcional">(opcional)</span></label>
+              <input class="ws-input" type="text" id="pessoa_telefone" name="telefone" maxlength="<?= LIMITE_TELEFONE ?>">
+            </div>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Cancelar</button>
+            <button class="ws-btn ws-btn--primario" type="submit">Salvar pessoa</button>
+          </footer>
         </form>
-    </div>
-</div>
+      </dialog>
+
+      <!-- Modal: excluir pessoa (o campo "confirmacao" só é preenchido pelo botão de confirmar) -->
+      <dialog class="ws-modal" id="modal-excluir" aria-labelledby="modal-excluir-titulo">
+        <form class="ws-modal__caixa" method="post">
+          <?= csrf_field() ?>
+          <input type="hidden" name="acao" value="excluir_pessoa">
+          <input type="hidden" name="pessoa_id" id="excluir_pessoa_id" value="0">
+          <input type="hidden" name="confirmacao" value="">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-excluir-titulo">Excluir esta pessoa?</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p>A pessoa sai do cadastro. Se estiver vinculada a um livro, a exclusão é recusada.</p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Manter pessoa</button>
+            <button class="ws-btn ws-btn--escuro" type="submit" data-confirmar-campo>Excluir pessoa</button>
+          </footer>
+        </form>
+      </dialog>
 <?php endif; ?>
 
-<script src="envio_unico.js"></script>
-<script>
-function abrirNovaPessoa(){
-  document.getElementById('pessoa-modal-titulo').textContent = 'Nova Pessoa';
-  document.getElementById('pessoa_id').value = '0';
-  document.getElementById('pessoa_nome').value = '';
-  document.getElementById('pessoa_email').value = '';
-  document.getElementById('pessoa_telefone').value = '';
-  document.getElementById('modal-pessoa').style.display = 'flex';
-}
-function abrirEditarPessoa(botao){
-  document.getElementById('pessoa-modal-titulo').textContent = 'Editar Pessoa';
-  document.getElementById('pessoa_id').value = botao.dataset.id;
-  document.getElementById('pessoa_nome').value = botao.dataset.nome;
-  document.getElementById('pessoa_email').value = botao.dataset.email;
-  document.getElementById('pessoa_telefone').value = botao.dataset.telefone;
-  document.getElementById('modal-pessoa').style.display = 'flex';
-}
-function fecharPessoa(){
-  document.getElementById('modal-pessoa').style.display = 'none';
-}
+      <script src="envio_unico.js"></script>
+      <script>
+      // Este script roda antes do waresys.js (defer): os cliques abaixo preenchem o modal antes de ele abrir.
+      document.querySelectorAll('[data-ws-modal-abrir="modal-pessoa"]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          const nova = botao.hasAttribute('data-pessoa-nova');
+          document.getElementById('modal-pessoa-titulo').textContent = nova ? 'Nova pessoa' : 'Editar pessoa';
+          document.getElementById('pessoa_id').value = nova ? '0' : botao.dataset.id;
+          document.getElementById('pessoa_nome').value = nova ? '' : botao.dataset.nome;
+          document.getElementById('pessoa_email').value = nova ? '' : botao.dataset.email;
+          document.getElementById('pessoa_telefone').value = nova ? '' : botao.dataset.telefone;
+        });
+      });
+      document.querySelectorAll('[data-ws-modal-abrir="modal-excluir"]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          document.getElementById('excluir_pessoa_id').value = botao.dataset.id;
+          // textContent: o nome da pessoa é dado do usuário, nunca vira HTML.
+          document.getElementById('modal-excluir-titulo').textContent = 'Excluir ' + botao.dataset.nome + '?';
+          document.querySelector('#modal-excluir input[name="confirmacao"]').value = '';
+        });
+      });
+      // Campo oculto "confirmacao": só o botão de confirmar do modal o preenche (com 1).
+      document.querySelectorAll('dialog.ws-modal [data-confirmar-campo]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          if (botao.form && botao.form.elements.confirmacao) botao.form.elements.confirmacao.value = '1';
+        });
+      });
 
-let filtroPessoasTimeout = null;
-function agendarFiltroPessoas(){
-  clearTimeout(filtroPessoasTimeout);
-  filtroPessoasTimeout = setTimeout(aplicarFiltroPessoas, 300);
-}
-function aplicarFiltroPessoas(){
-  const termo = document.getElementById('busca').value.trim().toLowerCase();
-  let visiveis = 0;
-  document.querySelectorAll('#tabela-pessoas tbody tr[data-nome]').forEach(linha=>{
-    const alvo = (linha.dataset.nome + ' ' + linha.dataset.email).toLowerCase();
-    const mostra = termo === '' || alvo.includes(termo);
-    linha.style.display = mostra ? '' : 'none';
-    if (mostra) visiveis++;
-  });
-  const semResultado = document.getElementById('busca-sem-resultado');
-  if (semResultado) semResultado.style.display = (visiveis === 0 && termo !== '') ? '' : 'none';
-}
-</script>
-</body>
-</html>
+      let filtroPessoasTimeout = null;
+      function agendarFiltroPessoas(){
+        clearTimeout(filtroPessoasTimeout);
+        filtroPessoasTimeout = setTimeout(aplicarFiltroPessoas, 300);
+      }
+      function aplicarFiltroPessoas(){
+        const campo = document.getElementById('busca');
+        if (!campo) return;
+        const termo = campo.value.trim().toLowerCase();
+        let visiveis = 0;
+        document.querySelectorAll('#tabela-pessoas tbody tr[data-nome]').forEach(linha=>{
+          const alvo = (linha.dataset.nome + ' ' + linha.dataset.email).toLowerCase();
+          const mostra = termo === '' || alvo.includes(termo);
+          linha.style.display = mostra ? '' : 'none';
+          if (mostra) visiveis++;
+        });
+        const semResultado = visiveis === 0 && termo !== '';
+        document.getElementById('busca-sem-resultado').style.display = semResultado ? '' : 'none';
+        document.getElementById('pessoas-tabela-wrap').style.display = semResultado ? 'none' : '';
+      }
+      function limparBuscaPessoas(){
+        const campo = document.getElementById('busca');
+        campo.value = '';
+        aplicarFiltroPessoas();
+        campo.focus();
+      }
+      </script>
+<?php require __DIR__ . '/includes/rodape.php'; ?>

@@ -790,6 +790,8 @@
   display: grid;
   gap: var(--ws-esp-2);
   align-content: start;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: var(--ws-esp-4) var(--ws-esp-5) var(--ws-esp-5);
   background: var(--ws-cor-superficie);
   color: var(--ws-cor-texto);
