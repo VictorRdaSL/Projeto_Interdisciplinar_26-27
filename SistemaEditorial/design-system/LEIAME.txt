@@ -16,12 +16,12 @@ Arquivos
   telas/*.html        login, painel, detalhe do livro, cadastro, livros com filtros, equipe
   img/logo/           coloque aqui os SVG originais do logo (ver LEIAME.txt da pasta)
 
-Inclusão (nesta ordem): tokens.css, base.css, layout.css, components.css.
-Scripts no fim do <body>: lucide (CDN) e js/waresys.js com defer.
+Inclusão (nesta ordem): css/fontes.css, tokens.css, base.css, layout.css, components.css,
+todos por BASE_URL. Scripts no fim do <body>: js/lucide.min.js (local) e js/waresys.js com defer.
 
 Importante
-  - Não carregue junto com style.css / style_base.css / dark.css antigos na mesma página.
-    Migre uma tela por vez.
+  - O CSS antigo do sistema (style.css, style_base.css, dark.css e auth.css) foi removido no
+    Passo IV-10: este é o único CSS. Toda tela carrega só o design system.
   - Tema escuro: <html data-theme="escuro">, o mesmo valor que usuarios.tema já guarda.
-  - Sem internet, a Inter e o Lucide não carregam: baixe lucide.min.js (0.469.0) para js/
-    e troque o <script> para o arquivo local.
+  - Fontes e ícones são locais (css/fontes.css + fonts/, js/lucide.min.js 0.469.0): funciona
+    sem internet e sem CDN.

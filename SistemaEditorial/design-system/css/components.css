@@ -2012,3 +2012,17 @@ a.ws-kpi:hover {
     padding: var(--ws-esp-6) var(--ws-esp-4);
   }
 }
+
+
+/* ==========================================================================
+   Formulário em envio (envio_unico.js)
+   --------------------------------------------------------------------------
+   O script bloqueia o segundo envio e põe .enviando nos botões de envio enquanto
+   a página processa: o botão fica esmaecido, com cursor de espera, e não recebe
+   outro clique. Antes essa regra morava no style_base.css, removido no IV-10.
+   ========================================================================== */
+.enviando {
+  opacity: 0.6;
+  cursor: wait;
+  pointer-events: none;
+}
