@@ -1,95 +1,137 @@
 <?php
 /**
- * Moldura HTML (menu lateral, topo, flash, rodapé) das páginas de relatório.
- * Cada relatorio_*.php chama relatorioAbrir() antes do conteúdo e
- * relatorioFechar() depois. Nada pode ser impresso antes de um exportarCsv().
+ * Moldura HTML (cabeçalho do app, topo, rodapé) das páginas de relatório, no design system. Cada relatorio_*.php chama
+ * relatorioAbrir() antes do conteúdo e relatorioFechar() depois. Nada pode ser impresso antes de um exportarCsv().
+ *
+ * O flash da sessão é lido e apagado pelo includes/rodape.php (toast), então as páginas não o exibem por conta própria.
+ * Todas as funções aqui só desenham HTML: nenhuma consulta, nenhum filtro e nenhum dado de exportação passam por elas.
  */
-function relatorioAbrir(string $titulo, string $subtitulo): void
+require_once __DIR__ . '/formatacao.php';
+
+/**
+ * Abre a página: cabeçalho do app (menu), topo e o <div class="ws-conteudo">.
+ * Índice dos relatórios ($indice = true): H1 = $titulo e subtítulo = $subtitulo.
+ * Relatório: link de volta com o texto $subtitulo (hoje "Relatórios") e H1 = $titulo.
+ */
+function relatorioAbrir(string $titulo, string $subtitulo, bool $indice = false): void
 {
-    $flash = $_SESSION['flash'] ?? null;
-    unset($_SESSION['flash']);
+    $tituloPagina = $titulo;
+    $paginaAtual = 'relatorios';
+    require __DIR__ . '/cabecalho.php';
     ?>
-<!DOCTYPE html>
-<html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WareSys | <?= htmlspecialchars($titulo) ?></title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="dark.css">
-</head>
-<body>
-<aside class="sidebar">
-    <div class="logo">
-        <div class="logo-icon">S</div>
-        <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
-    </div>
-    <nav>
-        <a href="index.php"><span>⌂</span>Painel</a>
-        <a href="minha_mesa.php"><span>🗄</span>Minha mesa</a>
-        <a href="livros.php"><span>📚</span>Livros</a>
-        <a href="pessoas.php"><span>👤</span>Pessoas</a>
-        <a href="relatorios.php" class="ativo"><span>📄</span>Relatórios</a>
-        <a href="configuracoes.php"><span>⚙</span>Configurações</a>
-    </nav>
-    <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
-</aside>
-
-<main>
-    <header class="topo">
-        <div><p class="bem-vindo"><?= htmlspecialchars($subtitulo) ?></p><h2><?= htmlspecialchars($titulo) ?></h2></div>
-        <div class="perfil">
-            <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
-            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
-            <a href="logout.php" class="btn btn-sair">Sair</a>
+      <header class="ws-topo">
+        <div class="ws-topo__titulos">
+<?php if (!$indice): ?>
+          <a class="ws-topo__voltar ws-link-limpo" href="relatorios.php"><i data-lucide="arrow-left" class="ws-icone--peq"></i><?= escaparHtml($subtitulo) ?></a>
+<?php endif; ?>
+          <h1 class="ws-topo__titulo"><?= escaparHtml($titulo) ?></h1>
+<?php if ($indice): ?>
+          <p class="ws-topo__subtitulo"><?= escaparHtml($subtitulo) ?></p>
+<?php endif; ?>
         </div>
-    </header>
+      </header>
 
-    <?php if ($flash): ?>
-        <div class="flash <?= htmlspecialchars($flash['type']) ?>"><?= htmlspecialchars($flash['message']) ?></div>
-    <?php endif; ?>
+      <div class="ws-conteudo">
 <?php
 }
 
+/** Fecha o conteúdo e a página (rodapé do app, toasts, scripts). */
 function relatorioFechar(): void
 {
     ?>
-    <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
-</main>
-</body>
-</html>
+      </div>
 <?php
+    require __DIR__ . '/rodape.php';
 }
 
-/** Campos De/Até do filtro de período, para dentro de um <form method="get">. */
+/** Campos De/Até do filtro de período, para dentro de um <form class="ws-filtros" method="get">. */
 function relatorioCamposPeriodo(string $de, string $ate): void
 {
     ?>
-            <div class="campo">
-                <label for="filtro_de">De</label>
-                <input type="date" id="filtro_de" name="filtro_de" value="<?= htmlspecialchars($de) ?>">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="filtro_de">De</label>
+              <input class="ws-input" type="date" id="filtro_de" name="filtro_de" value="<?= escaparHtml($de) ?>">
             </div>
-            <div class="campo">
-                <label for="filtro_ate">Até</label>
-                <input type="date" id="filtro_ate" name="filtro_ate" value="<?= htmlspecialchars($ate) ?>">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="filtro_ate">Até</label>
+              <input class="ws-input" type="date" id="filtro_ate" name="filtro_ate" value="<?= escaparHtml($ate) ?>">
             </div>
 <?php
 }
 
-/** Botões Filtrar / Limpar / Exportar CSV (o CSV leva os mesmos filtros da tela). */
-function relatorioBotoes(string $arquivo, string $queryFiltros, bool $haErro = false, array $extrasCsv = []): void
+/** Botões Filtrar / Limpar, para dentro do <form class="ws-filtros">. */
+function relatorioBotoes(string $arquivo): void
 {
     ?>
-            <div class="campo campo-botao">
-                <button type="submit" class="btn-salvar">Filtrar</button>
-                <a href="<?= htmlspecialchars($arquivo) ?>" class="btn-cancelar">Limpar</a>
-                <?php if (!$haErro): ?>
-                    <?php if (!$extrasCsv): ?>
-                        <a href="<?= htmlspecialchars($arquivo . '?' . ($queryFiltros !== '' ? $queryFiltros . '&' : '') . 'export=csv') ?>" class="btn">⬇ Exportar CSV</a>
-                    <?php else: foreach ($extrasCsv as $rotulo => $valor): ?>
-                        <a href="<?= htmlspecialchars($arquivo . '?' . ($queryFiltros !== '' ? $queryFiltros . '&' : '') . 'export=' . $valor) ?>" class="btn">⬇ <?= htmlspecialchars($rotulo) ?></a>
-                    <?php endforeach; endif; ?>
-                <?php endif; ?>
+            <div class="ws-filtros__acoes">
+              <button class="ws-btn ws-btn--primario" type="submit">Filtrar</button>
+              <a class="ws-btn ws-btn--link" href="<?= escaparHtml($arquivo) ?>">Limpar</a>
             </div>
 <?php
+}
+
+/**
+ * Botões de exportação CSV (o CSV leva os mesmos filtros da tela). Ficam fora do formulário de filtros, acima da
+ * tabela. Sem $extrasCsv: um botão "Exportar CSV" (export=csv); com $extrasCsv: um botão por [rótulo => valor de export].
+ * Com erro de período não há exportação, então nada é mostrado.
+ */
+function relatorioExportar(string $arquivo, string $queryFiltros, bool $haErro = false, array $extrasCsv = []): void
+{
+    if ($haErro) {
+        return;
+    }
+    $botoes = $extrasCsv ?: ['Exportar CSV' => 'csv'];
+    ?>
+          <div class="ws-btn-grupo">
+<?php foreach ($botoes as $rotulo => $valor): ?>
+            <a class="ws-btn ws-btn--secundario" href="<?= escaparHtml($arquivo . '?' . ($queryFiltros !== '' ? $queryFiltros . '&' : '') . 'export=' . $valor) ?>"><i data-lucide="download"></i><?= escaparHtml($rotulo) ?></a>
+<?php endforeach; ?>
+          </div>
+<?php
+}
+
+/** Erro de período (data inválida, De maior que Até): alerta no lugar do resultado; nada é exportado. */
+function relatorioErroPeriodo(string $mensagem): void
+{
+    ?>
+        <div class="ws-alerta ws-alerta--cobrado" role="alert">
+          <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
+          <div class="ws-alerta__corpo">
+            <p class="ws-alerta__titulo"><?= escaparHtml($mensagem) ?></p>
+          </div>
+        </div>
+<?php
+}
+
+/** Estado vazio de um relatório. */
+function relatorioVazio(string $titulo, string $texto = ''): void
+{
+    ?>
+          <div class="ws-vazio">
+            <i class="ws-vazio__icone" data-lucide="file-text"></i>
+            <h3 class="ws-h2"><?= escaparHtml($titulo) ?></h3>
+<?php if ($texto !== ''): ?>
+            <p class="ws-vazio__texto"><?= escaparHtml($texto) ?></p>
+<?php endif; ?>
+          </div>
+<?php
+}
+
+/** Chip de status (ponto + texto) de livro a partir do rótulo já traduzido; concluído e cancelado são etiquetas neutras. */
+function htmlStatusLivroRelatorio(string $rotulo): string
+{
+    $r = escaparHtml($rotulo);
+    if ($rotulo === ROTULOS_STATUS_LIVRO['extraviado']) {
+        return '<span class="ws-status ws-status--extraviado">' . $r . '</span>';
+    }
+    if ($rotulo === ROTULOS_STATUS_LIVRO['concluido'] || $rotulo === ROTULOS_STATUS_LIVRO['cancelado']) {
+        return '<span class="ws-tag ws-tag--neutra">' . $r . '</span>';
+    }
+    return $r;
+}
+
+/** Chip de rodada cobrada (excedente). */
+function htmlChipCobrado(): string
+{
+    return '<span class="ws-status ws-status--cobrado">Cobrado</span>';
 }

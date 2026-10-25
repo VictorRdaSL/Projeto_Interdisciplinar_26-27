@@ -684,6 +684,15 @@
   background: var(--ws-cor-superficie);
 }
 
+/* Cartão que encolhe com a coluna e <details> em forma de cartão: em grid, o conteúdo do <details> (uma tabela larga) não encolhia e alargava a página em vez de rolar no próprio contêiner */
+.ws-card {
+  min-width: 0;
+}
+
+details.ws-card {
+  display: block;
+}
+
 .ws-card--compacto {
   padding: var(--ws-esp-4);
 }
