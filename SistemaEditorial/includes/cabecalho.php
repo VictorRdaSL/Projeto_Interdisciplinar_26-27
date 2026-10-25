@@ -37,15 +37,7 @@ $ws_menu = [
 
 // Usuário logado: nome, iniciais (1ª letra do primeiro e do último nome; nome único = 2 primeiras letras) e perfil.
 $ws_nome = isset($_SESSION['usuario_nome']) && is_string($_SESSION['usuario_nome']) ? trim($_SESSION['usuario_nome']) : '';
-$ws_partes = preg_split('/\s+/u', $ws_nome, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-if (count($ws_partes) >= 2) {
-    $ws_iniciais = mb_substr($ws_partes[0], 0, 1, 'UTF-8') . mb_substr($ws_partes[count($ws_partes) - 1], 0, 1, 'UTF-8');
-} elseif (count($ws_partes) === 1) {
-    $ws_iniciais = mb_substr($ws_partes[0], 0, 2, 'UTF-8');
-} else {
-    $ws_iniciais = '?';
-}
-$ws_iniciais = mb_strtoupper($ws_iniciais, 'UTF-8');
+$ws_iniciais = iniciaisDoNome($ws_nome);
 $ws_perfil = nomePapel(papelAtual());
 ?>
 <!DOCTYPE html>

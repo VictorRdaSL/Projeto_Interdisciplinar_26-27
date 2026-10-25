@@ -62,50 +62,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($permissaoPorAcao[$acaoRecebi
 function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0): void
 {
     ?>
-            <div class="full" role="group" aria-labelledby="<?= $p ?>_t1">
-                <h3 class="grupo-titulo" id="<?= $p ?>_t1">Identificação</h3>
-                <div class="form-grade">
-                    <div class="campo full"><label for="<?= $p ?>_nome">Nome da etapa</label><input type="text" id="<?= $p ?>_nome" name="nome" maxlength="<?= LIMITE_NOME_ETAPA ?>" required></div>
-                    <div class="campo"><label for="<?= $p ?>_ordem">Ordem</label><input type="number" id="<?= $p ?>_ordem" value="<?= $edicao ? '' : $ordemNova ?>" readonly tabindex="-1">
-                        <p class="ajuda"><?= $edicao ? 'Para mudar a ordem, use as setas ↑ ↓ da lista.' : 'A etapa nova entra no final do fluxo; depois use as setas ↑ ↓ da lista.' ?></p></div>
+              <fieldset class="ws-grupo-campos">
+                <legend><h3 class="ws-h2">Identificação</h3></legend>
+                <div class="ws-form__grade">
+                  <div class="ws-campo ws-campo--inteiro">
+                    <label class="ws-campo__rotulo" for="<?= $p ?>_nome">Nome da etapa</label>
+                    <input class="ws-input" type="text" id="<?= $p ?>_nome" name="nome" maxlength="<?= LIMITE_NOME_ETAPA ?>" required>
+                  </div>
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="<?= $p ?>_ordem">Ordem</label>
+                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_ordem" value="<?= $edicao ? '' : $ordemNova ?>" readonly tabindex="-1" aria-describedby="<?= $p ?>_ordem_ajuda" style="max-width:120px">
+                    <p class="ws-campo__ajuda" id="<?= $p ?>_ordem_ajuda"><?= $edicao ? 'Para mudar a ordem, use as setas da lista.' : 'A etapa nova entra no final do fluxo; depois use as setas da lista.' ?></p>
+                  </div>
                 </div>
-            </div>
-            <div class="full" role="group" aria-labelledby="<?= $p ?>_t2">
-                <h3 class="grupo-titulo" id="<?= $p ?>_t2">Regras</h3>
-                <div class="form-grade">
-                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_opcional" name="opcional"><label for="<?= $p ?>_opcional">Etapa opcional</label></div></div>
-                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_repetivel" name="repetivel"><label for="<?= $p ?>_repetivel">Pode ser repetida</label></div></div>
-                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_finaliza" disabled><label for="<?= $p ?>_finaliza">Finaliza o livro</label></div>
-                        <p class="ajuda">Não é editável nesta tela.</p></div>
+              </fieldset>
+              <fieldset class="ws-grupo-campos">
+                <legend><h3 class="ws-h2">Regras</h3></legend>
+                <div class="ws-pilha ws-pilha--peq">
+                  <label class="ws-opcao" for="<?= $p ?>_opcional"><input type="checkbox" id="<?= $p ?>_opcional" name="opcional">Etapa opcional</label>
+                  <label class="ws-opcao" for="<?= $p ?>_repetivel"><input type="checkbox" id="<?= $p ?>_repetivel" name="repetivel">Pode ser repetida</label>
+                  <div>
+                    <label class="ws-opcao" for="<?= $p ?>_finaliza"><input type="checkbox" id="<?= $p ?>_finaliza" disabled aria-describedby="<?= $p ?>_finaliza_ajuda">Finaliza o livro</label>
+                    <p class="ws-campo__ajuda" id="<?= $p ?>_finaliza_ajuda">Não é editável nesta tela.</p>
+                  </div>
                 </div>
-            </div>
-            <div class="full" role="group" aria-labelledby="<?= $p ?>_t3">
-                <h3 class="grupo-titulo" id="<?= $p ?>_t3">Limites</h3>
-                <div class="form-grade">
-                    <div class="campo"><label for="<?= $p ?>_rodadas">Rodadas incluídas</label><input type="number" id="<?= $p ?>_rodadas" name="rodadas_incluidas" min="1" max="<?= LIMITE_RODADAS_MAX ?>"><p class="ajuda">Vazio = sem limite de rodadas</p></div>
-                    <div class="campo"><label for="<?= $p ?>_dias">Dias limite</label><input type="number" id="<?= $p ?>_dias" name="dias_limite" min="1" max="<?= LIMITE_DIAS_MAX ?>"><p class="ajuda">Vazio = usa o padrão global</p></div>
+              </fieldset>
+              <fieldset class="ws-grupo-campos">
+                <legend><h3 class="ws-h2">Limites</h3></legend>
+                <div class="ws-form__grade">
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="<?= $p ?>_rodadas">Rodadas incluídas <span class="ws-campo__opcional">(opcional)</span></label>
+                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_rodadas" name="rodadas_incluidas" min="1" max="<?= LIMITE_RODADAS_MAX ?>" aria-describedby="<?= $p ?>_rodadas_ajuda">
+                    <p class="ws-campo__ajuda" id="<?= $p ?>_rodadas_ajuda">Vazio = sem limite de rodadas</p>
+                  </div>
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="<?= $p ?>_dias">Dias limite <span class="ws-campo__opcional">(opcional)</span></label>
+                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_dias" name="dias_limite" min="1" max="<?= LIMITE_DIAS_MAX ?>" aria-describedby="<?= $p ?>_dias_ajuda">
+                    <p class="ws-campo__ajuda" id="<?= $p ?>_dias_ajuda">Vazio = usa o padrão global</p>
+                  </div>
                 </div>
-            </div>
-            <div class="full" role="group" aria-labelledby="<?= $p ?>_t4">
-                <h3 class="grupo-titulo" id="<?= $p ?>_t4">Situação</h3>
-                <div class="form-grade">
-                    <?php if ($edicao): ?>
-                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_ativa" name="ativa"><label for="<?= $p ?>_ativa">Etapa ativa</label></div></div>
-                    <?php else: ?>
-                    <div class="campo full"><div class="campo-check"><input type="checkbox" id="<?= $p ?>_ativa" checked disabled><label for="<?= $p ?>_ativa">Etapa ativa</label></div>
-                        <p class="ajuda">Toda etapa nova começa ativa.</p></div>
-                    <?php endif; ?>
+              </fieldset>
+              <fieldset class="ws-grupo-campos">
+                <legend><h3 class="ws-h2">Situação</h3></legend>
+<?php if ($edicao): ?>
+                <label class="ws-opcao" for="<?= $p ?>_ativa"><input type="checkbox" id="<?= $p ?>_ativa" name="ativa">Etapa ativa</label>
+<?php else: ?>
+                <div>
+                  <label class="ws-opcao" for="<?= $p ?>_ativa"><input type="checkbox" id="<?= $p ?>_ativa" checked disabled aria-describedby="<?= $p ?>_ativa_ajuda">Etapa ativa</label>
+                  <p class="ws-campo__ajuda" id="<?= $p ?>_ativa_ajuda">Toda etapa nova começa ativa.</p>
                 </div>
-            </div>
-            <div class="form-botoes">
-                <?php if ($edicao): ?>
-                    <a href="javascript:void(0)" class="btn-cancelar" onclick="fecharEtapa()">Cancelar</a>
-                <?php else: ?>
-                    <a href="javascript:void(0)" class="btn-cancelar" onclick="this.closest('form').reset()">Cancelar</a>
-                <?php endif; ?>
-                <button type="submit" class="btn-salvar">Salvar</button>
-            </div>
+<?php endif; ?>
+              </fieldset>
 <?php
+}
+
+// Ações que pedem confirmação (desativar etapa com livros, mudar a ordem de etapa com livros) só gravam com o campo
+// oculto "confirmacao", que apenas o botão de confirmar do modal preenche (IV-8).
+const MSG_PRECISA_CONFIRMAR = 'Esta ação precisa de confirmação. Use o botão de confirmar na janela que se abre; nada foi gravado.';
+
+// Livros que ficariam "presos" na etapa: concluídos e cancelados não contam; extraviados contam (ainda estão fisicamente ali).
+function livrosNaEtapa(mysqli $conn, int $etapaId): int
+{
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM livros WHERE etapa_atual_id = ? AND status NOT IN ('concluido', 'cancelado')");
+    $stmt->bind_param('i', $etapaId);
+    $stmt->execute();
+    return (int)$stmt->get_result()->fetch_row()[0];
 }
 
 function nomeEtapaJaExiste(mysqli $conn, string $nome, int $ignorarId): bool
@@ -346,6 +367,13 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $rodadasAntigo = $etapaAtualRow['rodadas_incluidas'] !== null ? (int)$etapaAtualRow['rodadas_incluidas'] : null;
         $diasAntigo = $etapaAtualRow['dias_limite'] !== null ? (int)$etapaAtualRow['dias_limite'] : null;
 
+        // Desativar uma etapa que ainda tem livros só grava com o campo de confirmação (preenchido só pelo botão do modal).
+        if ((int)$etapaAtualRow['ativa'] === 1 && $ativa === 0 && livrosNaEtapa($conn, $etapaId) > 0 && entradaTexto($_POST, 'confirmacao') !== '1') {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_PRECISA_CONFIRMAR];
+            header('Location: configuracoes.php');
+            exit;
+        }
+
         // Muda só daqui pra frente: calcularExcedente() lê etapas.rodadas_incluidas
         // no momento de cada movimentação — o que já foi gravado em
         // movimentacoes.excedente não é tocado por este UPDATE.
@@ -410,6 +438,13 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         $ordemVizinho = (int)$vizinho['ordem'];
         $idAtual = (int)$atual['id'];
         $idVizinho = (int)$vizinho['id'];
+
+        // Mudar a ordem de uma etapa que tem livros só grava com o campo de confirmação (preenchido só pelo botão do modal).
+        if (livrosNaEtapa($conn, $idAtual) > 0 && entradaTexto($_POST, 'confirmacao') !== '1') {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_PRECISA_CONFIRMAR];
+            header('Location: configuracoes.php');
+            exit;
+        }
 
         $conn->begin_transaction();
         try {
@@ -569,388 +604,577 @@ $stmtLog->execute();
 $rl = $stmtLog->get_result();
 while ($row = $rl->fetch_assoc()) $logs[] = $row;
 
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
+// O flash da sessão é lido, exibido e apagado pelo includes/rodape.php (toast).
+$temaAtual = ($_SESSION['usuario_tema'] ?? 'claro') === 'escuro' ? 'escuro' : 'claro';
+
+$tituloPagina = 'Configurações';
+$paginaAtual = 'configuracoes';
+require __DIR__ . '/includes/cabecalho.php';
 ?>
-<!DOCTYPE html>
-<html lang="pt-br" data-theme="<?= htmlspecialchars($_SESSION['usuario_tema'] ?? 'claro') ?>">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WareSys | Configurações</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="dark.css">
-</head>
-<body>
-<aside class="sidebar">
-    <div class="logo">
-        <div class="logo-icon">S</div>
-        <div><h1>Ware<span>Sys</span></h1><p>Controle Editorial</p></div>
-    </div>
-    <nav>
-        <a href="index.php"><span>⌂</span>Painel</a>
-        <a href="minha_mesa.php"><span>🗄</span>Minha mesa</a>
-        <a href="livros.php"><span>📚</span>Livros</a>
-        <a href="pessoas.php"><span>👤</span>Pessoas</a>
-        <a href="relatorios.php"><span>📄</span>Relatórios</a>
-        <a href="configuracoes.php" class="ativo"><span>⚙</span>Configurações</a>
-    </nav>
-    <div class="sidebar-bottom"><span class="versao">Versão acadêmica • MySQL / XAMPP</span></div>
-</aside>
-
-<main>
-    <header class="topo">
-        <div><p class="bem-vindo"><?= $podeGerenciarUsuarios ? 'Área administrativa' : 'Suas preferências' ?></p><h2>Configurações</h2></div>
-        <div class="perfil">
-            <div class="avatar"><?= htmlspecialchars(strtoupper(substr($_SESSION['usuario_nome'] ?? 'U', 0, 1))) ?></div>
-            <div><strong><?= htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário') ?></strong><p><span class="papel-badge papel-<?= htmlspecialchars(papelAtual()) ?>"><?= htmlspecialchars(nomePapel(papelAtual())) ?></span></p></div>
-            <a href="logout.php" class="btn btn-sair">Sair</a>
+      <header class="ws-topo">
+        <div class="ws-topo__titulos">
+          <h1 class="ws-topo__titulo">Configurações</h1>
+          <p class="ws-topo__subtitulo"><?= $podeGerenciarUsuarios ? 'Área administrativa' : 'Suas preferências' ?></p>
         </div>
-    </header>
+      </header>
 
-    <?php if ($flash): ?>
-        <div class="flash <?= htmlspecialchars($flash['type']) ?>"><?= htmlspecialchars($flash['message']) ?></div>
-    <?php endif; ?>
-
-    <section class="painel">
-        <div class="painel-topo">
-            <div><h2>Aparência</h2><p>Escolha o tema de exibição do sistema. Fica salvo na sua conta e vale para qualquer dispositivo.</p></div>
-        </div>
-        <form method="post" class="form-tema">
+      <div class="ws-conteudo">
+        <!-- Seção 1 (IV-8): Aparência. O tema é salvo na conta (usuarios.tema); o formulário é um POST simples, sem JS. -->
+        <section class="ws-secao" aria-labelledby="aparencia-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="aparencia-titulo">Aparência</h2>
+              <p>Escolha o tema de exibição do sistema. Fica salvo na sua conta e vale para qualquer dispositivo.</p>
+            </div>
+          </div>
+          <form method="post" class="ws-card ws-card--superficie">
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="alterar_tema">
-            <div class="tema-opcoes">
-                <button type="submit" name="tema" value="claro" class="tema-opcao <?= ($_SESSION['usuario_tema'] ?? 'claro') === 'claro' ? 'ativo' : '' ?>">
-                    <span class="tema-icone">☀️</span> Tema Claro
-                </button>
-                <button type="submit" name="tema" value="escuro" class="tema-opcao <?= ($_SESSION['usuario_tema'] ?? 'claro') === 'escuro' ? 'ativo' : '' ?>">
-                    <span class="tema-icone">🌙</span> Tema Escuro
-                </button>
+            <div class="ws-btn-grupo" role="group" aria-label="Tema de exibição">
+              <button type="submit" name="tema" value="claro" class="ws-btn ws-btn--secundario<?= $temaAtual === 'claro' ? ' is-pressionado' : '' ?>" aria-pressed="<?= $temaAtual === 'claro' ? 'true' : 'false' ?>"><i data-lucide="sun"></i>Tema claro</button>
+              <button type="submit" name="tema" value="escuro" class="ws-btn ws-btn--secundario<?= $temaAtual === 'escuro' ? ' is-pressionado' : '' ?>" aria-pressed="<?= $temaAtual === 'escuro' ? 'true' : 'false' ?>"><i data-lucide="moon"></i>Tema escuro</button>
             </div>
-        </form>
-    </section>
+          </form>
+        </section>
 
-    <?php if ($podeConfigurarDiasLimite): ?>
-    <section class="painel" style="margin-top:30px;">
-        <div class="painel-topo">
-            <div><h2>Livro parado</h2><p>Quantos dias um livro pode ficar na mesma etapa antes de entrar no alerta do Painel. Vale para etapas sem um limite próprio (hoje, todas).</p></div>
-        </div>
-        <form method="post" class="form-papel">
+<?php if ($podeConfigurarDiasLimite): ?>
+        <!-- Seção 2 (IV-8): Livro parado (Gerente e Admin). -->
+        <section class="ws-secao" aria-labelledby="parado-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="parado-titulo">Livro parado</h2>
+              <p>Quantos dias um livro pode ficar na mesma etapa antes de entrar no alerta do Painel. Vale para as etapas que não têm limite próprio, definido em Etapas do fluxo.</p>
+            </div>
+          </div>
+          <form method="post" class="ws-form ws-card ws-card--superficie">
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="alterar_dias_limite">
-            <div class="campo"><label for="dias_limite_livro_parado">Dias-limite padrão</label>
-                <input type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" max="3650" value="<?= (int)$diasLimiteAtual ?>" required>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="dias_limite_livro_parado">Dias-limite padrão</label>
+              <input class="ws-input ws-input--codigo" type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" max="<?= LIMITE_DIAS_MAX ?>" value="<?= (int)$diasLimiteAtual ?>" required aria-describedby="dias-ajuda" style="max-width:160px">
+              <p class="ws-campo__ajuda" id="dias-ajuda">Número inteiro de 1 a <?= LIMITE_DIAS_MAX ?>.</p>
             </div>
-            <button type="submit" class="btn-salvar">Salvar</button>
-        </form>
-    </section>
-    <?php endif; ?>
-
-    <?php if ($podeGerenciarUsuarios): ?>
-    <section class="painel" style="margin-top:30px;">
-        <div class="painel-topo">
-            <div><h2>Usuários e papéis de acesso</h2><p>Defina o nível de permissão de cada usuário do sistema.<?= $agindoComoAdmin ? '' : ' Como Gerente, você pode definir Usuário ou Gerente, mas não pode conceder o papel de Administrador, alterar o papel de um Administrador, ou alterar o seu próprio papel.' ?></p></div>
-        </div>
-        <div class="tabela-container">
-            <table>
-                <thead><tr><th>Nome</th><th>E-mail</th><th>Papel atual</th><th>Cadastrado em</th><th>Alterar papel</th></tr></thead>
-                <tbody>
-                <?php foreach ($usuarios as $u):
-                    $ehEuMesmo = (int)$u['id'] === (int)$_SESSION['usuario_id'];
-                    $podeEditarEssaLinha = $agindoComoAdmin || (!$ehEuMesmo && $u['perfil'] !== 'admin');
-                ?>
-                    <tr>
-                        <td><strong><?= htmlspecialchars($u['nome']) ?></strong></td>
-                        <td><?= htmlspecialchars($u['email']) ?></td>
-                        <td><span class="papel-badge papel-<?= htmlspecialchars($u['perfil']) ?>"><?= htmlspecialchars(nomePapel($u['perfil'])) ?></span></td>
-                        <td><?= formatarDataHora($u['criado_em']) ?></td>
-                        <td>
-                            <?php if ($podeEditarEssaLinha): ?>
-                            <form method="post" class="form-papel">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="acao" value="alterar_papel">
-                                <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
-                                <select name="papel">
-                                    <?php if ($agindoComoAdmin): ?>
-                                    <option value="admin" <?= $u['perfil'] === 'admin' ? 'selected' : '' ?>>Administrador</option>
-                                    <?php endif; ?>
-                                    <option value="gerente" <?= $u['perfil'] === 'gerente' ? 'selected' : '' ?>>Gerente</option>
-                                    <option value="usuario" <?= $u['perfil'] === 'usuario' ? 'selected' : '' ?>>Usuário</option>
-                                </select>
-                                <button type="submit" class="btn-salvar">Salvar</button>
-                            </form>
-                            <?php else: ?>
-                                <span class="vazio" style="display:inline;padding:0;">—</span>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
+            <div class="ws-form__acoes">
+              <button class="ws-btn ws-btn--primario" type="submit">Salvar</button>
+            </div>
+          </form>
+        </section>
+<?php endif; ?>
+<?php if ($podeGerenciarUsuarios): ?>
+        <!-- Seção 3 (IV-8): Usuários e papéis de acesso (Gerente e Admin). "Papel" = papel de acesso (usuarios.perfil). -->
+        <section class="ws-secao" aria-labelledby="usuarios-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="usuarios-titulo">Usuários e papéis de acesso</h2>
+              <p>Defina o nível de permissão de cada usuário do sistema. Autores, organizadores e ilustradores ficam em Pessoas.<?= $agindoComoAdmin ? '' : ' Como Gerente, você pode definir Usuário ou Gerente, mas não pode conceder o papel de Administrador, alterar o papel de um Administrador, ou alterar o seu próprio papel.' ?></p>
+            </div>
+          </div>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="usuarios-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col">Nome</th>
+                  <th scope="col">E-mail</th>
+                  <th scope="col">Papel atual</th>
+                  <th scope="col">Cadastrado em</th>
+                  <th scope="col">Alterar papel</th>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach ($usuarios as $u):
+    $ehEuMesmo = (int)$u['id'] === (int)$_SESSION['usuario_id'];
+    $podeEditarEssaLinha = $agindoComoAdmin || (!$ehEuMesmo && $u['perfil'] !== 'admin');
+?>
+                <tr>
+                  <td data-rotulo="Nome"><span class="ws-usuario"><span class="ws-usuario__iniciais" aria-hidden="true"><?= escaparHtml(iniciaisDoNome($u['nome'])) ?></span><strong><?= escaparHtml($u['nome']) ?></strong></span></td>
+                  <td data-rotulo="E-mail"><?= escaparHtml($u['email']) ?></td>
+                  <td data-rotulo="Papel atual"><span class="ws-tag ws-tag--neutra"><?= escaparHtml(nomePapel($u['perfil'])) ?></span></td>
+                  <td class="ws-tabela__codigo" data-rotulo="Cadastrado em"><?= escaparHtml(formatarDataHora($u['criado_em'])) ?></td>
+                  <td data-rotulo="Alterar papel">
+<?php if ($podeEditarEssaLinha): ?>
+                    <form class="ws-linha" method="post" style="flex-wrap:nowrap;gap:8px">
+                      <?= csrf_field() ?>
+                      <input type="hidden" name="acao" value="alterar_papel">
+                      <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
+                      <select class="ws-select ws-select--peq" name="papel" aria-label="<?= escaparHtml('Papel de ' . $u['nome']) ?>" style="flex:1 1 110px;min-width:0;max-width:150px">
+<?php if ($agindoComoAdmin): ?>
+                        <option value="admin"<?= $u['perfil'] === 'admin' ? ' selected' : '' ?>>Administrador</option>
+<?php endif; ?>
+                        <option value="gerente"<?= $u['perfil'] === 'gerente' ? ' selected' : '' ?>>Gerente</option>
+                        <option value="usuario"<?= $u['perfil'] === 'usuario' ? ' selected' : '' ?>>Usuário</option>
+                      </select>
+                      <button class="ws-btn ws-btn--secundario ws-btn--peq" type="submit">Salvar</button>
+                    </form>
+<?php elseif ($ehEuMesmo): ?>
+                    <span class="ws-tabela__suave">Você não altera o próprio papel</span>
+<?php else: ?>
+                    <span class="ws-tabela__suave">Só um Administrador altera</span>
+<?php endif; ?>
+                  </td>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
             </table>
-        </div>
+          </div>
 
-        <div class="secao-simples" style="margin-top:24px;">
-            <h2 style="font-size:16px;">+ Novo usuário</h2>
-            <form method="post">
-                <?= csrf_field() ?>
-                <input type="hidden" name="acao" value="criar_usuario">
-                <?= envio_unico_field() ?>
-                <div class="campo"><label for="novo_nome">Nome</label><input type="text" id="novo_nome" name="novo_nome" maxlength="<?= LIMITE_NOME_USUARIO ?>" required></div>
-                <div class="campo"><label for="novo_email">E-mail</label><input type="email" id="novo_email" name="novo_email" maxlength="<?= LIMITE_EMAIL ?>" required></div>
-                <div class="campo"><label for="nova_senha">Senha</label><input type="password" id="nova_senha" name="nova_senha" minlength="6" required></div>
-                <div class="campo"><label for="nova_confirmar_senha">Confirmar senha</label><input type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="6" required></div>
-                <div class="campo"><label for="novo_papel">Papel</label>
-                    <select id="novo_papel" name="novo_papel">
-                        <?php if ($agindoComoAdmin): ?>
-                        <option value="admin">Administrador</option>
-                        <?php endif; ?>
-                        <option value="gerente">Gerente</option>
-                        <option value="usuario" selected>Usuário</option>
-                    </select>
+          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-usuario-titulo">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="criar_usuario">
+            <?= envio_unico_field() ?>
+            <fieldset class="ws-grupo-campos">
+              <legend><h3 class="ws-h2" id="novo-usuario-titulo">Novo usuário</h3></legend>
+              <div class="ws-form__grade">
+                <div class="ws-campo">
+                  <label class="ws-campo__rotulo" for="novo_nome">Nome</label>
+                  <input class="ws-input" type="text" id="novo_nome" name="novo_nome" maxlength="<?= LIMITE_NOME_USUARIO ?>" autocomplete="off" required>
                 </div>
-                <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar usuário</button></div>
-            </form>
-        </div>
-    </section>
-    <?php endif; ?>
+                <div class="ws-campo">
+                  <label class="ws-campo__rotulo" for="novo_email">E-mail</label>
+                  <input class="ws-input" type="email" id="novo_email" name="novo_email" maxlength="<?= LIMITE_EMAIL ?>" autocomplete="off" required>
+                </div>
+                <div class="ws-campo">
+                  <label class="ws-campo__rotulo" for="nova_senha">Senha</label>
+                  <input class="ws-input" type="password" id="nova_senha" name="nova_senha" minlength="6" autocomplete="new-password" required aria-describedby="senha-ajuda">
+                  <p class="ws-campo__ajuda" id="senha-ajuda">Mínimo de 6 caracteres.</p>
+                </div>
+                <div class="ws-campo">
+                  <label class="ws-campo__rotulo" for="nova_confirmar_senha">Confirmar senha</label>
+                  <input class="ws-input" type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="6" autocomplete="new-password" required>
+                </div>
+                <div class="ws-campo">
+                  <label class="ws-campo__rotulo" for="novo_papel">Papel</label>
+                  <select class="ws-select" id="novo_papel" name="novo_papel">
+<?php if ($agindoComoAdmin): ?>
+                    <option value="admin">Administrador</option>
+<?php endif; ?>
+                    <option value="gerente">Gerente</option>
+                    <option value="usuario" selected>Usuário</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+            <div class="ws-form__acoes">
+              <button class="ws-btn ws-btn--primario" type="submit">Cadastrar usuário</button>
+            </div>
+          </form>
+        </section>
+<?php endif; ?>
 
-    <?php if ($podeGerenciarEtapasPapeis): ?>
-    <section class="painel" style="margin-top:30px;">
-        <div class="painel-topo">
-            <div><h2>Etapas do fluxo</h2><p>Só Administrador. Uma etapa com histórico nunca é excluída — apenas desativada. Livros que já estão numa etapa continuam nela até serem movidos manualmente; desativar ou reordenar não os afeta.</p></div>
-        </div>
-        <div class="tabela-container">
-            <table>
-                <thead><tr><th>Ordem</th><th>Nome</th><th>Opcional</th><th>Repetível</th><th>Rodadas incluídas</th><th>Dias limite</th><th>Ativa</th><th>Livros agora</th><th>Ações</th></tr></thead>
-                <tbody>
-                <?php foreach ($etapas as $idxEt => $et):
-                    $qtdLivrosEtapa = $contagemPorEtapa[(int)$et['id']] ?? 0;
-                    $temVizinhoAcima = $idxEt > 0;
-                    $temVizinhoAbaixo = $idxEt < count($etapas) - 1;
-                    $msgMoverEtapa = $qtdLivrosEtapa > 0
-                        ? ($qtdLivrosEtapa . ' livro(s) estão nesta etapa agora. Mudar a ordem só afeta movimentações futuras, eles não são afetados. Continuar?')
-                        : null;
-                    $confirmMoverJs = $msgMoverEtapa ? json_encode($msgMoverEtapa, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) : null;
-                ?>
-                    <tr>
-                        <td><?= (int)$et['ordem'] ?></td>
-                        <td><?= htmlspecialchars($et['nome']) ?></td>
-                        <td><?= (int)$et['opcional'] === 1 ? 'Sim' : 'Não' ?></td>
-                        <td><?= (int)$et['repetivel'] === 1 ? 'Sim' : 'Não' ?></td>
-                        <td><?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '—' ?></td>
-                        <td><?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '—' ?></td>
-                        <td><span class="status <?= (int)$et['ativa'] === 1 ? 'ok' : 'atencao' ?>"><?= (int)$et['ativa'] === 1 ? 'Sim' : 'Não' ?></span></td>
-                        <td><?= $qtdLivrosEtapa ?></td>
-                        <td>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;">
-                                <?php if ($temVizinhoAcima): ?>
-                                <form method="post">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="acao" value="mover_etapa">
-                                    <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
-                                    <input type="hidden" name="direcao" value="up">
-                                    <button type="submit" class="acao-btn" title="Mover para cima"<?= $confirmMoverJs ? " onclick='return confirm(" . $confirmMoverJs . ")'" : '' ?>>↑</button>
-                                </form>
-                                <?php else: ?>
-                                <form aria-hidden="true" style="visibility:hidden"><span class="acao-btn">↑</span></form>
-                                <?php endif; ?>
-                                <?php if ($temVizinhoAbaixo): ?>
-                                <form method="post">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="acao" value="mover_etapa">
-                                    <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
-                                    <input type="hidden" name="direcao" value="down">
-                                    <button type="submit" class="acao-btn" title="Mover para baixo"<?= $confirmMoverJs ? " onclick='return confirm(" . $confirmMoverJs . ")'" : '' ?>>↓</button>
-                                </form>
-                                <?php else: ?>
-                                <form aria-hidden="true" style="visibility:hidden"><span class="acao-btn">↓</span></form>
-                                <?php endif; ?>
-                                <button type="button" class="acao-btn" title="Editar etapa" onclick="abrirEditarEtapa(this)"
-                                    data-id="<?= (int)$et['id'] ?>"
-                                    data-nome="<?= htmlspecialchars($et['nome'], ENT_QUOTES) ?>"
-                                    data-ordem="<?= (int)$et['ordem'] ?>"
-                                    data-opcional="<?= (int)$et['opcional'] ?>"
-                                    data-repetivel="<?= (int)$et['repetivel'] ?>"
-                                    data-finaliza="<?= (int)$et['finaliza_livro'] ?>"
-                                    data-rodadas="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"
-                                    data-dias="<?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '' ?>"
-                                    data-ativa="<?= (int)$et['ativa'] ?>"
-                                    data-qtd="<?= $qtdLivrosEtapa ?>">Editar</button>
-                            </div>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
+
+
+<?php if ($podeGerenciarEtapasPapeis): ?>
+        <!-- Seção 4 (IV-8): Etapas do fluxo (só Admin). -->
+        <section class="ws-secao" aria-labelledby="etapas-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="etapas-titulo">Etapas do fluxo</h2>
+              <p>Só Administrador. Uma etapa com histórico nunca é excluída — apenas desativada. Livros que já estão numa etapa continuam nela até serem movidos manualmente; desativar ou reordenar não os afeta.</p>
+            </div>
+          </div>
+<?php if (!$etapas): ?>
+          <div class="ws-vazio">
+            <i class="ws-vazio__icone" data-lucide="list-ordered"></i>
+            <h3 class="ws-h2">Nenhuma etapa cadastrada.</h3>
+            <p class="ws-vazio__texto">Cadastre a primeira etapa do fluxo no formulário abaixo.</p>
+          </div>
+<?php else: ?>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="etapas-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col" class="ws-tabela__num">Ordem</th>
+                  <th scope="col">Nome</th>
+                  <th scope="col">Opcional</th>
+                  <th scope="col">Repetível</th>
+                  <th scope="col" class="ws-tabela__num">Rodadas incluídas</th>
+                  <th scope="col" class="ws-tabela__num">Dias limite</th>
+                  <th scope="col">Ativa</th>
+                  <th scope="col" class="ws-tabela__num">Livros agora</th>
+                  <th scope="col">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach ($etapas as $idxEt => $et):
+    $qtdLivrosEtapa = $contagemPorEtapa[(int)$et['id']] ?? 0;
+    $temVizinhoAcima = $idxEt > 0;
+    $temVizinhoAbaixo = $idxEt < count($etapas) - 1;
+?>
+                <tr>
+                  <td class="ws-tabela__num" data-rotulo="Ordem"><?= (int)$et['ordem'] ?></td>
+                  <td class="ws-tabela__titulo" data-rotulo="Nome"><?= escaparHtml($et['nome']) ?><?php if ((int)$et['ativa'] !== 1): ?> <span class="ws-tag ws-tag--neutra ws-tag--peq">Desativada</span><?php endif; ?></td>
+                  <td data-rotulo="Opcional"><?= (int)$et['opcional'] === 1 ? 'Sim' : 'Não' ?></td>
+                  <td data-rotulo="Repetível"><?= (int)$et['repetivel'] === 1 ? 'Sim' : 'Não' ?></td>
+                  <td class="ws-tabela__num" data-rotulo="Rodadas incluídas"><?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '—' ?></td>
+                  <td class="ws-tabela__num" data-rotulo="Dias limite"><?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '—' ?></td>
+                  <td data-rotulo="Ativa"><?= (int)$et['ativa'] === 1 ? 'Sim' : 'Não' ?></td>
+                  <td class="ws-tabela__num" data-rotulo="Livros agora"><?= $qtdLivrosEtapa ?></td>
+                  <td class="ws-tabela__acoes" data-rotulo="Ações">
+                    <div class="ws-linha" style="flex-wrap:nowrap;gap:6px;justify-content:flex-end">
+<?php foreach ([['up', $temVizinhoAcima, 'arrow-up', 'Mover para cima'], ['down', $temVizinhoAbaixo, 'arrow-down', 'Mover para baixo']] as [$dir, $existe, $icone, $rotuloMover]): ?>
+<?php if ($existe): ?>
+                      <form method="post"<?= $qtdLivrosEtapa > 0 ? ' data-ws-confirmar="modal-mover-etapa" data-mover-nome="' . escaparHtml($et['nome']) . '" data-mover-qtd="' . $qtdLivrosEtapa . '"' : '' ?>>
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="acao" value="mover_etapa">
+                        <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
+                        <input type="hidden" name="direcao" value="<?= $dir ?>">
+<?php if ($qtdLivrosEtapa > 0): ?>
+                        <input type="hidden" name="confirmacao" value="">
+<?php endif; ?>
+                        <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="submit" aria-label="<?= escaparHtml($rotuloMover . ': ' . $et['nome']) ?>" title="<?= $rotuloMover ?>"><i data-lucide="<?= $icone ?>"></i></button>
+                      </form>
+<?php else: ?>
+                      <span style="display:inline-block;width:32px" aria-hidden="true"></span>
+<?php endif; ?>
+<?php endforeach; ?>
+                      <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="button" data-ws-modal-abrir="modal-etapa"
+                        data-id="<?= (int)$et['id'] ?>"
+                        data-nome="<?= escaparHtml($et['nome']) ?>"
+                        data-ordem="<?= (int)$et['ordem'] ?>"
+                        data-opcional="<?= (int)$et['opcional'] ?>"
+                        data-repetivel="<?= (int)$et['repetivel'] ?>"
+                        data-finaliza="<?= (int)$et['finaliza_livro'] ?>"
+                        data-rodadas="<?= $et['rodadas_incluidas'] !== null ? (int)$et['rodadas_incluidas'] : '' ?>"
+                        data-dias="<?= $et['dias_limite'] !== null ? (int)$et['dias_limite'] : '' ?>"
+                        data-ativa="<?= (int)$et['ativa'] ?>"
+                        data-qtd="<?= $qtdLivrosEtapa ?>"
+                        aria-label="<?= escaparHtml('Editar etapa ' . $et['nome']) ?>" title="Editar etapa"><i data-lucide="pencil"></i></button>
+                    </div>
+                  </td>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
             </table>
-        </div>
+          </div>
+<?php endif; ?>
 
-        <div class="secao-simples" style="margin-top:24px;">
-            <h2 style="font-size:16px;">+ Nova etapa</h2>
-            <form method="post">
-                <?= csrf_field() ?>
-                <input type="hidden" name="acao" value="criar_etapa">
-                <?= envio_unico_field() ?>
-                <?php camposFormEtapa('nova_etapa', false, $etapas ? (int)max(array_column($etapas, 'ordem')) + 1 : 1); ?>
-            </form>
-        </div>
-</section>
+          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="nova-etapa-titulo">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="criar_etapa">
+            <?= envio_unico_field() ?>
+            <h3 class="ws-h2" id="nova-etapa-titulo">Nova etapa</h3>
+            <?php camposFormEtapa('nova_etapa', false, $etapas ? (int)max(array_column($etapas, 'ordem')) + 1 : 1); ?>
+            <div class="ws-form__acoes">
+              <button class="ws-btn ws-btn--primario" type="submit">Cadastrar etapa</button>
+              <button class="ws-btn ws-btn--link" type="reset">Limpar</button>
+            </div>
+          </form>
+        </section>
+<?php endif; ?>
 
-    <section class="painel" style="margin-top:30px;">
-        <div class="painel-topo">
-            <div><h2>Papéis de autoria</h2><p>Autor, Organizador, Ilustrador — o papel de uma pessoa num livro (não confundir com o papel de acesso do usuário, na seção acima). Só Administrador. Nunca excluídos — apenas desativados.</p></div>
-        </div>
-        <div class="tabela-container">
-            <table>
-                <thead><tr><th>Nome</th><th>Status</th><th>Ações</th></tr></thead>
-                <tbody>
-                <?php if (!$papeis): ?>
-                    <tr><td colspan="3" class="vazio">Nenhum papel cadastrado.</td></tr>
-                <?php else: foreach ($papeis as $pp): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($pp['nome']) ?></td>
-                        <td><span class="status <?= (int)$pp['ativo'] === 1 ? 'ok' : 'atencao' ?>"><?= (int)$pp['ativo'] === 1 ? 'Ativo' : 'Inativo' ?></span></td>
-                        <td>
-                            <details>
-                                <summary class="acao-btn" style="display:inline-block;cursor:pointer;">Editar</summary>
-                                <form method="post" style="margin-top:10px;min-width:220px;">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="acao" value="editar_papel">
-                                    <input type="hidden" name="papel_id" value="<?= (int)$pp['id'] ?>">
-                                    <div class="campo"><label>Nome</label><input type="text" name="nome" value="<?= htmlspecialchars($pp['nome']) ?>" maxlength="<?= LIMITE_NOME_PAPEL ?>" required></div>
-                                    <div class="campo"><label><input type="checkbox" name="ativo" <?= (int)$pp['ativo'] === 1 ? 'checked' : '' ?>> Ativo</label></div>
-                                    <button type="submit" class="btn-salvar">Salvar</button>
-                                </form>
-                            </details>
-                        </td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
+<?php if ($podeGerenciarEtapasPapeis): ?>
+        <!-- Seção 5 (IV-8): Papéis de autoria (só Admin). Papel de autoria = papel de uma pessoa num livro (papeis). -->
+        <section class="ws-secao" aria-labelledby="papeis-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="papeis-titulo">Papéis de autoria</h2>
+              <p>Autor, Organizador, Ilustrador — o papel de uma pessoa num livro (não confundir com o papel de acesso do usuário, na seção acima). Só Administrador. Nunca excluídos — apenas desativados.</p>
+            </div>
+          </div>
+<?php if (!$papeis): ?>
+          <div class="ws-vazio">
+            <i class="ws-vazio__icone" data-lucide="tags"></i>
+            <h3 class="ws-h2">Nenhum papel cadastrado.</h3>
+            <p class="ws-vazio__texto">Cadastre o primeiro papel de autoria no formulário abaixo.</p>
+          </div>
+<?php else: ?>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="papeis-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col">Nome</th>
+                  <th scope="col">Situação</th>
+                  <th scope="col">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach ($papeis as $pp): ?>
+                <tr>
+                  <td class="ws-tabela__titulo" data-rotulo="Nome"><?= escaparHtml($pp['nome']) ?><?php if ((int)$pp['ativo'] !== 1): ?> <span class="ws-tag ws-tag--neutra ws-tag--peq">Inativo</span><?php endif; ?></td>
+                  <td data-rotulo="Situação"><?= (int)$pp['ativo'] === 1 ? 'Ativo' : 'Inativo' ?></td>
+                  <td class="ws-tabela__acoes" data-rotulo="Ações">
+                    <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="button" data-ws-modal-abrir="modal-papel"
+                      data-id="<?= (int)$pp['id'] ?>"
+                      data-nome="<?= escaparHtml($pp['nome']) ?>"
+                      data-ativo="<?= (int)$pp['ativo'] ?>"
+                      aria-label="<?= escaparHtml('Editar papel ' . $pp['nome']) ?>" title="Editar papel"><i data-lucide="pencil"></i></button>
+                  </td>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
             </table>
-        </div>
+          </div>
+<?php endif; ?>
 
-        <div class="secao-simples" style="margin-top:24px;">
-            <h2 style="font-size:16px;">+ Novo papel</h2>
-            <form method="post">
-                <?= csrf_field() ?>
-                <input type="hidden" name="acao" value="criar_papel">
-                <?= envio_unico_field() ?>
-                <div class="campo"><label for="novo_papel_nome">Nome</label><input type="text" id="novo_papel_nome" name="nome" maxlength="<?= LIMITE_NOME_PAPEL ?>" required></div>
-                <div class="form-botoes"><button type="submit" class="btn-salvar">Cadastrar papel</button></div>
-            </form>
-        </div>
-    </section>
-    <?php endif; ?>
+          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-papel-titulo">
+            <?= csrf_field() ?>
+            <input type="hidden" name="acao" value="criar_papel">
+            <?= envio_unico_field() ?>
+            <fieldset class="ws-grupo-campos">
+              <legend><h3 class="ws-h2" id="novo-papel-titulo">Novo papel</h3></legend>
+              <div class="ws-campo">
+                <label class="ws-campo__rotulo" for="novo_papel_nome">Nome do papel</label>
+                <input class="ws-input" type="text" id="novo_papel_nome" name="nome" maxlength="<?= LIMITE_NOME_PAPEL ?>" required>
+              </div>
+            </fieldset>
+            <div class="ws-form__acoes">
+              <button class="ws-btn ws-btn--primario" type="submit">Cadastrar papel</button>
+            </div>
+          </form>
+        </section>
+<?php endif; ?>
 
-    <section class="painel" style="margin-top:30px;">
-        <div class="painel-topo">
-            <div><h2>Log de Alterações</h2><p>Auditoria de edições de livros, pessoas e ações de controle de acesso.</p></div>
-        </div>
-        <form method="get" class="form-filtro-log">
-            <div class="campo">
-                <label for="filtro_usuario">Usuário</label>
-                <select id="filtro_usuario" name="filtro_usuario">
-                    <option value="0">Todos</option>
-                    <?php foreach ($usuarios as $u): ?>
-                        <option value="<?= (int)$u['id'] ?>" <?= $filtroUsuario === (int)$u['id'] ? 'selected' : '' ?>><?= htmlspecialchars($u['nome']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+        <!-- Seção 6 (IV-8): Log de alterações (aberto aos 3 perfis). -->
+        <section class="ws-secao" id="log" aria-labelledby="log-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="log-titulo">Log de alterações</h2>
+              <p>Auditoria de edições de livros, pessoas e ações de controle de acesso.</p>
             </div>
-            <div class="campo">
-                <label for="filtro_acao">Tipo de ação</label>
-                <select id="filtro_acao" name="filtro_acao">
-                    <option value="">Todas</option>
-                    <?php foreach (NOMES_ACOES_LOG as $valor => $rotulo): ?>
-                        <option value="<?= htmlspecialchars($valor) ?>" <?= $filtroAcao === $valor ? 'selected' : '' ?>><?= htmlspecialchars($rotulo) ?></option>
-                    <?php endforeach; ?>
-                </select>
+          </div>
+<?php $temFiltroLog = $filtroUsuario > 0 || $filtroAcao !== '' || $filtroDe !== '' || $filtroAte !== ''; ?>
+          <!-- Filtrar e Limpar voltam direto para esta seção (#log): ela é a última da página -->
+          <form class="ws-filtros" method="get" action="configuracoes.php#log">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="filtro_usuario">Usuário</label>
+              <select class="ws-select" id="filtro_usuario" name="filtro_usuario">
+                <option value="0">Todos</option>
+<?php foreach ($usuarios as $u): ?>
+                <option value="<?= (int)$u['id'] ?>"<?= $filtroUsuario === (int)$u['id'] ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
+<?php endforeach; ?>
+              </select>
             </div>
-            <div class="campo">
-                <label for="filtro_de">De</label>
-                <input type="date" id="filtro_de" name="filtro_de" value="<?= htmlspecialchars($filtroDe) ?>">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="filtro_acao">Tipo de ação</label>
+              <select class="ws-select" id="filtro_acao" name="filtro_acao">
+                <option value="">Todas</option>
+<?php foreach (NOMES_ACOES_LOG as $valor => $rotulo): ?>
+                <option value="<?= escaparHtml($valor) ?>"<?= $filtroAcao === $valor ? ' selected' : '' ?>><?= escaparHtml($rotulo) ?></option>
+<?php endforeach; ?>
+              </select>
             </div>
-            <div class="campo">
-                <label for="filtro_ate">Até</label>
-                <input type="date" id="filtro_ate" name="filtro_ate" value="<?= htmlspecialchars($filtroAte) ?>">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="filtro_de">De</label>
+              <input class="ws-input" type="date" id="filtro_de" name="filtro_de" value="<?= escaparHtml($filtroDe) ?>">
             </div>
-            <div class="campo campo-botao">
-                <button type="submit" class="btn-salvar">Filtrar</button>
-                <a href="configuracoes.php" class="btn-cancelar">Limpar</a>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="filtro_ate">Até</label>
+              <input class="ws-input" type="date" id="filtro_ate" name="filtro_ate" value="<?= escaparHtml($filtroAte) ?>">
             </div>
-        </form>
-        <div class="tabela-container">
-            <table>
-                <thead><tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Item afetado</th><th>Valor anterior</th><th>Valor novo</th></tr></thead>
-                <tbody>
-                <?php if (!$logs): ?>
-                    <tr><td colspan="6" class="vazio">Nenhum registro encontrado.</td></tr>
-                <?php else: foreach ($logs as $l): ?>
-                    <tr>
-                        <td><?= date('d/m/Y H:i', strtotime($l['criado_em'])) ?></td>
-                        <td><?= htmlspecialchars($l['ator_nome']) ?></td>
-                        <td><?= htmlspecialchars(nomeAcaoLog($l['acao'])) ?></td>
-                        <td><?= htmlspecialchars($l['entidade_nome'] ?: '#'.$l['entidade_id']) ?></td>
-                        <td><?= htmlspecialchars($l['valor_anterior'] ?: '—') ?></td>
-                        <td><?= htmlspecialchars($l['valor_novo'] ?: '—') ?></td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
+            <div class="ws-filtros__acoes">
+              <button class="ws-btn ws-btn--primario" type="submit">Filtrar</button>
+              <a class="ws-btn ws-btn--link" href="configuracoes.php#log">Limpar</a>
+            </div>
+          </form>
+
+<?php if (!$logs): ?>
+          <div class="ws-vazio">
+            <i class="ws-vazio__icone" data-lucide="history"></i>
+            <h3 class="ws-h2"><?= $temFiltroLog ? 'Nenhum registro encontrado para esses filtros.' : 'Nenhum registro encontrado.' ?></h3>
+<?php if ($temFiltroLog): ?>
+            <p class="ws-vazio__texto">Confira o período, o usuário e o tipo de ação.</p>
+            <a class="ws-btn ws-btn--secundario" href="configuracoes.php#log">Limpar filtros</a>
+<?php else: ?>
+            <p class="ws-vazio__texto">As edições de livros, pessoas e controle de acesso aparecem aqui.</p>
+<?php endif; ?>
+          </div>
+<?php else: ?>
+<?php if (count($logs) >= 100): ?>
+          <p class="ws-texto-suave">Mostrando os 100 registros mais recentes. Use os filtros para ver outros.</p>
+<?php endif; ?>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="log-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col">Data</th>
+                  <th scope="col">Usuário</th>
+                  <th scope="col">Ação</th>
+                  <th scope="col">Item afetado</th>
+                  <th scope="col">Valor anterior</th>
+                  <th scope="col">Valor novo</th>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach ($logs as $l): ?>
+                <tr>
+                  <td class="ws-tabela__codigo" data-rotulo="Data"><?= escaparHtml(formatarDataHora($l['criado_em'])) ?></td>
+                  <td data-rotulo="Usuário"><?= escaparHtml($l['ator_nome']) ?></td>
+                  <td data-rotulo="Ação"><?= escaparHtml(nomeAcaoLog($l['acao'])) ?></td>
+                  <td data-rotulo="Item afetado"><?= escaparHtml($l['entidade_nome'] ?: '#' . $l['entidade_id']) ?></td>
+                  <td data-rotulo="Valor anterior"><?= escaparHtml($l['valor_anterior'] ?: '—') ?></td>
+                  <td data-rotulo="Valor novo"><?= escaparHtml($l['valor_novo'] ?: '—') ?></td>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
             </table>
-        </div>
-    </section>
+          </div>
+<?php endif; ?>
+        </section>
 
-    <footer><p>WareSys © 2026 — Sistema acadêmico de Controle Editorial</p></footer>
-</main>
+      </div>
 
 <script src="envio_unico.js"></script>
 <?php if ($podeGerenciarEtapasPapeis): ?>
-<div class="modal" id="modal-etapa" style="display:none;">
-    <div class="modal-box">
-        <a href="javascript:void(0)" class="fechar" onclick="fecharEtapa()">×</a>
-        <div class="modal-topo"><h2>Editar etapa</h2><p>Alterações valem para as próximas movimentações; o que já foi registrado não muda.</p></div>
-        <form method="post" id="form-editar-etapa" onsubmit="return confirmarEdicaoEtapa(this)">
-            <?= csrf_field() ?>
-            <input type="hidden" name="acao" value="editar_etapa">
-            <input type="hidden" name="etapa_id" id="ed_etapa_id" value="0">
-            <div class="flash erro full" id="ed_etapa_aviso" hidden style="margin-bottom:0;">Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Renomear aqui desativa esse aviso.</div>
+      <!-- Modal: editar etapa (um só, preenchido pelo script abaixo) -->
+      <dialog class="ws-modal" id="modal-etapa" aria-labelledby="modal-etapa-titulo">
+        <form class="ws-modal__caixa" method="post" id="form-editar-etapa" data-ws-confirmar="modal-desativar-etapa">
+          <?= csrf_field() ?>
+          <input type="hidden" name="acao" value="editar_etapa">
+          <input type="hidden" name="etapa_id" id="ed_etapa_id" value="0">
+          <input type="hidden" name="confirmacao" value="">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-etapa-titulo">Editar etapa</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo ws-pilha">
+            <p class="ws-texto-suave">Alterações valem para as próximas movimentações; o que já foi registrado não muda.</p>
+            <div class="ws-alerta ws-alerta--limite" role="status" id="ed_etapa_aviso" hidden>
+              <i class="ws-alerta__icone" data-lucide="triangle-alert"></i>
+              <div class="ws-alerta__corpo">
+                <p>Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Renomear aqui desativa esse aviso.</p>
+              </div>
+            </div>
             <?php camposFormEtapa('ed_etapa', true); ?>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Cancelar</button>
+            <button class="ws-btn ws-btn--primario" type="submit">Salvar etapa</button>
+          </footer>
         </form>
-    </div>
-</div>
-<script>
-const NOME_ETAPA_CATALOGACAO = <?= json_encode(NOME_ETAPA_CATALOGACAO_CONFIG, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      </dialog>
 
-function abrirEditarEtapa(botao) {
-  var d = botao.dataset, f = document.getElementById('form-editar-etapa');
-  document.getElementById('ed_etapa_id').value = d.id;
-  document.getElementById('ed_etapa_nome').value = d.nome;
-  document.getElementById('ed_etapa_ordem').value = d.ordem;
-  document.getElementById('ed_etapa_opcional').checked = d.opcional === '1';
-  document.getElementById('ed_etapa_repetivel').checked = d.repetivel === '1';
-  document.getElementById('ed_etapa_finaliza').checked = d.finaliza === '1';
-  document.getElementById('ed_etapa_rodadas').value = d.rodadas;
-  document.getElementById('ed_etapa_dias').value = d.dias;
-  document.getElementById('ed_etapa_ativa').checked = d.ativa === '1';
-  f.dataset.ativaOriginal = d.ativa;
-  f.dataset.qtdLivros = d.qtd;
-  document.getElementById('ed_etapa_aviso').hidden = d.nome !== NOME_ETAPA_CATALOGACAO;
-  document.getElementById('modal-etapa').style.display = 'flex';
-  document.getElementById('ed_etapa_nome').focus();
-}
-function fecharEtapa() {
-  document.getElementById('modal-etapa').style.display = 'none';
-}
-document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') fecharEtapa(); });
+      <!-- Modal: desativar uma etapa que ainda tem livros (título e texto preenchidos pelo script abaixo) -->
+      <dialog class="ws-modal" id="modal-desativar-etapa" aria-labelledby="modal-desativar-etapa-titulo" aria-describedby="modal-desativar-etapa-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-desativar-etapa-titulo">Desativar esta etapa?</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p id="modal-desativar-etapa-texto"></p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Manter ativa</button>
+            <button class="ws-btn ws-btn--primario" type="button" data-ws-confirmar-ok>Desativar etapa</button>
+          </footer>
+        </div>
+      </dialog>
 
-// Desativar uma etapa que ainda tem livros pede confirmação (mesma regra e mesmo texto de antes).
-function confirmarEdicaoEtapa(form) {
-  var chkAtiva = form.querySelector('input[name="ativa"]');
-  var qtdLivros = Number(form.dataset.qtdLivros || 0);
-  if (form.dataset.ativaOriginal === '1' && chkAtiva && !chkAtiva.checked && qtdLivros > 0) {
-    return confirm(qtdLivros + ' livro(s) estão nesta etapa agora. Eles continuam nela até serem movidos manualmente — desativar não os afeta. Desativar mesmo assim?');
-  }
-  return true;
-}
-</script>
+      <!-- Modal: mudar a ordem de uma etapa que tem livros (título e texto preenchidos pelo script abaixo) -->
+      <dialog class="ws-modal" id="modal-mover-etapa" aria-labelledby="modal-mover-etapa-titulo" aria-describedby="modal-mover-etapa-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-mover-etapa-titulo">Mudar a ordem desta etapa?</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p id="modal-mover-etapa-texto"></p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Manter a ordem</button>
+            <button class="ws-btn ws-btn--primario" type="button" data-ws-confirmar-ok>Mudar a ordem</button>
+          </footer>
+        </div>
+      </dialog>
+
+      <script>
+      // Este script roda antes do waresys.js (defer): os cliques e envios abaixo preparam os modais antes de eles abrirem.
+      const NOME_ETAPA_CATALOGACAO = <?= json_encode(NOME_ETAPA_CATALOGACAO_CONFIG, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+      // Editar etapa: o botão preenche o modal com os dados da linha.
+      document.querySelectorAll('[data-ws-modal-abrir="modal-etapa"]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          const d = botao.dataset, f = document.getElementById('form-editar-etapa');
+          document.getElementById('ed_etapa_id').value = d.id;
+          document.getElementById('ed_etapa_nome').value = d.nome;
+          document.getElementById('ed_etapa_ordem').value = d.ordem;
+          document.getElementById('ed_etapa_opcional').checked = d.opcional === '1';
+          document.getElementById('ed_etapa_repetivel').checked = d.repetivel === '1';
+          document.getElementById('ed_etapa_finaliza').checked = d.finaliza === '1';
+          document.getElementById('ed_etapa_rodadas').value = d.rodadas;
+          document.getElementById('ed_etapa_dias').value = d.dias;
+          document.getElementById('ed_etapa_ativa').checked = d.ativa === '1';
+          f.dataset.ativaOriginal = d.ativa;
+          f.dataset.qtdLivros = d.qtd;
+          f.elements.confirmacao.value = '';
+          document.getElementById('ed_etapa_aviso').hidden = d.nome !== NOME_ETAPA_CATALOGACAO;
+        });
+      });
+      document.getElementById('ed_etapa_nome').setAttribute('autofocus', '');
+
+      // Campo oculto "confirmacao": só o botão de confirmar do modal o preenche (com 1). Sem ele o PHP não grava.
+      document.querySelectorAll('dialog.ws-modal [data-ws-confirmar-ok]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          const modal = botao.closest('dialog');
+          const form = modal && modal._wsFormulario;
+          if (form && form.elements.confirmacao) form.elements.confirmacao.value = '1';
+        });
+      });
+
+      // Desativar uma etapa que ainda tem livros pede confirmação (mesma regra e mesmo texto de antes).
+      const formEditarEtapa = document.getElementById('form-editar-etapa');
+      formEditarEtapa.addEventListener('submit', function () {
+        if (formEditarEtapa.elements.confirmacao.value === '1') return; // já confirmado no modal: o envio segue
+        const desativando = formEditarEtapa.dataset.ativaOriginal === '1' && !document.getElementById('ed_etapa_ativa').checked;
+        const qtd = Number(formEditarEtapa.dataset.qtdLivros || 0);
+        if (!desativando || qtd <= 0) {
+          formEditarEtapa.dataset.wsConfirmado = '1'; // nada a confirmar: o waresys.js deixa enviar direto
+          return;
+        }
+        delete formEditarEtapa.dataset.wsConfirmado;
+        document.getElementById('modal-desativar-etapa-texto').textContent = qtd + ' livro(s) estão nesta etapa agora. Eles continuam nela até serem movidos manualmente — desativar não os afeta. Desativar mesmo assim?';
+      });
+
+      // Mudar a ordem de uma etapa que tem livros: o texto do modal vem do formulário que foi enviado.
+      document.querySelectorAll('form[data-ws-confirmar="modal-mover-etapa"]').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          if (form.elements.confirmacao.value === '1') return;
+          document.getElementById('modal-mover-etapa-titulo').textContent = 'Mudar a ordem de ' + form.dataset.moverNome + '?';
+          document.getElementById('modal-mover-etapa-texto').textContent = form.dataset.moverQtd + ' livro(s) estão nesta etapa agora. Mudar a ordem só afeta movimentações futuras, eles não são afetados. Continuar?';
+        });
+      });
+      </script>
 <?php endif; ?>
-</body>
-</html>
+<?php if ($podeGerenciarEtapasPapeis): ?>
+      <!-- Modal: editar papel de autoria (um só, preenchido pelo script abaixo) -->
+      <dialog class="ws-modal" id="modal-papel" aria-labelledby="modal-papel-titulo">
+        <form class="ws-modal__caixa" method="post">
+          <?= csrf_field() ?>
+          <input type="hidden" name="acao" value="editar_papel">
+          <input type="hidden" name="papel_id" id="ed_papel_id" value="0">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-papel-titulo">Editar papel</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo ws-pilha">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="ed_papel_nome">Nome do papel</label>
+              <input class="ws-input" type="text" id="ed_papel_nome" name="nome" maxlength="<?= LIMITE_NOME_PAPEL ?>" required autofocus>
+            </div>
+            <div>
+              <label class="ws-opcao" for="ed_papel_ativo"><input type="checkbox" id="ed_papel_ativo" name="ativo" aria-describedby="ed_papel_ativo_ajuda">Papel ativo</label>
+              <p class="ws-campo__ajuda" id="ed_papel_ativo_ajuda">Um papel desativado continua nos vínculos que os livros já têm, mas não pode ser usado em vínculos novos.</p>
+            </div>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Cancelar</button>
+            <button class="ws-btn ws-btn--primario" type="submit">Salvar papel</button>
+          </footer>
+        </form>
+      </dialog>
+
+      <script>
+      // Editar papel: o botão preenche o modal com os dados da linha (roda antes do waresys.js, que abre o modal).
+      document.querySelectorAll('[data-ws-modal-abrir="modal-papel"]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          document.getElementById('ed_papel_id').value = botao.dataset.id;
+          document.getElementById('ed_papel_nome').value = botao.dataset.nome;
+          document.getElementById('ed_papel_ativo').checked = botao.dataset.ativo === '1';
+        });
+      });
+      </script>
+<?php endif; ?>
+<?php require __DIR__ . '/includes/rodape.php'; ?>
