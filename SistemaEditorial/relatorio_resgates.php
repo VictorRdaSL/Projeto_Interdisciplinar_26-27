@@ -64,39 +64,62 @@ if (!$erroPeriodo && ($_GET['export'] ?? '') === 'csv') {
 
 relatorioAbrir('Resgates por período', 'Relatórios');
 ?>
-    <section class="painel">
-        <div class="painel-topo">
-            <div><h2>Resgates</h2><p>Resgates <strong>abertos</strong> no período. "Dias" vai da abertura até a conclusão (ou até hoje, se ainda em aberto).</p></div>
-        </div>
-        <form method="get" class="form-filtro-log">
+        <section class="ws-secao" aria-labelledby="filtros-titulo">
+          <h2 class="ws-sr-only" id="filtros-titulo">Filtros</h2>
+          <p class="ws-texto-suave">Resgates <strong>abertos</strong> no período. "Dias" vai da abertura até a conclusão (ou até hoje, se ainda em aberto).</p>
+          <form class="ws-filtros" method="get">
             <?php relatorioCamposPeriodo($de, $ate); ?>
-            <?php relatorioBotoes('relatorio_resgates.php', queryFiltros(['filtro_de' => $de, 'filtro_ate' => $ate]), (bool)$erroPeriodo); ?>
-        </form>
-        <?php if ($erroPeriodo): ?>
-            <div class="flash erro"><?= htmlspecialchars($erroPeriodo) ?></div>
-        <?php else: ?>
-        <p style="font-size:13px;color:#8a9b91;margin:0 0 10px;"><?= count($linhas) ?> resgate(s)<?= count($linhas) > LIMITE_LINHAS_TELA ? ' — mostrando os ' . LIMITE_LINHAS_TELA . ' mais recentes; o CSV leva todos' : '' ?>.</p>
-        <div class="tabela-container">
-            <table>
-                <thead><tr><th>Livro</th><th>Última etapa / mesa conhecida</th><th>Aberto em</th><th>Situação</th><th>Concluído em</th><th>Dias</th><th>Local encontrado</th><th>Etapa onde foi encontrado</th></tr></thead>
-                <tbody>
-                <?php if (!$linhas): ?>
-                    <tr><td colspan="8" class="vazio">Nenhum resgate no período.</td></tr>
-                <?php else: foreach (array_slice($linhas, 0, LIMITE_LINHAS_TELA) as $ln): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($ln['livro']) ?></td>
-                        <td><?= htmlspecialchars($ln['ultima_etapa']) ?> — <?= htmlspecialchars($ln['ultima_mesa']) ?></td>
-                        <td><?= htmlspecialchars($ln['aberto_em']) ?><br><small>por <?= htmlspecialchars($ln['aberto_por']) ?></small></td>
-                        <td><span class="status <?= $ln['situacao'] === 'Concluído' ? 'ok' : 'atencao' ?>"><?= htmlspecialchars($ln['situacao']) ?></span></td>
-                        <td><?= htmlspecialchars($ln['concluido_em'] ?: '—') ?></td>
-                        <td><?= (int)$ln['dias'] ?></td>
-                        <td style="max-width:220px;white-space:pre-line;"><?= htmlspecialchars($ln['local'] ?: '—') ?></td>
-                        <td><?= htmlspecialchars($ln['etapa_encontrado'] ?: '—') ?></td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
+            <?php relatorioBotoes('relatorio_resgates.php'); ?>
+          </form>
+        </section>
+
+        <section class="ws-secao" aria-labelledby="resultado-titulo">
+<?php if ($erroPeriodo): ?>
+          <h2 class="ws-sr-only" id="resultado-titulo">Resultado</h2>
+          <?php relatorioErroPeriodo($erroPeriodo); ?>
+<?php else: ?>
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="resultado-titulo">Resultado</h2>
+              <p><?= escaparHtml(count($linhas) . ' resgate(s)' . (count($linhas) > LIMITE_LINHAS_TELA ? ' — mostrando os ' . LIMITE_LINHAS_TELA . ' mais recentes; o CSV leva todos' : '')) ?>.</p>
+            </div>
+            <?php relatorioExportar('relatorio_resgates.php', queryFiltros(['filtro_de' => $de, 'filtro_ate' => $ate])); ?>
+          </div>
+<?php if (!$linhas): ?>
+          <?php relatorioVazio('Nenhum resgate no período.', 'Mude as datas e filtre de novo.'); ?>
+<?php else: ?>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="resultado-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col">Livro</th>
+                  <th scope="col">Última etapa / mesa conhecida</th>
+                  <th scope="col">Aberto em</th>
+                  <th scope="col">Situação</th>
+                  <th scope="col">Concluído em</th>
+                  <th scope="col" class="ws-tabela__num">Dias</th>
+                  <th scope="col">Local encontrado</th>
+                  <th scope="col">Etapa onde foi encontrado</th>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach (array_slice($linhas, 0, LIMITE_LINHAS_TELA) as $ln): ?>
+                <tr>
+                  <td class="ws-tabela__titulo" data-rotulo="Livro"><?= escaparHtml($ln['livro']) ?></td>
+                  <td data-rotulo="Última etapa / mesa"><?= escaparHtml($ln['ultima_etapa']) ?> — <?= escaparHtml($ln['ultima_mesa']) ?></td>
+                  <td data-rotulo="Aberto em"><span class="ws-tabela__codigo"><?= escaparHtml($ln['aberto_em']) ?></span><span class="ws-tabela__sub">por <?= escaparHtml($ln['aberto_por']) ?></span></td>
+                  <td data-rotulo="Situação"><?= $ln['situacao'] === 'Concluído' ? '<span class="ws-tag ws-tag--neutra">Concluído</span>' : '<span class="ws-status ws-status--extraviado">Em aberto</span>' ?></td>
+                  <td class="ws-tabela__codigo" data-rotulo="Concluído em"><?= escaparHtml($ln['concluido_em'] ?: '—') ?></td>
+                  <td class="ws-tabela__num" data-rotulo="Dias"><?= (int)$ln['dias'] ?></td>
+                  <td data-rotulo="Local encontrado" style="max-width:220px;white-space:pre-line"><?= escaparHtml($ln['local'] ?: '—') ?></td>
+                  <td data-rotulo="Etapa onde foi encontrado"><?= escaparHtml($ln['etapa_encontrado'] ?: '—') ?></td>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
             </table>
-        </div>
-        <?php endif; ?>
-    </section>
+          </div>
+<?php endif; ?>
+<?php endif; ?>
+        </section>
 <?php relatorioFechar();

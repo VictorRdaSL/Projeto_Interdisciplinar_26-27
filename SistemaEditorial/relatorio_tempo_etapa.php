@@ -71,53 +71,84 @@ if (!$erroPeriodo && $exportar === 'detalhe') {
 
 relatorioAbrir('Tempo por etapa', 'Relatórios');
 ?>
-    <section class="painel">
-        <div class="painel-topo">
-            <div><h2>Tempo médio por etapa</h2><p>Para achar gargalos. Considera as permanências que <strong>começaram</strong> no período. Trocar de mesa dentro da etapa não conta como nova passagem. Permanências ainda em andamento contam até agora. Clique numa etapa para ver os livros.</p></div>
-        </div>
-        <form method="get" class="form-filtro-log">
+        <section class="ws-secao" aria-labelledby="filtros-titulo">
+          <h2 class="ws-sr-only" id="filtros-titulo">Filtros</h2>
+          <p class="ws-texto-suave">Para achar gargalos. Considera as permanências que <strong>começaram</strong> no período. Trocar de mesa dentro da etapa não conta como nova passagem. Permanências ainda em andamento contam até agora. Clique numa etapa para ver os livros.</p>
+          <form class="ws-filtros" method="get">
             <?php relatorioCamposPeriodo($de, $ate); ?>
-            <?php relatorioBotoes('relatorio_tempo_etapa.php', queryFiltros(['filtro_de' => $de, 'filtro_ate' => $ate]), (bool)$erroPeriodo, ['Exportar resumo (CSV)' => 'resumo', 'Exportar detalhe (CSV)' => 'detalhe']); ?>
-        </form>
+            <?php relatorioBotoes('relatorio_tempo_etapa.php'); ?>
+          </form>
+        </section>
 
-        <?php if ($erroPeriodo): ?>
-            <div class="flash erro"><?= htmlspecialchars($erroPeriodo) ?></div>
-        <?php else: foreach ($etapasResumo as $id => $er):
-            $n = count($er['passagens']);
-        ?>
-        <details style="border:1px solid #e3ebe6;border-radius:10px;margin-bottom:10px;padding:10px 14px;">
-            <summary style="cursor:pointer;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-                <strong style="flex:1;min-width:200px;"><?= htmlspecialchars($er['nome']) ?></strong>
-                <?php if ($n === 0): ?>
-                    <span style="color:#8a9b91;">sem passagens no período</span>
-                <?php else: ?>
-                    <span><?= $n ?> passagem(ns)<?= $er['abertas'] > 0 ? ' (' . $er['abertas'] . ' em andamento)' : '' ?></span>
-                    <span>média <strong><?= formatarDecimalBr($er['media'] / SEGUNDOS_POR_DIA) ?> dia(s)</strong></span>
-                    <span>maior <?= formatarDecimalBr($er['maior'] / SEGUNDOS_POR_DIA) ?> dia(s)</span>
-                    <?php if ($id === $etapaGargalo && $etapasComDados > 1): ?><span class="status atencao">maior média</span><?php endif; ?>
-                <?php endif; ?>
-            </summary>
-            <?php if ($n > 0): ?>
-            <div class="tabela-container" style="margin-top:12px;">
-                <table>
-                    <thead><tr><th>Livro</th><th>Rodada</th><th>Entrada por</th><th>Mesa</th><th>Entrada</th><th>Saída</th><th>Dias na etapa</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($er['passagens'] as $p): ?>
-                        <tr>
-                            <td><a href="livro_detalhes.php?id=<?= (int)$p['livro_id'] ?>"><?= htmlspecialchars($p['titulo']) ?></a></td>
-                            <td><?= (int)$p['rodada'] ?><?= $p['excedente'] ? ' <span class="status atencao">Cobrável</span>' : '' ?></td>
-                            <td><?= htmlspecialchars(rotuloTipoMovimentacao($p['tipo'])) ?></td>
-                            <td><?= htmlspecialchars($p['responsavel_nome']) ?></td>
-                            <td><?= htmlspecialchars(formatarDataHoraBr($p['entrada'])) ?></td>
-                            <td><?= $p['em_aberto'] ? '<em>em andamento</em>' : htmlspecialchars(formatarDataHoraBr($p['saida'])) ?></td>
-                            <td><?= formatarDecimalBr($p['segundos'] / SEGUNDOS_POR_DIA) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
+        <section class="ws-secao" aria-labelledby="resultado-titulo">
+<?php if ($erroPeriodo): ?>
+          <h2 class="ws-sr-only" id="resultado-titulo">Resultado</h2>
+          <?php relatorioErroPeriodo($erroPeriodo); ?>
+<?php else: ?>
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="resultado-titulo">Tempo médio por etapa</h2>
+              <p><?= escaparHtml(count($etapasResumo) . ' etapa(s)') ?>.</p>
             </div>
-            <?php endif; ?>
-        </details>
-        <?php endforeach; endif; ?>
-    </section>
+            <?php relatorioExportar('relatorio_tempo_etapa.php', queryFiltros(['filtro_de' => $de, 'filtro_ate' => $ate]), false, ['Exportar resumo (CSV)' => 'resumo', 'Exportar detalhe (CSV)' => 'detalhe']); ?>
+          </div>
+<?php if (!$etapasResumo): ?>
+          <?php relatorioVazio('Nenhuma etapa cadastrada.'); ?>
+<?php else: ?>
+          <div class="ws-pilha">
+<?php foreach ($etapasResumo as $id => $er):
+    $n = count($er['passagens']);
+?>
+            <details class="ws-card ws-card--superficie">
+              <summary>
+                <span class="ws-linha" style="display:inline-flex;vertical-align:middle">
+                <strong><?= escaparHtml($er['nome']) ?></strong>
+<?php if ($n === 0): ?>
+                <span class="ws-texto-suave">sem passagens no período</span>
+<?php else: ?>
+                <span><?= $n ?> passagem(ns)<?= $er['abertas'] > 0 ? ' (' . $er['abertas'] . ' em andamento)' : '' ?></span>
+                <span>média <strong><?= escaparHtml(formatarDecimalBr($er['media'] / SEGUNDOS_POR_DIA)) ?> dia(s)</strong></span>
+                <span>maior <?= escaparHtml(formatarDecimalBr($er['maior'] / SEGUNDOS_POR_DIA)) ?> dia(s)</span>
+<?php if ($id === $etapaGargalo && $etapasComDados > 1): ?>
+                <span class="ws-tag ws-tag--neutra ws-tag--peq">Maior média</span>
+<?php endif; ?>
+<?php endif; ?>
+                </span>
+              </summary>
+<?php if ($n > 0): ?>
+              <div class="ws-tabela-wrap" tabindex="0" role="region" aria-label="<?= escaparHtml('Passagens por ' . $er['nome']) ?>">
+                <table class="ws-tabela ws-tabela--empilhar">
+                  <thead>
+                    <tr>
+                      <th scope="col">Livro</th>
+                      <th scope="col">Rodada</th>
+                      <th scope="col">Entrada por</th>
+                      <th scope="col">Mesa</th>
+                      <th scope="col">Entrada</th>
+                      <th scope="col">Saída</th>
+                      <th scope="col" class="ws-tabela__num">Dias na etapa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+<?php foreach ($er['passagens'] as $p): ?>
+                    <tr>
+                      <td class="ws-tabela__titulo" data-rotulo="Livro"><a href="livro_detalhes.php?id=<?= (int)$p['livro_id'] ?>"><?= escaparHtml($p['titulo']) ?></a></td>
+                      <td data-rotulo="Rodada"><?= (int)$p['rodada'] ?><?= $p['excedente'] ? ' ' . htmlChipCobrado() : '' ?></td>
+                      <td data-rotulo="Entrada por"><?= escaparHtml(rotuloTipoMovimentacao($p['tipo'])) ?></td>
+                      <td data-rotulo="Mesa"><?= escaparHtml($p['responsavel_nome']) ?></td>
+                      <td class="ws-tabela__codigo" data-rotulo="Entrada"><?= escaparHtml(formatarDataHoraBr($p['entrada'])) ?></td>
+                      <td class="ws-tabela__codigo" data-rotulo="Saída"><?= $p['em_aberto'] ? '<span class="ws-tabela__suave">em andamento</span>' : escaparHtml(formatarDataHoraBr($p['saida'])) ?></td>
+                      <td class="ws-tabela__num" data-rotulo="Dias na etapa"><?= escaparHtml(formatarDecimalBr($p['segundos'] / SEGUNDOS_POR_DIA)) ?></td>
+                    </tr>
+<?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+<?php endif; ?>
+            </details>
+<?php endforeach; ?>
+          </div>
+<?php endif; ?>
+<?php endif; ?>
+        </section>
 <?php relatorioFechar();
