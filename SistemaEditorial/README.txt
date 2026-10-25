@@ -19,6 +19,10 @@ INSTALAÇÃO
    Sem o views.sql ou o procedures.sql, as telas dão erro (vw_... / sp_... inexistente).
 4. Copie config/config.example.php para config/config.php e ajuste usuário e
    senha do MySQL, se necessário. O config.php não vai para o Git.
+   Ajuste também o 'base_url': o caminho do sistema na URL, sem barra no final. No XAMPP é
+   '/Projeto_Interdisciplinar_26-27/SistemaEditorial'; ao hospedar, use o caminho real
+   (ex.: '' se o sistema ficar na raiz do domínio, ou '/sistema'). As telas novas montam os
+   caminhos de CSS, JS, imagens e menu a partir dele.
 5. Abra http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/
 
 IMPORTANTE: o Administrador não faz parte do fluxo da editora e não pode ser responsável por livros.
