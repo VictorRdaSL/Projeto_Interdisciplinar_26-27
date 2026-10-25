@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="claro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · WareSys</title>
+  <!-- Fonte: Inter (única família da marca) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+  <!-- Design system WareSys (nesta ordem) -->
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/layout.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <main class="ws-login">
+    <!-- Painel da marca: cinza profundo, cor lisa -->
+    <section class="ws-login__marca" aria-label="WareSys">
+      <a class="ws-logo ws-logo--assinatura ws-logo--negativa" href="painel.html" aria-label="WareSys, ir para o Painel">
+          <!-- Troque o span abaixo pelo SVG original: <img src="../img/logo/waresys-simbolo.svg" alt=""> -->
+          <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+          <span class="ws-logo__wordmark">WareSys</span>
+        </a>
+      <div class="ws-pilha">
+        <p class="ws-eyebrow">Controle editorial · para editoras</p>
+        <p class="ws-display ws-login__frase">Ordem<br>que se lê.</p>
+        <p class="ws-login__texto">Cada livro com sua etapa, seu responsável e suas rodadas à vista. Sem caderno, planilha ou grupo de WhatsApp.</p>
+      </div>
+      <p class="ws-login__texto" style="font-size:12px">Projeto acadêmico · Engenharia de Software · FATEC</p>
+    </section>
+
+    <section class="ws-login__area" aria-labelledby="login-titulo">
+      <form class="ws-login__form" method="post" action="painel.html" novalidate>
+        <!-- <?= csrf_field() ?> -->
+        <div class="ws-pilha ws-pilha--peq">
+          <h1 id="login-titulo">Entrar</h1>
+          <p class="ws-texto-suave">Use o e-mail e a senha cadastrados pelo Gerente ou Administrador.</p>
+        </div>
+
+        <!-- Erro de login (o PHP só mostra quando houver):
+        <div class="ws-alerta ws-alerta--cobrado" role="alert">
+          <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
+          <div class="ws-alerta__corpo"><p>E-mail ou senha não conferem. Confira e tente de novo.</p></div>
+        </div>
+        -->
+
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="email">E-mail</label>
+          <input class="ws-input" id="email" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="senha">Senha</label>
+          <input class="ws-input" id="senha" name="senha" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="ws-btn ws-btn--primario ws-btn--bloco" type="submit">Entrar <span class="ws-btn__seta" aria-hidden="true">→</span></button>
+        <p class="ws-login__rodape">Sem acesso? Peça a um Gerente ou Administrador para criar sua conta em Configurações.</p>
+      </form>
+    </section>
+  </main>
+
+  <!-- Ícones Lucide (traço 1,5 aplicado pelo waresys.js) + comportamentos -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <script src="../js/waresys.js" defer></script>
+</body>
+</html>

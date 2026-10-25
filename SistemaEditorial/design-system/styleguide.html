@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="claro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design system · WareSys</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <style>
+    /* Estilos só desta página de documentação (prefixo sg-). Não use nas telas. */
+    .sg-topo { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 32px; background: var(--ws-cor-superficie); border-bottom: 1px solid var(--ws-cor-linha); }
+    .sg-topo__titulo { display: flex; align-items: center; gap: 16px; }
+    .sg-casca { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; max-width: 1280px; margin: 0 auto; padding: 32px; }
+    .sg-toc { position: sticky; top: 88px; align-self: start; }
+    .sg-toc ol { display: grid; gap: 2px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .sg-toc a { display: block; padding: 6px 10px; color: var(--ws-cor-texto); text-decoration: none; border-left: 1px solid var(--ws-cor-linha); }
+    .sg-toc a:hover { border-left-color: var(--ws-cor-destaque); background: var(--ws-cor-realce); }
+    .sg-intro { display: grid; gap: 16px; padding-bottom: 48px; border-bottom: 1px solid var(--ws-cor-linha); }
+    .sg-intro p:not(.ws-eyebrow) { max-width: 64ch; color: var(--ws-cor-texto-suave); font-size: 15px; }
+    #conteudo { min-width: 0; }
+    .sg-secao { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 48px 0; border-bottom: 1px solid var(--ws-cor-linha); scroll-margin-top: 72px; }
+    .sg-secao__cab { display: grid; gap: 8px; }
+    .sg-secao__cab p { max-width: 72ch; color: var(--ws-cor-texto-suave); }
+    .sg-sub { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ws-cor-texto-suave); }
+    .sg-ex { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+    .sg-ex__titulo { font-weight: 600; }
+    .sg-ex__nota { color: var(--ws-cor-texto-suave); max-width: 72ch; }
+    .sg-ex__demo { display: grid; gap: 16px; padding: 24px; border: 1px solid var(--ws-cor-linha); background: var(--ws-cor-fundo); min-width: 0; }
+    .sg-ex__demo--tiffany { background: var(--ws-tiffany-500); }
+    .sg-ex__codigo summary { cursor: pointer; color: var(--ws-cor-destaque); padding: 4px 0; }
+    .sg-ex__barra { display: flex; justify-content: flex-end; margin: 8px 0; }
+    .sg-ex pre { margin: 0; padding: 16px; overflow-x: auto; background: var(--ws-cinza-profundo); color: #D9F3F0; border: 1px solid var(--ws-cor-linha); font-family: var(--ws-fonte-mono); font-size: 12px; line-height: 1.6; tab-size: 2; }
+    .sg-cores { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+    .sg-cor { display: grid; gap: 4px; }
+    .sg-cor__amostra { display: flex; align-items: flex-end; height: 112px; padding: 12px; border: 1px solid var(--ws-cor-linha); font-weight: 600; font-size: 15px; }
+    .sg-cor p { margin: 0; }
+    .sg-cor__uso { color: var(--ws-cor-texto-suave); }
+    .sg-escala { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); border: 1px solid var(--ws-cor-linha); }
+    .sg-escala__item { display: grid; align-content: space-between; gap: 24px; min-height: 96px; padding: 8px; }
+    .sg-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .sg-proporcao { display: flex; height: 44px; border: 1px solid var(--ws-cor-linha); }
+    .sg-proporcao span { display: flex; align-items: center; padding: 0 12px; overflow: hidden; white-space: nowrap; font-size: 13px; }
+    .sg-tipos { display: grid; border-top: 1px solid var(--ws-cor-linha); }
+    .sg-tipo { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--ws-cor-linha); }
+    .sg-esps { display: grid; gap: 8px; }
+    .sg-esp { display: grid; grid-template-columns: 120px auto 1fr; gap: 16px; align-items: center; }
+    .sg-esp__barra { display: block; height: 16px; background: var(--ws-tiffany-500); }
+    .sg-bloco { padding: 12px; border: 1px dashed var(--ws-cor-destaque); font-family: var(--ws-fonte-mono); font-size: 12px; color: var(--ws-cor-destaque); }
+    .sg-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px; padding: 1px; }
+    .sg-icone { display: grid; gap: 4px; justify-items: start; padding: 16px; background: var(--ws-cor-superficie); outline: 1px solid var(--ws-cor-linha); }
+    .sg-icone [data-lucide], .sg-icone svg.lucide { width: 24px; height: 24px; margin-bottom: 8px; }
+    .sg-logos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .sg-logos__item { display: grid; gap: 24px; justify-items: center; padding: 40px 16px 16px; border: 1px solid var(--ws-cor-linha); }
+    .sg-logos__item p { font-size: 12px; color: #5D5D60; text-align: center; }
+    .sg-telas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .sg-tela { color: var(--ws-cor-texto); text-decoration: none; }
+    .sg-tela:hover { border-color: var(--ws-cor-destaque); color: var(--ws-cor-texto); }
+    @media (max-width: 1023px) {
+      .sg-casca { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 16px; }
+      .sg-toc { position: static; }
+      .sg-toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sg-topo { padding: 8px 16px; }
+    }
+    @media (max-width: 639px) {
+      .sg-escala { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .sg-tipo { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+      .sg-ex__demo { padding: 16px; }
+      .sg-esp { grid-template-columns: 110px auto 1fr; gap: 8px; }
+      .sg-topo__titulo .ws-texto-suave { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="ws-pular" href="#conteudo">Pular para o conteúdo</a>
+  <header class="sg-topo">
+    <div class="sg-topo__titulo">
+      <a class="ws-logo ws-logo--assinatura ws-logo--peq" href="#uso" aria-label="WareSys">
+        <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+        <span class="ws-logo__wordmark">WareSys</span>
+      </a>
+      <span class="ws-texto-suave">Design system · v1.0</span>
+    </div>
+    <button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" id="sg-tema" aria-pressed="false"><i data-lucide="moon" class="ws-icone--peq"></i>Tema escuro</button>
+  </header>
+
+  <div class="sg-casca">
+    <nav class="sg-toc" aria-label="Seções">
+      <p class="ws-eyebrow">Seções</p>
+      <ol>
+        <li><a href="#uso">Como usar</a></li>
+        <li><a href="#cores">Cores</a></li>
+        <li><a href="#tipografia">Tipografia</a></li>
+        <li><a href="#espaco">Espaçamento e grade</a></li>
+        <li><a href="#icones">Ícones</a></li>
+        <li><a href="#logo">Logo</a></li>
+        <li><a href="#botoes">Botões</a></li>
+        <li><a href="#campos">Campos</a></li>
+        <li><a href="#etiquetas">Etiquetas e status</a></li>
+        <li><a href="#cards">Cards e indicadores</a></li>
+        <li><a href="#tabela">Tabela de dados</a></li>
+        <li><a href="#rodadas">Contador de rodadas</a></li>
+        <li><a href="#fluxo">Fluxo de etapas</a></li>
+        <li><a href="#historico">Linha do tempo e dados do livro</a></li>
+        <li><a href="#alertas">Alertas e toasts</a></li>
+        <li><a href="#modal">Modal de confirmação</a></li>
+        <li><a href="#estados">Vazio, carregamento e paginação</a></li>
+        <li><a href="#navegacao">Navegação e estrutura</a></li>
+        <li><a href="#voz">Tom de voz</a></li>
+        <li><a href="#telas">Telas de exemplo</a></li>
+      </ol>
+    </nav>
+
+    <main id="conteudo">
+      <div class="sg-intro">
+        <p class="ws-eyebrow ws-eyebrow--destaque">Manual de marca v1.1 · outubro 2026</p>
+        <h1 class="ws-display">Ordem que se lê.</h1>
+        <p>Tokens e componentes do frontend do WareSys: CSS puro com custom properties, JavaScript vanilla só onde o CSS não resolve. Cada exemplo mostra o HTML para copiar. Fonte de verdade: o Manual de Marca v1.1.</p>
+      </div>
+
+<section class="sg-secao" id="uso" aria-labelledby="uso-t">
+  <header class="sg-secao__cab">
+    <h2 id="uso-t">Como usar</h2>
+    <p>Quatro arquivos CSS na ordem abaixo e um JS opcional. Sem build, sem framework. Todas as classes começam com <code>ws-</code> e seguem BEM: bloco (<code>.ws-btn</code>), elemento (<code>.ws-btn__seta</code>), modificador (<code>.ws-btn--primario</code>); estados usam <code>.is-*</code> ou atributos ARIA.</p>
+  </header>
+  <div class="sg-ex">
+    <pre><code>&lt;!-- No &lt;head&gt; (header.php comum) --&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap&quot;&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/tokens.css&quot;&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/base.css&quot;&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/layout.css&quot;&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/components.css&quot;&gt;
+
+&lt;!-- Tema: o sistema já guarda em usuarios.tema --&gt;
+&lt;html lang=&quot;pt-BR&quot; data-theme=&quot;&lt;?= htmlspecialchars($_SESSION[&#x27;usuario_tema&#x27;] ?? &#x27;claro&#x27;) ?&gt;&quot;&gt;
+
+&lt;!-- No fim do &lt;body&gt; --&gt;
+&lt;script src=&quot;https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;design-system/js/waresys.js&quot; defer&gt;&lt;/script&gt;</code></pre>
+  </div>
+  <div class="ws-alerta" role="note">
+    <i class="ws-alerta__icone" data-lucide="info"></i>
+    <div class="ws-alerta__corpo">
+      <p class="ws-alerta__titulo">Não misture com o CSS antigo na mesma página.</p>
+      <p>O <code>style_base.css</code> antigo mexe em <code>*</code> e <code>body</code>, assim como o <code>base.css</code>. Migre uma tela por vez: a tela nova carrega só o design system.</p>
+    </div>
+  </div>
+  <div class="ws-alerta" role="note">
+    <i class="ws-alerta__icone" data-lucide="wifi-off"></i>
+    <div class="ws-alerta__corpo">
+      <p class="ws-alerta__titulo">Sem internet, a fonte e os ícones não carregam.</p>
+      <p>Para usar o XAMPP offline: baixe <code>lucide.min.js</code> (versão 0.469.0) para <code>design-system/js/</code> e instale a Inter na máquina. O CSS já cai para a fonte do sistema se a Inter faltar.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sg-secao" id="cores" aria-labelledby="cores-t">
+  <header class="sg-secao__cab">
+    <h2 id="cores-t">Cores</h2>
+    <p>Branco gelo e cinza profundo fazem quase todo o trabalho. O Tiffany marca ação e marca, e só aparece quando importa. Os componentes usam os tokens semânticos (<code>--ws-cor-*</code>), nunca o hexadecimal direto: é isso que faz o tema escuro funcionar.</p>
+  </header>
+  <p class="sg-sub">Marca</p><div class="sg-cores"><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-tiffany-500);color:#172937"><span>Azul Tiffany 500</span></div>
+      <p class="ws-codigo">--ws-tiffany-500</p>
+      <p class="ws-codigo ws-texto-suave">#81D8D0</p>
+      <p class="sg-cor__uso">Ação primária, marca, campos de destaque</p>
+    </div><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-cinza-profundo);color:#FFFFFF"><span>Cinza profundo</span></div>
+      <p class="ws-codigo">--ws-cinza-profundo</p>
+      <p class="ws-codigo ws-texto-suave">#172937</p>
+      <p class="sg-cor__uso">Texto, wordmark, fundos escuros, rodapé</p>
+    </div><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-gelo);color:#172937"><span>Branco gelo</span></div>
+      <p class="ws-codigo">--ws-gelo</p>
+      <p class="ws-codigo ws-texto-suave">#EAF5FB</p>
+      <p class="sg-cor__uso">Fundo das páginas</p>
+    </div><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-branco);color:#172937"><span>Branco</span></div>
+      <p class="ws-codigo">--ws-branco</p>
+      <p class="ws-codigo ws-texto-suave">#FFFFFF</p>
+      <p class="sg-cor__uso">Superfícies de produto, tabelas</p>
+    </div></div>
+<p class="sg-sub">Escala do Tiffany</p><div class="sg-escala"><div class="sg-escala__item" style="background:var(--ws-tiffany-100);color:#172937"><span class="ws-codigo">100</span><span class="ws-codigo">#F6FCFB</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-200);color:#172937"><span class="ws-codigo">200</span><span class="ws-codigo">#ECF9F7</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-300);color:#172937"><span class="ws-codigo">300</span><span class="ws-codigo">#D9F3F0</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-400);color:#172937"><span class="ws-codigo">400</span><span class="ws-codigo">#B7E8E3</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-500);color:#172937"><span class="ws-codigo">500</span><span class="ws-codigo">#81D8D0</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-600);color:#fff"><span class="ws-codigo">600</span><span class="ws-codigo">#61AAAF</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-700);color:#fff"><span class="ws-codigo">700</span><span class="ws-codigo">#3D6C7B</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-800);color:#fff"><span class="ws-codigo">800</span><span class="ws-codigo">#325868</span></div><div class="sg-escala__item" style="background:var(--ws-tiffany-900);color:#fff"><span class="ws-codigo">900</span><span class="ws-codigo">#294757</span></div></div><p class="ws-texto-suave">100–300 fundos e hovers · 500 base · 600 pressionado · 700+ texto, ícones e símbolo sobre fundo claro.</p>
+<p class="sg-sub">Apoio (medidos no manual)</p><div class="sg-cores"><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-cinza-texto-suave);color:#FFFFFF"><span>Texto suave</span></div>
+      <p class="ws-codigo">--ws-cinza-texto-suave</p>
+      <p class="ws-codigo ws-texto-suave">#5D5D60</p>
+      <p class="sg-cor__uso">Metadado, responsável, legenda (6,4:1)</p>
+    </div><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-cinza-linha);color:#172937"><span>Linha</span></div>
+      <p class="ws-codigo">--ws-cinza-linha</p>
+      <p class="ws-codigo ws-texto-suave">#DAE3EA</p>
+      <p class="sg-cor__uso">Linhas de 1px: cards, tabela</p>
+    </div><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-cinza-linha-forte);color:#172937"><span>Linha forte</span></div>
+      <p class="ws-codigo">--ws-cinza-linha-forte</p>
+      <p class="ws-codigo ws-texto-suave">#C9D2D7</p>
+      <p class="sg-cor__uso">Régua de cabeçalho e de tabela</p>
+    </div><div class="sg-cor">
+      <div class="sg-cor__amostra" style="background:var(--ws-cinza-campo);color:#FFFFFF"><span>Borda de campo</span></div>
+      <p class="ws-codigo">--ws-cinza-campo</p>
+      <p class="ws-codigo ws-texto-suave">#7A8C99</p>
+      <p class="sg-cor__uso">Input e select (3:1, WCAG 1.4.11)</p>
+    </div></div>
+<p class="sg-sub">Status — funcionais, nunca decorativos</p><div class="sg-status">
+      <div class="ws-card ws-card--superficie"><span class="ws-status ws-status--ok">No prazo · em andamento</span><p>Etapa dentro do prazo e das rodadas contratadas.</p><p class="ws-codigo ws-texto-suave">ponto #16A34A · texto #15803D</p></div>
+      <div class="ws-card ws-card--superficie"><span class="ws-status ws-status--limite">Rodadas no limite · parado</span><p>Última rodada incluída em uso, ou livro parado além do limite de dias.</p><p class="ws-codigo ws-texto-suave">ponto #F59E0B · texto #B45309</p></div>
+      <div class="ws-card ws-card--superficie"><span class="ws-status ws-status--cobrado">Acima do limite · extraviado</span><p>Rodada extra além do contrato, ou livro em resgate.</p><p class="ws-codigo ws-texto-suave">ponto #EF4444 · texto #B91C1C</p></div>
+    </div>
+<p class="sg-sub">Proporção de uso</p><div class="sg-proporcao" role="img" aria-label="Proporção de uso: papel e branco 60%, cinza profundo 28%, Tiffany 9%, status 3%">
+      <span style="flex:60;background:var(--ws-branco);color:var(--ws-cinza-profundo)">Papel / branco 60%</span>
+      <span style="flex:28;background:var(--ws-cinza-profundo);color:#fff">Cinza profundo 28%</span>
+      <span style="flex:9;background:var(--ws-tiffany-500);color:var(--ws-cinza-profundo)">9%</span>
+      <span style="flex:1;background:var(--ws-ok-ponto)"></span><span style="flex:1;background:var(--ws-limite-ponto)"></span><span style="flex:1;background:var(--ws-cobrado-ponto)"></span>
+    </div>
+<p class="sg-sub">Tokens semânticos</p><div class="ws-tabela-wrap"><table class="ws-tabela">
+      <thead><tr><th scope="col">Token semântico</th><th scope="col">Claro</th><th scope="col">Escuro</th><th scope="col">Uso</th></tr></thead>
+      <tbody>
+        <tr><td class="ws-tabela__codigo">--ws-cor-fundo</td><td class="ws-tabela__codigo">gelo</td><td class="ws-tabela__codigo">#12212C</td><td>Fundo da página</td></tr>
+        <tr><td class="ws-tabela__codigo">--ws-cor-superficie</td><td class="ws-tabela__codigo">branco</td><td class="ws-tabela__codigo">cinza profundo</td><td>Tabela, sidebar, modal, campo</td></tr>
+        <tr><td class="ws-tabela__codigo">--ws-cor-texto</td><td class="ws-tabela__codigo">cinza profundo</td><td class="ws-tabela__codigo">gelo</td><td>Texto</td></tr>
+        <tr><td class="ws-tabela__codigo">--ws-cor-acao</td><td class="ws-tabela__codigo">tiffany-500</td><td class="ws-tabela__codigo">tiffany-500</td><td>Botão primário</td></tr>
+        <tr><td class="ws-tabela__codigo">--ws-cor-destaque</td><td class="ws-tabela__codigo">tiffany-700</td><td class="ws-tabela__codigo">tiffany-500</td><td>Link, ícone, eyebrow de livro</td></tr>
+        <tr><td class="ws-tabela__codigo">--ws-cor-realce</td><td class="ws-tabela__codigo">tiffany-100</td><td class="ws-tabela__codigo">#1F3646</td><td>Hover de linha, item ativo</td></tr>
+        <tr><td class="ws-tabela__codigo">--ws-cor-foco</td><td class="ws-tabela__codigo">tiffany-700</td><td class="ws-tabela__codigo">tiffany-500</td><td>Anel de foco</td></tr>
+      </tbody></table></div>
+</section>
+
+<section class="sg-secao" id="tipografia" aria-labelledby="tipografia-t">
+  <header class="sg-secao__cab">
+    <h2 id="tipografia-t">Tipografia</h2>
+    <p>Uma família só: Inter. Títulos em Semibold com espaçamento negativo; interface e dados em Regular e Medium; IDs, ISBN e rodadas em mono do sistema com algarismos tabulares.</p>
+  </header>
+  <div class="sg-tipos"><div class="sg-tipo"><p class="ws-codigo ws-texto-suave">Display · 56/700 · −3%</p><div><p class="ws-display">Livros em ordem</p></div></div>
+<div class="sg-tipo"><p class="ws-codigo ws-texto-suave">H1 · 32/600 · −2,5%</p><div><h1 class="ws-h1">Título de página</h1></div></div>
+<div class="sg-tipo"><p class="ws-codigo ws-texto-suave">H2 · 20/600 · −2%</p><div><h2 class="ws-h2">Título de seção / card</h2></div></div>
+<div class="sg-tipo"><p class="ws-codigo ws-texto-suave">Destaque · 15/500</p><div><p class="ws-destaque">Texto de destaque, rótulos de botão</p></div></div>
+<div class="sg-tipo"><p class="ws-codigo ws-texto-suave">Corpo · 13/400</p><div><p class="ws-corpo">Corpo de texto, linhas de tabela, dados</p></div></div>
+<div class="sg-tipo"><p class="ws-codigo ws-texto-suave">Eyebrow · 12/600 · +12%</p><div><p class="ws-eyebrow">Eyebrow / metadado</p></div></div>
+<div class="sg-tipo"><p class="ws-codigo ws-texto-suave">Código · 12/400 mono</p><div><p class="ws-codigo">0112 · ISBN 978-65-87401-12-4 · DIAG R3/3</p></div></div></div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Em uso</p><p class="sg-ex__nota">Use h1/h2 pela hierarquia da página e as classes .ws-h1/.ws-h2 quando o estilo precisa ser outro que o nível.</p>
+    <div class="sg-ex__demo">
+      <p class="ws-eyebrow ws-eyebrow--destaque">Livro 0112 · Diagramação</p>
+      <h1>O silêncio das marés</h1>
+      <p class="ws-texto-suave">Marina Couto (Autora) · Lia Prado (Ilustradora)</p>
+      <p>Rodada <span class="ws-codigo">R3/3</span>. A próxima volta será cobrada. <a href="#">Ver histórico</a></p>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-1"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-1"><code>&lt;p class=&quot;ws-eyebrow ws-eyebrow--destaque&quot;&gt;Livro 0112 · Diagramação&lt;/p&gt;
+&lt;h1&gt;O silêncio das marés&lt;/h1&gt;
+&lt;p class=&quot;ws-texto-suave&quot;&gt;Marina Couto (Autora) · Lia Prado (Ilustradora)&lt;/p&gt;
+&lt;p&gt;Rodada &lt;span class=&quot;ws-codigo&quot;&gt;R3/3&lt;/span&gt;. A próxima volta será cobrada. &lt;a href=&quot;#&quot;&gt;Ver histórico&lt;/a&gt;&lt;/p&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="espaco" aria-labelledby="espaco-t">
+  <header class="sg-secao__cab">
+    <h2 id="espaco-t">Espaçamento e grade</h2>
+    <p>Base de 4px. Cantos retos (<code>--ws-raio: 0</code>), linhas de 1px em tom frio, nenhuma sombra (<code>--ws-sombra: none</code>), nenhum degradê. Fundos sempre em cor lisa.</p>
+  </header>
+  <div class="sg-esps"><div class="sg-esp"><span class="ws-codigo">--ws-esp-1</span><span class="sg-esp__barra" style="width:var(--ws-esp-1)"></span><span class="ws-codigo ws-texto-suave">4px</span></div><div class="sg-esp"><span class="ws-codigo">--ws-esp-2</span><span class="sg-esp__barra" style="width:var(--ws-esp-2)"></span><span class="ws-codigo ws-texto-suave">8px</span></div><div class="sg-esp"><span class="ws-codigo">--ws-esp-3</span><span class="sg-esp__barra" style="width:var(--ws-esp-3)"></span><span class="ws-codigo ws-texto-suave">12px</span></div><div class="sg-esp"><span class="ws-codigo">--ws-esp-4</span><span class="sg-esp__barra" style="width:var(--ws-esp-4)"></span><span class="ws-codigo ws-texto-suave">16px</span></div><div class="sg-esp"><span class="ws-codigo">--ws-esp-5</span><span class="sg-esp__barra" style="width:var(--ws-esp-5)"></span><span class="ws-codigo ws-texto-suave">24px</span></div><div class="sg-esp"><span class="ws-codigo">--ws-esp-6</span><span class="sg-esp__barra" style="width:var(--ws-esp-6)"></span><span class="ws-codigo ws-texto-suave">32px</span></div><div class="sg-esp"><span class="ws-codigo">--ws-esp-7</span><span class="sg-esp__barra" style="width:var(--ws-esp-7)"></span><span class="ws-codigo ws-texto-suave">48px</span></div><div class="sg-esp"><span class="ws-codigo">--ws-esp-8</span><span class="sg-esp__barra" style="width:var(--ws-esp-8)"></span><span class="ws-codigo ws-texto-suave">64px</span></div></div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Grade de 12 colunas</p><p class="sg-ex__nota">Celular: tudo em 1 coluna. Tablet (≥768px): .ws-col-md-*. Desktop (≥1024px): .ws-col-*. Espaço de 24px entre colunas.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-grade">
+        <div class="ws-col-8"><div class="sg-bloco">.ws-col-8</div></div>
+        <div class="ws-col-4"><div class="sg-bloco">.ws-col-4</div></div>
+        <div class="ws-col-4 ws-col-md-6"><div class="sg-bloco">.ws-col-4 .ws-col-md-6</div></div>
+        <div class="ws-col-4 ws-col-md-6"><div class="sg-bloco">.ws-col-4 .ws-col-md-6</div></div>
+        <div class="ws-col-4"><div class="sg-bloco">.ws-col-4</div></div>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-2"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-2"><code>&lt;div class=&quot;ws-grade&quot;&gt;
+  &lt;div class=&quot;ws-col-8&quot;&gt;&lt;div class=&quot;sg-bloco&quot;&gt;.ws-col-8&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;ws-col-4&quot;&gt;&lt;div class=&quot;sg-bloco&quot;&gt;.ws-col-4&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;ws-col-4 ws-col-md-6&quot;&gt;&lt;div class=&quot;sg-bloco&quot;&gt;.ws-col-4 .ws-col-md-6&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;ws-col-4 ws-col-md-6&quot;&gt;&lt;div class=&quot;sg-bloco&quot;&gt;.ws-col-4 .ws-col-md-6&lt;/div&gt;&lt;/div&gt;
+  &lt;div class=&quot;ws-col-4&quot;&gt;&lt;div class=&quot;sg-bloco&quot;&gt;.ws-col-4&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="icones" aria-labelledby="icones-t">
+  <header class="sg-secao__cab">
+    <h2 id="icones-t">Ícones</h2>
+    <p>Lucide com traço 1,5, em Tiffany profundo (<code>.ws-icone--destaque</code>) ou cinza profundo (<code>.ws-icone--texto</code>). Inclua o script do Lucide pelo CDN e escreva <code>&lt;i data-lucide="nome"&gt;</code>; o <code>waresys.js</code> troca pelo SVG com o traço certo. Ícone decorativo leva aria-hidden (o waresys.js já põe); botão só com ícone leva aria-label.</p>
+  </header>
+  <div class="sg-icones"><div class="sg-icone"><i data-lucide="layout-dashboard" class="ws-icone--destaque"></i><span>Painel</span><span class="ws-codigo ws-texto-suave">layout-dashboard</span></div><div class="sg-icone"><i data-lucide="inbox" class="ws-icone--destaque"></i><span>Minha mesa</span><span class="ws-codigo ws-texto-suave">inbox</span></div><div class="sg-icone"><i data-lucide="book-open" class="ws-icone--destaque"></i><span>Livros</span><span class="ws-codigo ws-texto-suave">book-open</span></div><div class="sg-icone"><i data-lucide="users" class="ws-icone--destaque"></i><span>Pessoas</span><span class="ws-codigo ws-texto-suave">users</span></div><div class="sg-icone"><i data-lucide="file-text" class="ws-icone--destaque"></i><span>Relatórios</span><span class="ws-codigo ws-texto-suave">file-text</span></div><div class="sg-icone"><i data-lucide="settings" class="ws-icone--destaque"></i><span>Configurações</span><span class="ws-codigo ws-texto-suave">settings</span></div><div class="sg-icone"><i data-lucide="arrow-right" class="ws-icone--destaque"></i><span>Avanço</span><span class="ws-codigo ws-texto-suave">arrow-right</span></div><div class="sg-icone"><i data-lucide="rotate-ccw" class="ws-icone--destaque"></i><span>Repetição</span><span class="ws-codigo ws-texto-suave">rotate-ccw</span></div><div class="sg-icone"><i data-lucide="undo-2" class="ws-icone--destaque"></i><span>Retrocesso</span><span class="ws-codigo ws-texto-suave">undo-2</span></div><div class="sg-icone"><i data-lucide="skip-forward" class="ws-icone--destaque"></i><span>Pulo de opcional</span><span class="ws-codigo ws-texto-suave">skip-forward</span></div><div class="sg-icone"><i data-lucide="arrow-left-right" class="ws-icone--destaque"></i><span>Troca de mesa</span><span class="ws-codigo ws-texto-suave">arrow-left-right</span></div><div class="sg-icone"><i data-lucide="search" class="ws-icone--destaque"></i><span>Resgate / busca</span><span class="ws-codigo ws-texto-suave">search</span></div><div class="sg-icone"><i data-lucide="pencil" class="ws-icone--destaque"></i><span>Editar</span><span class="ws-codigo ws-texto-suave">pencil</span></div><div class="sg-icone"><i data-lucide="plus" class="ws-icone--destaque"></i><span>Novo</span><span class="ws-codigo ws-texto-suave">plus</span></div><div class="sg-icone"><i data-lucide="ban" class="ws-icone--destaque"></i><span>Cancelar livro</span><span class="ws-codigo ws-texto-suave">ban</span></div><div class="sg-icone"><i data-lucide="clock" class="ws-icone--destaque"></i><span>Tempo na etapa</span><span class="ws-codigo ws-texto-suave">clock</span></div><div class="sg-icone"><i data-lucide="triangle-alert" class="ws-icone--destaque"></i><span>No limite</span><span class="ws-codigo ws-texto-suave">triangle-alert</span></div><div class="sg-icone"><i data-lucide="circle-alert" class="ws-icone--destaque"></i><span>Cobrado / erro</span><span class="ws-codigo ws-texto-suave">circle-alert</span></div><div class="sg-icone"><i data-lucide="check" class="ws-icone--destaque"></i><span>Concluído / ok</span><span class="ws-codigo ws-texto-suave">check</span></div><div class="sg-icone"><i data-lucide="info" class="ws-icone--destaque"></i><span>Informação</span><span class="ws-codigo ws-texto-suave">info</span></div></div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Uso</p><p class="sg-ex__nota">Tamanho padrão 18px; .ws-icone--peq = 16px. Nada de emoji na interface.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-linha">
+        <i data-lucide="book-open" class="ws-icone--destaque"></i>
+        <i data-lucide="clock" class="ws-icone--texto ws-icone--peq"></i>
+        <button class="ws-btn ws-btn--secundario ws-btn--icone" type="button" aria-label="Editar livro"><i data-lucide="pencil"></i></button>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-3"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-3"><code>&lt;div class=&quot;ws-linha&quot;&gt;
+  &lt;i data-lucide=&quot;book-open&quot; class=&quot;ws-icone--destaque&quot;&gt;&lt;/i&gt;
+  &lt;i data-lucide=&quot;clock&quot; class=&quot;ws-icone--texto ws-icone--peq&quot;&gt;&lt;/i&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario ws-btn--icone&quot; type=&quot;button&quot; aria-label=&quot;Editar livro&quot;&gt;&lt;i data-lucide=&quot;pencil&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="logo" aria-labelledby="logo-t">
+  <header class="sg-secao__cab">
+    <h2 id="logo-t">Logo</h2>
+    <p>O símbolo não é redesenhado aqui. O quadrado tracejado (<code>.ws-logo__simbolo--reservado</code>) marca onde entra o SVG original: troque o span por <code>&lt;img src="…/img/logo/waresys-simbolo.svg" alt=""&gt;</code> ou pelo SVG inline com <code>fill="currentColor"</code> (aí a cor vem das classes de versão). Wordmark: Inter 600, −2,5%, corpo = 77% da altura do símbolo, respiro = 30%.</p>
+  </header>
+  <div class="sg-logos"><div class="sg-logos__item" style="background:#fff"><a class="ws-logo ws-logo--assinatura" href="index.php" aria-label="WareSys, ir para o Painel">
+  <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+  <span class="ws-logo__wordmark">WareSys</span>
+</a><p>Principal · símbolo Tiffany profundo, wordmark cinza</p></div><div class="sg-logos__item" style="background:var(--ws-cinza-profundo)"><a class="ws-logo ws-logo--assinatura ws-logo--negativa" href="index.php" aria-label="WareSys, ir para o Painel">
+  <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+  <span class="ws-logo__wordmark">WareSys</span>
+</a><p style="color:#C5D3DC">Negativa · .ws-logo--negativa</p></div><div class="sg-logos__item" style="background:var(--ws-tiffany-500)"><a class="ws-logo ws-logo--assinatura ws-logo--sobre-tiffany" href="index.php" aria-label="WareSys, ir para o Painel">
+  <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+  <span class="ws-logo__wordmark">WareSys</span>
+</a><p>Sobre Tiffany · .ws-logo--sobre-tiffany</p></div><div class="sg-logos__item" style="background:#fff"><a class="ws-logo ws-logo--assinatura ws-logo--mono" href="index.php" aria-label="WareSys, ir para o Painel">
+  <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+  <span class="ws-logo__wordmark">WareSys</span>
+</a><p>Monocromática · .ws-logo--mono</p></div></div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Assinatura (mín. 96px de largura)</p><p class="sg-ex__nota">Altura do símbolo controlada por --ws-logo-altura (28px padrão; .ws-logo--peq 22px; .ws-logo--grande 48px).</p>
+    <div class="sg-ex__demo">
+      <a class="ws-logo ws-logo--assinatura" href="index.php" aria-label="WareSys, ir para o Painel">
+        <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+        <span class="ws-logo__wordmark">WareSys</span>
+      </a>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-4"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-4"><code>&lt;a class=&quot;ws-logo ws-logo--assinatura&quot; href=&quot;index.php&quot; aria-label=&quot;WareSys, ir para o Painel&quot;&gt;
+  &lt;span class=&quot;ws-logo__simbolo ws-logo__simbolo--reservado&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+  &lt;span class=&quot;ws-logo__wordmark&quot;&gt;WareSys&lt;/span&gt;
+&lt;/a&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Símbolo completo (mín. 32px) e simplificado (16–31px)</p>
+    <div class="sg-ex__demo">
+      <span class="ws-logo ws-logo--simbolo" role="img" aria-label="WareSys">
+        <span class="ws-logo__simbolo ws-logo__simbolo--reservado"></span>
+      </span>
+      <span class="ws-logo ws-logo--simplificado" role="img" aria-label="WareSys">
+        <!-- abaixo de 32px: arquivo simplificado, sem faixas de lombada nem estante -->
+        <span class="ws-logo__simbolo ws-logo__simbolo--reservado"></span>
+      </span>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-5"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-5"><code>&lt;span class=&quot;ws-logo ws-logo--simbolo&quot; role=&quot;img&quot; aria-label=&quot;WareSys&quot;&gt;
+  &lt;span class=&quot;ws-logo__simbolo ws-logo__simbolo--reservado&quot;&gt;&lt;/span&gt;
+&lt;/span&gt;
+&lt;span class=&quot;ws-logo ws-logo--simplificado&quot; role=&quot;img&quot; aria-label=&quot;WareSys&quot;&gt;
+  &lt;!-- abaixo de 32px: arquivo simplificado, sem faixas de lombada nem estante --&gt;
+  &lt;span class=&quot;ws-logo__simbolo ws-logo__simbolo--reservado&quot;&gt;&lt;/span&gt;
+&lt;/span&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="botoes" aria-labelledby="botoes-t">
+  <header class="sg-secao__cab">
+    <h2 id="botoes-t">Botões</h2>
+    <p>Rótulo em Destaque 15/500. Primário em Tiffany sólido com texto cinza profundo; a seta vai só no botão principal da página. Hover Tiffany 400, pressionado Tiffany 600, foco com anel de 2px.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Primário, secundário e link</p>
+    <div class="sg-ex__demo">
+      <div class="ws-btn-grupo">
+        <button class="ws-btn ws-btn--primario" type="button">Avançar para Revisão <span class="ws-btn__seta" aria-hidden="true">→</span></button>
+        <button class="ws-btn ws-btn--secundario" type="button">Ver o livro</button>
+        <a class="ws-btn ws-btn--link" href="#">Ver histórico</a>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-6"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-6"><code>&lt;div class=&quot;ws-btn-grupo&quot;&gt;
+  &lt;button class=&quot;ws-btn ws-btn--primario&quot; type=&quot;button&quot;&gt;Avançar para Revisão &lt;span class=&quot;ws-btn__seta&quot; aria-hidden=&quot;true&quot;&gt;→&lt;/span&gt;&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario&quot; type=&quot;button&quot;&gt;Ver o livro&lt;/button&gt;
+  &lt;a class=&quot;ws-btn ws-btn--link&quot; href=&quot;#&quot;&gt;Ver histórico&lt;/a&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Estados</p><p class="sg-ex__nota">.is-pressionado só existe para mostrar o estado aqui; no uso real o :active faz isso. Passe o Tab para ver o foco.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-btn-grupo">
+        <button class="ws-btn ws-btn--primario" type="button">Primário</button>
+        <button class="ws-btn ws-btn--primario is-pressionado" type="button">Pressionado (600)</button>
+        <button class="ws-btn ws-btn--primario" type="button" disabled>Desabilitado</button>
+        <button class="ws-btn ws-btn--secundario" type="button" disabled>Desabilitado</button>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-7"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-7"><code>&lt;div class=&quot;ws-btn-grupo&quot;&gt;
+  &lt;button class=&quot;ws-btn ws-btn--primario&quot; type=&quot;button&quot;&gt;Primário&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--primario is-pressionado&quot; type=&quot;button&quot;&gt;Pressionado (600)&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--primario&quot; type=&quot;button&quot; disabled&gt;Desabilitado&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario&quot; type=&quot;button&quot; disabled&gt;Desabilitado&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Escuro, sobre fundo Tiffany</p>
+    <div class="sg-ex__demo sg-ex__demo--tiffany">
+      <div class="ws-btn-grupo">
+        <button class="ws-btn ws-btn--escuro" type="button">Agendar demonstração <span class="ws-btn__seta" aria-hidden="true">→</span></button>
+        <button class="ws-btn ws-btn--secundario" type="button" style="background:transparent;border-color:var(--ws-cinza-profundo)">Falar com a equipe</button>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-8"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-8"><code>&lt;div class=&quot;ws-btn-grupo&quot;&gt;
+  &lt;button class=&quot;ws-btn ws-btn--escuro&quot; type=&quot;button&quot;&gt;Agendar demonstração &lt;span class=&quot;ws-btn__seta&quot; aria-hidden=&quot;true&quot;&gt;→&lt;/span&gt;&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario&quot; type=&quot;button&quot; style=&quot;background:transparent;border-color:var(--ws-cinza-profundo)&quot;&gt;Falar com a equipe&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Com ícone, pequeno, só ícone e largura total</p>
+    <div class="sg-ex__demo">
+      <div class="ws-btn-grupo">
+        <button class="ws-btn ws-btn--secundario ws-btn--peq" type="button"><i data-lucide="plus"></i>Adicionar pessoa</button>
+        <button class="ws-btn ws-btn--secundario ws-btn--icone" type="button" aria-label="Remover pessoa"><i data-lucide="trash-2"></i></button>
+        <button class="ws-btn ws-btn--primario ws-btn--bloco" type="button">Largura total (.ws-btn--bloco)</button>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-9"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-9"><code>&lt;div class=&quot;ws-btn-grupo&quot;&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario ws-btn--peq&quot; type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;plus&quot;&gt;&lt;/i&gt;Adicionar pessoa&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario ws-btn--icone&quot; type=&quot;button&quot; aria-label=&quot;Remover pessoa&quot;&gt;&lt;i data-lucide=&quot;trash-2&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--primario ws-btn--bloco&quot; type=&quot;button&quot;&gt;Largura total (.ws-btn--bloco)&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="campos" aria-labelledby="campos-t">
+  <header class="sg-secao__cab">
+    <h2 id="campos-t">Campos</h2>
+    <p>Versão acessível aprovada: fundo branco, borda #7A8C99 (3:1 contra o fundo) e foco em Tiffany profundo. Todo campo tem <code>&lt;label&gt;</code>; ajuda e erro ligados por <code>aria-describedby</code>.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Input, select, textarea, ajuda, erro</p>
+    <div class="sg-ex__demo">
+      <div class="ws-form__grade">
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="ex-titulo">Título</label>
+          <input class="ws-input" id="ex-titulo" name="titulo" value="O silêncio das marés">
+        </div>
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="ex-copia">Tem cópia?</label>
+          <select class="ws-select" id="ex-copia" name="tem_copia"><option>Não</option><option>Sim</option></select>
+        </div>
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="ex-isbn">ISBN <span class="ws-campo__opcional">(opcional)</span></label>
+          <input class="ws-input ws-input--codigo" id="ex-isbn" name="isbn" aria-describedby="ex-isbn-ajuda" placeholder="978-65-87401-12-4">
+          <p class="ws-campo__ajuda" id="ex-isbn-ajuda">ISBN-13. Pode ficar vazio até a Catalogação.</p>
+        </div>
+        <div class="ws-campo ws-campo--erro">
+          <label class="ws-campo__rotulo" for="ex-isbn2">ISBN</label>
+          <input class="ws-input ws-input--codigo" id="ex-isbn2" name="isbn" value="978-65-87401-12-5" aria-invalid="true" aria-describedby="ex-isbn2-erro">
+          <p class="ws-campo__erro" id="ex-isbn2-erro"><i data-lucide="circle-alert"></i>Dígito verificador não confere. Para este número, o último dígito é 4.</p>
+        </div>
+        <div class="ws-campo ws-campo--inteiro">
+          <label class="ws-campo__rotulo" for="ex-obs">Observações do livro <span class="ws-campo__opcional">(opcional)</span></label>
+          <textarea class="ws-textarea" id="ex-obs" name="observacoes" aria-describedby="ex-obs-ajuda" placeholder="Pedidos da autora, prazos combinados, materiais pendentes."></textarea>
+          <p class="ws-campo__ajuda" id="ex-obs-ajuda">Texto livre. Fica no livro, não na etapa.</p>
+        </div>
+        <div class="ws-campo">
+          <label class="ws-campo__rotulo" for="ex-dis">Desabilitado</label>
+          <input class="ws-input" id="ex-dis" value="Etapa 7 de 15" disabled>
+        </div>
+        <div class="ws-campo">
+          <span class="ws-campo__rotulo">Opção</span>
+          <label class="ws-opcao"><input type="checkbox" checked> Etapa opcional</label>
+        </div>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-10"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-10"><code>&lt;div class=&quot;ws-form__grade&quot;&gt;
+  &lt;div class=&quot;ws-campo&quot;&gt;
+    &lt;label class=&quot;ws-campo__rotulo&quot; for=&quot;ex-titulo&quot;&gt;Título&lt;/label&gt;
+    &lt;input class=&quot;ws-input&quot; id=&quot;ex-titulo&quot; name=&quot;titulo&quot; value=&quot;O silêncio das marés&quot;&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-campo&quot;&gt;
+    &lt;label class=&quot;ws-campo__rotulo&quot; for=&quot;ex-copia&quot;&gt;Tem cópia?&lt;/label&gt;
+    &lt;select class=&quot;ws-select&quot; id=&quot;ex-copia&quot; name=&quot;tem_copia&quot;&gt;&lt;option&gt;Não&lt;/option&gt;&lt;option&gt;Sim&lt;/option&gt;&lt;/select&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-campo&quot;&gt;
+    &lt;label class=&quot;ws-campo__rotulo&quot; for=&quot;ex-isbn&quot;&gt;ISBN &lt;span class=&quot;ws-campo__opcional&quot;&gt;(opcional)&lt;/span&gt;&lt;/label&gt;
+    &lt;input class=&quot;ws-input ws-input--codigo&quot; id=&quot;ex-isbn&quot; name=&quot;isbn&quot; aria-describedby=&quot;ex-isbn-ajuda&quot; placeholder=&quot;978-65-87401-12-4&quot;&gt;
+    &lt;p class=&quot;ws-campo__ajuda&quot; id=&quot;ex-isbn-ajuda&quot;&gt;ISBN-13. Pode ficar vazio até a Catalogação.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-campo ws-campo--erro&quot;&gt;
+    &lt;label class=&quot;ws-campo__rotulo&quot; for=&quot;ex-isbn2&quot;&gt;ISBN&lt;/label&gt;
+    &lt;input class=&quot;ws-input ws-input--codigo&quot; id=&quot;ex-isbn2&quot; name=&quot;isbn&quot; value=&quot;978-65-87401-12-5&quot; aria-invalid=&quot;true&quot; aria-describedby=&quot;ex-isbn2-erro&quot;&gt;
+    &lt;p class=&quot;ws-campo__erro&quot; id=&quot;ex-isbn2-erro&quot;&gt;&lt;i data-lucide=&quot;circle-alert&quot;&gt;&lt;/i&gt;Dígito verificador não confere. Para este número, o último dígito é 4.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-campo ws-campo--inteiro&quot;&gt;
+    &lt;label class=&quot;ws-campo__rotulo&quot; for=&quot;ex-obs&quot;&gt;Observações do livro &lt;span class=&quot;ws-campo__opcional&quot;&gt;(opcional)&lt;/span&gt;&lt;/label&gt;
+    &lt;textarea class=&quot;ws-textarea&quot; id=&quot;ex-obs&quot; name=&quot;observacoes&quot; aria-describedby=&quot;ex-obs-ajuda&quot; placeholder=&quot;Pedidos da autora, prazos combinados, materiais pendentes.&quot;&gt;&lt;/textarea&gt;
+    &lt;p class=&quot;ws-campo__ajuda&quot; id=&quot;ex-obs-ajuda&quot;&gt;Texto livre. Fica no livro, não na etapa.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-campo&quot;&gt;
+    &lt;label class=&quot;ws-campo__rotulo&quot; for=&quot;ex-dis&quot;&gt;Desabilitado&lt;/label&gt;
+    &lt;input class=&quot;ws-input&quot; id=&quot;ex-dis&quot; value=&quot;Etapa 7 de 15&quot; disabled&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-campo&quot;&gt;
+    &lt;span class=&quot;ws-campo__rotulo&quot;&gt;Opção&lt;/span&gt;
+    &lt;label class=&quot;ws-opcao&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt; Etapa opcional&lt;/label&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Busca com ícone</p>
+    <div class="sg-ex__demo">
+      <form class="ws-busca" role="search" method="get" action="livros.php">
+        <label class="ws-sr-only" for="ex-busca">Buscar livro</label>
+        <i class="ws-busca__icone ws-icone--peq" data-lucide="search"></i>
+        <input class="ws-input" id="ex-busca" type="search" name="busca" placeholder="Buscar livro ou ISBN">
+      </form>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-11"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-11"><code>&lt;form class=&quot;ws-busca&quot; role=&quot;search&quot; method=&quot;get&quot; action=&quot;livros.php&quot;&gt;
+  &lt;label class=&quot;ws-sr-only&quot; for=&quot;ex-busca&quot;&gt;Buscar livro&lt;/label&gt;
+  &lt;i class=&quot;ws-busca__icone ws-icone--peq&quot; data-lucide=&quot;search&quot;&gt;&lt;/i&gt;
+  &lt;input class=&quot;ws-input&quot; id=&quot;ex-busca&quot; type=&quot;search&quot; name=&quot;busca&quot; placeholder=&quot;Buscar livro ou ISBN&quot;&gt;
+&lt;/form&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="etiquetas" aria-labelledby="etiquetas-t">
+  <header class="sg-secao__cab">
+    <h2 id="etiquetas-t">Etiquetas e status</h2>
+    <p>Etiqueta é rótulo, sem cor de status. Status é ponto + texto, sempre juntos, e só na coluna ou área de status. Concluído e cancelado usam etiqueta neutra.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Etiquetas</p>
+    <div class="sg-ex__demo">
+      <div class="ws-tags">
+        <span class="ws-tag">Em diagramação</span>
+        <span class="ws-tag ws-tag--rodada">Revisão <span class="ws-codigo">1/2</span></span>
+        <span class="ws-tag ws-tag--opcional">Opcional</span>
+        <span class="ws-tag ws-tag--neutra">Concluído</span>
+        <span class="ws-tag ws-tag--neutra">Gerente</span>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-12"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-12"><code>&lt;div class=&quot;ws-tags&quot;&gt;
+  &lt;span class=&quot;ws-tag&quot;&gt;Em diagramação&lt;/span&gt;
+  &lt;span class=&quot;ws-tag ws-tag--rodada&quot;&gt;Revisão &lt;span class=&quot;ws-codigo&quot;&gt;1/2&lt;/span&gt;&lt;/span&gt;
+  &lt;span class=&quot;ws-tag ws-tag--opcional&quot;&gt;Opcional&lt;/span&gt;
+  &lt;span class=&quot;ws-tag ws-tag--neutra&quot;&gt;Concluído&lt;/span&gt;
+  &lt;span class=&quot;ws-tag ws-tag--neutra&quot;&gt;Gerente&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Badge de status</p><p class="sg-ex__nota">Mapeamento: rodada (no prazo / no limite / cobrado) e livro (parado = amarelo, extraviado = vermelho).</p>
+    <div class="sg-ex__demo">
+      <div class="ws-linha">
+        <span class="ws-status ws-status--ok">No prazo</span>
+        <span class="ws-status ws-status--limite">No limite</span>
+        <span class="ws-status ws-status--cobrado">Cobrado</span>
+        <span class="ws-status ws-status--parado">Parado <span class="ws-status__detalhe">· 18 dias</span></span>
+        <span class="ws-status ws-status--extraviado">Extraviado</span>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-13"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-13"><code>&lt;div class=&quot;ws-linha&quot;&gt;
+  &lt;span class=&quot;ws-status ws-status--ok&quot;&gt;No prazo&lt;/span&gt;
+  &lt;span class=&quot;ws-status ws-status--limite&quot;&gt;No limite&lt;/span&gt;
+  &lt;span class=&quot;ws-status ws-status--cobrado&quot;&gt;Cobrado&lt;/span&gt;
+  &lt;span class=&quot;ws-status ws-status--parado&quot;&gt;Parado &lt;span class=&quot;ws-status__detalhe&quot;&gt;· 18 dias&lt;/span&gt;&lt;/span&gt;
+  &lt;span class=&quot;ws-status ws-status--extraviado&quot;&gt;Extraviado&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="cards" aria-labelledby="cards-t">
+  <header class="sg-secao__cab">
+    <h2 id="cards-t">Cards e indicadores</h2>
+    <p>Card transparente, sem raio e sem sombra, com linha de 1px. Use <code>.ws-card--superficie</code> para fundo branco.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Card de livro e card simples</p>
+    <div class="sg-ex__demo">
+      <div class="ws-grade">
+        <article class="ws-card ws-card--livro ws-col-6">
+          <p class="ws-eyebrow">Livro 0112 · Diagramação</p>
+          <h3 class="ws-card__titulo"><a href="livro_detalhes.php?id=112">O silêncio das marés</a></h3>
+          <p class="ws-card__texto">Rodada 3 de 3. A próxima volta será cobrada.</p>
+          <div class="ws-card__rodape">
+            <span class="ws-card__meta"><i data-lucide="user-round"></i>Responsável: Ana Lima</span>
+            <span class="ws-status ws-status--limite">No limite</span>
+          </div>
+        </article>
+        <div class="ws-card ws-col-6">
+          <i class="ws-card__icone" data-lucide="history"></i>
+          <h3 class="ws-card__titulo">Histórico do livro</h3>
+          <p class="ws-card__texto">Cada entrega, devolução e aprovação registrada com data.</p>
+        </div>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-14"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-14"><code>&lt;div class=&quot;ws-grade&quot;&gt;
+  &lt;article class=&quot;ws-card ws-card--livro ws-col-6&quot;&gt;
+    &lt;p class=&quot;ws-eyebrow&quot;&gt;Livro 0112 · Diagramação&lt;/p&gt;
+    &lt;h3 class=&quot;ws-card__titulo&quot;&gt;&lt;a href=&quot;livro_detalhes.php?id=112&quot;&gt;O silêncio das marés&lt;/a&gt;&lt;/h3&gt;
+    &lt;p class=&quot;ws-card__texto&quot;&gt;Rodada 3 de 3. A próxima volta será cobrada.&lt;/p&gt;
+    &lt;div class=&quot;ws-card__rodape&quot;&gt;
+      &lt;span class=&quot;ws-card__meta&quot;&gt;&lt;i data-lucide=&quot;user-round&quot;&gt;&lt;/i&gt;Responsável: Ana Lima&lt;/span&gt;
+      &lt;span class=&quot;ws-status ws-status--limite&quot;&gt;No limite&lt;/span&gt;
+    &lt;/div&gt;
+  &lt;/article&gt;
+  &lt;div class=&quot;ws-card ws-col-6&quot;&gt;
+    &lt;i class=&quot;ws-card__icone&quot; data-lucide=&quot;history&quot;&gt;&lt;/i&gt;
+    &lt;h3 class=&quot;ws-card__titulo&quot;&gt;Histórico do livro&lt;/h3&gt;
+    &lt;p class=&quot;ws-card__texto&quot;&gt;Cada entrega, devolução e aprovação registrada com data.&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Cartões de indicador (KPI)</p><p class="sg-ex__nota">O número só ganha a cor do status quando o indicador é um status. Pode ser &lt;a&gt; (leva à lista filtrada) ou &lt;div&gt;.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-kpis">
+        <a class="ws-kpi" href="livros.php">
+          <span class="ws-kpi__rotulo">Em produção</span>
+          <span class="ws-kpi__valor">14 <span class="ws-kpi__unidade">livros</span></span>
+        </a>
+        <a class="ws-kpi ws-kpi--limite" href="livros.php">
+          <span class="ws-kpi__rotulo">Rodadas no limite</span>
+          <span class="ws-kpi__valor">2</span>
+        </a>
+        <a class="ws-kpi ws-kpi--cobrado" href="livros.php">
+          <span class="ws-kpi__rotulo">Acima do limite</span>
+          <span class="ws-kpi__valor">1</span>
+        </a>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-15"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-15"><code>&lt;div class=&quot;ws-kpis&quot;&gt;
+  &lt;a class=&quot;ws-kpi&quot; href=&quot;livros.php&quot;&gt;
+    &lt;span class=&quot;ws-kpi__rotulo&quot;&gt;Em produção&lt;/span&gt;
+    &lt;span class=&quot;ws-kpi__valor&quot;&gt;14 &lt;span class=&quot;ws-kpi__unidade&quot;&gt;livros&lt;/span&gt;&lt;/span&gt;
+  &lt;/a&gt;
+  &lt;a class=&quot;ws-kpi ws-kpi--limite&quot; href=&quot;livros.php&quot;&gt;
+    &lt;span class=&quot;ws-kpi__rotulo&quot;&gt;Rodadas no limite&lt;/span&gt;
+    &lt;span class=&quot;ws-kpi__valor&quot;&gt;2&lt;/span&gt;
+  &lt;/a&gt;
+  &lt;a class=&quot;ws-kpi ws-kpi--cobrado&quot; href=&quot;livros.php&quot;&gt;
+    &lt;span class=&quot;ws-kpi__rotulo&quot;&gt;Acima do limite&lt;/span&gt;
+    &lt;span class=&quot;ws-kpi__valor&quot;&gt;1&lt;/span&gt;
+  &lt;/a&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="tabela" aria-labelledby="tabela-t">
+  <header class="sg-secao__cab">
+    <h2 id="tabela-t">Tabela de dados</h2>
+    <p>Cabeçalho em eyebrow, linhas de 1px, hover em Tiffany 100. Livro em mono; rodadas em mono e à direita. No celular a tabela rola por dentro do wrap; com <code>.ws-tabela--empilhar</code> e <code>data-rotulo</code> em cada célula, vira cartões.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Livros em produção</p><p class="sg-ex__nota">Código do livro: str_pad($livro['id'], 4, '0', STR_PAD_LEFT). Rodadas só para etapas com limite (Diagramação, Revisão); nas outras, "—".</p>
+    <div class="sg-ex__demo">
+      <div class="ws-tabela-wrap" tabindex="0" role="region" aria-label="Livros em produção">
+        <table class="ws-tabela ws-tabela--empilhar">
+          <thead>
+            <tr>
+              <th scope="col">Livro</th>
+              <th scope="col">Título</th>
+              <th scope="col">Etapa atual</th>
+              <th scope="col">Responsável</th>
+              <th scope="col" class="ws-tabela__num">Rodadas</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="ws-tabela__codigo" data-rotulo="Livro">0112</td>
+              <td class="ws-tabela__titulo" data-rotulo="Título"><a href="#">O silêncio das marés</a></td>
+              <td data-rotulo="Etapa atual">Diagramação</td>
+              <td data-rotulo="Responsável">Ana Lima</td>
+              <td class="ws-tabela__num" data-rotulo="Rodadas">3/3</td>
+              <td data-rotulo="Status"><span class="ws-status ws-status--limite">No limite</span></td>
+            </tr>
+            <tr>
+              <td class="ws-tabela__codigo" data-rotulo="Livro">0108</td>
+              <td class="ws-tabela__titulo" data-rotulo="Título"><a href="#">Cartografias do sertão</a></td>
+              <td data-rotulo="Etapa atual">Revisão</td>
+              <td data-rotulo="Responsável">Bruno Reis</td>
+              <td class="ws-tabela__num" data-rotulo="Rodadas">1/2</td>
+              <td data-rotulo="Status"><span class="ws-status ws-status--ok">No prazo</span></td>
+            </tr>
+            <tr>
+              <td class="ws-tabela__codigo" data-rotulo="Livro">0103</td>
+              <td class="ws-tabela__titulo" data-rotulo="Título"><a href="#">Poemas de inverno</a></td>
+              <td data-rotulo="Etapa atual">Revisão</td>
+              <td data-rotulo="Responsável">Diego Paz</td>
+              <td class="ws-tabela__num" data-rotulo="Rodadas">3/2</td>
+              <td data-rotulo="Status"><span class="ws-status ws-status--cobrado">Cobrado</span></td>
+            </tr>
+            <tr>
+              <td class="ws-tabela__codigo" data-rotulo="Livro">0115</td>
+              <td class="ws-tabela__titulo" data-rotulo="Título"><a href="#">Manual de encadernação</a></td>
+              <td data-rotulo="Etapa atual">Ilustração</td>
+              <td data-rotulo="Responsável">Carla Mota</td>
+              <td class="ws-tabela__num" data-rotulo="Rodadas">—</td>
+              <td data-rotulo="Status"><span class="ws-status ws-status--ok">No prazo</span></td>
+            </tr>
+            <tr>
+              <td class="ws-tabela__codigo" data-rotulo="Livro">0119</td>
+              <td class="ws-tabela__titulo" data-rotulo="Título"><a href="#">A casa de vidro</a></td>
+              <td data-rotulo="Etapa atual">Capa</td>
+              <td data-rotulo="Responsável">Ana Lima</td>
+              <td class="ws-tabela__num" data-rotulo="Rodadas">—</td>
+              <td data-rotulo="Status"><span class="ws-status ws-status--ok">No prazo</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-16"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-16"><code>&lt;div class=&quot;ws-tabela-wrap&quot; tabindex=&quot;0&quot; role=&quot;region&quot; aria-label=&quot;Livros em produção&quot;&gt;
+  &lt;table class=&quot;ws-tabela ws-tabela--empilhar&quot;&gt;
+    &lt;thead&gt;
+      &lt;tr&gt;
+        &lt;th scope=&quot;col&quot;&gt;Livro&lt;/th&gt;
+        &lt;th scope=&quot;col&quot;&gt;Título&lt;/th&gt;
+        &lt;th scope=&quot;col&quot;&gt;Etapa atual&lt;/th&gt;
+        &lt;th scope=&quot;col&quot;&gt;Responsável&lt;/th&gt;
+        &lt;th scope=&quot;col&quot; class=&quot;ws-tabela__num&quot;&gt;Rodadas&lt;/th&gt;
+        &lt;th scope=&quot;col&quot;&gt;Status&lt;/th&gt;
+      &lt;/tr&gt;
+    &lt;/thead&gt;
+    &lt;tbody&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;ws-tabela__codigo&quot; data-rotulo=&quot;Livro&quot;&gt;0112&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__titulo&quot; data-rotulo=&quot;Título&quot;&gt;&lt;a href=&quot;#&quot;&gt;O silêncio das marés&lt;/a&gt;&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Etapa atual&quot;&gt;Diagramação&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Responsável&quot;&gt;Ana Lima&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__num&quot; data-rotulo=&quot;Rodadas&quot;&gt;3/3&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Status&quot;&gt;&lt;span class=&quot;ws-status ws-status--limite&quot;&gt;No limite&lt;/span&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;ws-tabela__codigo&quot; data-rotulo=&quot;Livro&quot;&gt;0108&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__titulo&quot; data-rotulo=&quot;Título&quot;&gt;&lt;a href=&quot;#&quot;&gt;Cartografias do sertão&lt;/a&gt;&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Etapa atual&quot;&gt;Revisão&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Responsável&quot;&gt;Bruno Reis&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__num&quot; data-rotulo=&quot;Rodadas&quot;&gt;1/2&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Status&quot;&gt;&lt;span class=&quot;ws-status ws-status--ok&quot;&gt;No prazo&lt;/span&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;ws-tabela__codigo&quot; data-rotulo=&quot;Livro&quot;&gt;0103&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__titulo&quot; data-rotulo=&quot;Título&quot;&gt;&lt;a href=&quot;#&quot;&gt;Poemas de inverno&lt;/a&gt;&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Etapa atual&quot;&gt;Revisão&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Responsável&quot;&gt;Diego Paz&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__num&quot; data-rotulo=&quot;Rodadas&quot;&gt;3/2&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Status&quot;&gt;&lt;span class=&quot;ws-status ws-status--cobrado&quot;&gt;Cobrado&lt;/span&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;ws-tabela__codigo&quot; data-rotulo=&quot;Livro&quot;&gt;0115&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__titulo&quot; data-rotulo=&quot;Título&quot;&gt;&lt;a href=&quot;#&quot;&gt;Manual de encadernação&lt;/a&gt;&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Etapa atual&quot;&gt;Ilustração&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Responsável&quot;&gt;Carla Mota&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__num&quot; data-rotulo=&quot;Rodadas&quot;&gt;—&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Status&quot;&gt;&lt;span class=&quot;ws-status ws-status--ok&quot;&gt;No prazo&lt;/span&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td class=&quot;ws-tabela__codigo&quot; data-rotulo=&quot;Livro&quot;&gt;0119&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__titulo&quot; data-rotulo=&quot;Título&quot;&gt;&lt;a href=&quot;#&quot;&gt;A casa de vidro&lt;/a&gt;&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Etapa atual&quot;&gt;Capa&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Responsável&quot;&gt;Ana Lima&lt;/td&gt;
+        &lt;td class=&quot;ws-tabela__num&quot; data-rotulo=&quot;Rodadas&quot;&gt;—&lt;/td&gt;
+        &lt;td data-rotulo=&quot;Status&quot;&gt;&lt;span class=&quot;ws-status ws-status--ok&quot;&gt;No prazo&lt;/span&gt;&lt;/td&gt;
+      &lt;/tr&gt;
+    &lt;/tbody&gt;
+  &lt;/table&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="rodadas" aria-labelledby="rodadas-t">
+  <header class="sg-secao__cab">
+    <h2 id="rodadas-t">Contador de rodadas</h2>
+    <p>Diagramação inclui 3 rodadas; Revisão, 2. A última incluída acende o alerta (amarelo); o que passa disso é cobrado (vermelho). O PHP só preenche <code>data-limite</code> e <code>data-atual</code> e um bloco por rodada; as cores saem do CSS. Rodadas futuras ficam com a barra cinza; a atual tem contorno escuro.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">A regra (como na pág. 09 do manual)</p><p class="sg-ex__nota">data-atual="regra" mostra todas as barras coloridas, sem rodada atual.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-pilha ws-pilha--peq">
+        <div class="ws-rodadas" data-limite="3" data-atual="regra">
+          <span class="ws-rodadas__etapa">Diagramação</span>
+          <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3</li><li class="ws-rodada">R4+</li></ol>
+        </div>
+        <div class="ws-rodadas" data-limite="2" data-atual="regra">
+          <span class="ws-rodadas__etapa">Revisão</span>
+          <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3+</li></ol>
+        </div>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-17"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-17"><code>&lt;div class=&quot;ws-pilha ws-pilha--peq&quot;&gt;
+  &lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;3&quot; data-atual=&quot;regra&quot;&gt;
+    &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;Diagramação&lt;/span&gt;
+    &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R1&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R2&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R3&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R4+&lt;/li&gt;&lt;/ol&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;2&quot; data-atual=&quot;regra&quot;&gt;
+    &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;Revisão&lt;/span&gt;
+    &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R1&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R2&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R3+&lt;/li&gt;&lt;/ol&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Livro em andamento</p><p class="sg-ex__nota">Na rodada 5 o último bloco mostra "R5" (o waresys.js troca o texto); sem JS, continua "R4+" com a cor certa. O waresys.js também escreve o aria-label se o PHP não escrever.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-pilha ws-pilha--peq">
+        <div class="ws-rodadas" data-limite="3" data-atual="2">
+          <span class="ws-rodadas__etapa">Diagramação</span>
+          <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3</li><li class="ws-rodada">R4+</li></ol>
+          <p class="ws-rodadas__legenda">Rodada 2 de 3.</p>
+        </div>
+        <div class="ws-rodadas" data-limite="3" data-atual="3">
+          <span class="ws-rodadas__etapa">Diagramação</span>
+          <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3</li><li class="ws-rodada">R4+</li></ol>
+          <p class="ws-rodadas__legenda">Rodada 3 de 3. A próxima volta será cobrada.</p>
+        </div>
+        <div class="ws-rodadas" data-limite="3" data-atual="5">
+          <span class="ws-rodadas__etapa">Diagramação</span>
+          <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3</li><li class="ws-rodada">R4+</li></ol>
+          <p class="ws-rodadas__legenda">Rodada 5 de 3. Duas rodadas cobráveis.</p>
+        </div>
+        <div class="ws-rodadas" data-limite="2" data-atual="3">
+          <span class="ws-rodadas__etapa">Revisão</span>
+          <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3+</li></ol>
+          <p class="ws-rodadas__legenda">Revisão do livro 103 na rodada 3 de 2. Uma rodada será cobrada.</p>
+        </div>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-18"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-18"><code>&lt;div class=&quot;ws-pilha ws-pilha--peq&quot;&gt;
+  &lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;3&quot; data-atual=&quot;2&quot;&gt;
+    &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;Diagramação&lt;/span&gt;
+    &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R1&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R2&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R3&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R4+&lt;/li&gt;&lt;/ol&gt;
+    &lt;p class=&quot;ws-rodadas__legenda&quot;&gt;Rodada 2 de 3.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;3&quot; data-atual=&quot;3&quot;&gt;
+    &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;Diagramação&lt;/span&gt;
+    &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R1&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R2&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R3&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R4+&lt;/li&gt;&lt;/ol&gt;
+    &lt;p class=&quot;ws-rodadas__legenda&quot;&gt;Rodada 3 de 3. A próxima volta será cobrada.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;3&quot; data-atual=&quot;5&quot;&gt;
+    &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;Diagramação&lt;/span&gt;
+    &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R1&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R2&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R3&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R4+&lt;/li&gt;&lt;/ol&gt;
+    &lt;p class=&quot;ws-rodadas__legenda&quot;&gt;Rodada 5 de 3. Duas rodadas cobráveis.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;2&quot; data-atual=&quot;3&quot;&gt;
+    &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;Revisão&lt;/span&gt;
+    &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R1&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R2&lt;/li&gt;&lt;li class=&quot;ws-rodada&quot;&gt;R3+&lt;/li&gt;&lt;/ol&gt;
+    &lt;p class=&quot;ws-rodadas__legenda&quot;&gt;Revisão do livro 103 na rodada 3 de 2. Uma rodada será cobrada.&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Lista vazia: o waresys.js gera os blocos</p>
+    <div class="sg-ex__demo">
+      <div class="ws-rodadas" data-limite="2" data-atual="1">
+        <span class="ws-rodadas__etapa">Revisão</span>
+        <ol class="ws-rodadas__blocos"></ol>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-19"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-19"><code>&lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;2&quot; data-atual=&quot;1&quot;&gt;
+  &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;Revisão&lt;/span&gt;
+  &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;&lt;/ol&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex"><p class="sg-ex__titulo">Em PHP</p><pre><code>&lt;?php // $limite = etapas.rodadas_incluidas ; $atual = rodada da movimentação aberta ?&gt;
+&lt;div class=&quot;ws-rodadas&quot; data-limite=&quot;&lt;?= (int)$limite ?&gt;&quot; data-atual=&quot;&lt;?= (int)$atual ?&gt;&quot;&gt;
+  &lt;span class=&quot;ws-rodadas__etapa&quot;&gt;&lt;?= htmlspecialchars($etapaNome) ?&gt;&lt;/span&gt;
+  &lt;ol class=&quot;ws-rodadas__blocos&quot;&gt;
+    &lt;?php for ($n = 1; $n &lt;= $limite + 1; $n++): ?&gt;
+      &lt;li class=&quot;ws-rodada&quot;&gt;R&lt;?= $n ?&gt;&lt;?= $n &gt; $limite ? &#x27;+&#x27; : &#x27;&#x27; ?&gt;&lt;/li&gt;
+    &lt;?php endfor; ?&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;</code></pre></div>
+</section>
+
+<section class="sg-secao" id="fluxo" aria-labelledby="fluxo-t">
+  <header class="sg-secao__cab">
+    <h2 id="fluxo-t">Fluxo de etapas</h2>
+    <p>Lista vertical compacta com as 15 etapas. Estados: <code>.is-concluida</code>, <code>.is-atual</code> (com <code>aria-current="step"</code>), <code>.is-pulada</code> (opcional não feita) e futura (sem classe). O estado também vai em texto para leitor de tela. A tela de detalhe do livro tem a lista completa.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Progresso + trecho do fluxo</p><p class="sg-ex__nota">O número do marcador é etapas.ordem com 2 dígitos. Etapa sem rodadas: deixe um &lt;span&gt;&lt;/span&gt; vazio na 3ª coluna.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-progresso">
+        <div class="ws-progresso__rotulo"><span>Etapa 7 de 15</span><span class="ws-codigo">47%</span></div>
+        <div class="ws-progresso__trilho" role="progressbar" aria-valuemin="1" aria-valuemax="15" aria-valuenow="7" aria-valuetext="Etapa 7 de 15, Diagramação">
+          <span class="ws-progresso__preenchimento" style="--ws-progresso: 47%"></span>
+        </div>
+      </div>
+      <ol class="ws-fluxo" aria-label="Fluxo de etapas do livro">
+        <li class="ws-fluxo__etapa is-concluida">
+          <span class="ws-fluxo__marcador" aria-hidden="true"><i data-lucide="check"></i></span>
+          <span class="ws-fluxo__nome"><span>Ilustração</span> <span class="ws-tag ws-tag--opcional ws-tag--peq">Opcional</span><span class="ws-sr-only">(concluída)</span></span>
+          <span></span>
+        </li>
+        <li class="ws-fluxo__etapa is-pulada">
+          <span class="ws-fluxo__marcador" aria-hidden="true">06</span>
+          <span class="ws-fluxo__nome"><span>Aprovação da capa</span> <span class="ws-tag ws-tag--opcional ws-tag--peq">Opcional</span><span class="ws-sr-only">(pulada)</span><span class="ws-fluxo__detalhe">Pulada em 25/09</span></span>
+          <span></span>
+        </li>
+        <li class="ws-fluxo__etapa is-atual" aria-current="step">
+          <span class="ws-fluxo__marcador" aria-hidden="true">07</span>
+          <span class="ws-fluxo__nome"><span>Diagramação</span><span class="ws-sr-only">(etapa atual)</span><span class="ws-fluxo__detalhe">Desde 18/10 · Mesa: Ana Lima</span></span>
+          <span class="ws-fluxo__extra">R3/3</span>
+        </li>
+        <li class="ws-fluxo__etapa">
+          <span class="ws-fluxo__marcador" aria-hidden="true">08</span>
+          <span class="ws-fluxo__nome"><span>Revisão</span> <span class="ws-tag ws-tag--opcional ws-tag--peq">Opcional</span><span class="ws-sr-only">(a fazer)</span></span>
+          <span class="ws-fluxo__extra">R1/2</span>
+        </li>
+        <li class="ws-fluxo__etapa">
+          <span class="ws-fluxo__marcador" aria-hidden="true">09</span>
+          <span class="ws-fluxo__nome"><span>Catalogação — ISBN e ficha catalográfica</span><span class="ws-sr-only">(a fazer)</span></span>
+          <span></span>
+        </li>
+      </ol>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-20"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-20"><code>&lt;div class=&quot;ws-progresso&quot;&gt;
+  &lt;div class=&quot;ws-progresso__rotulo&quot;&gt;&lt;span&gt;Etapa 7 de 15&lt;/span&gt;&lt;span class=&quot;ws-codigo&quot;&gt;47%&lt;/span&gt;&lt;/div&gt;
+  &lt;div class=&quot;ws-progresso__trilho&quot; role=&quot;progressbar&quot; aria-valuemin=&quot;1&quot; aria-valuemax=&quot;15&quot; aria-valuenow=&quot;7&quot; aria-valuetext=&quot;Etapa 7 de 15, Diagramação&quot;&gt;
+    &lt;span class=&quot;ws-progresso__preenchimento&quot; style=&quot;--ws-progresso: 47%&quot;&gt;&lt;/span&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;ol class=&quot;ws-fluxo&quot; aria-label=&quot;Fluxo de etapas do livro&quot;&gt;
+  &lt;li class=&quot;ws-fluxo__etapa is-concluida&quot;&gt;
+    &lt;span class=&quot;ws-fluxo__marcador&quot; aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;check&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+    &lt;span class=&quot;ws-fluxo__nome&quot;&gt;&lt;span&gt;Ilustração&lt;/span&gt; &lt;span class=&quot;ws-tag ws-tag--opcional ws-tag--peq&quot;&gt;Opcional&lt;/span&gt;&lt;span class=&quot;ws-sr-only&quot;&gt;(concluída)&lt;/span&gt;&lt;/span&gt;
+    &lt;span&gt;&lt;/span&gt;
+  &lt;/li&gt;
+  &lt;li class=&quot;ws-fluxo__etapa is-pulada&quot;&gt;
+    &lt;span class=&quot;ws-fluxo__marcador&quot; aria-hidden=&quot;true&quot;&gt;06&lt;/span&gt;
+    &lt;span class=&quot;ws-fluxo__nome&quot;&gt;&lt;span&gt;Aprovação da capa&lt;/span&gt; &lt;span class=&quot;ws-tag ws-tag--opcional ws-tag--peq&quot;&gt;Opcional&lt;/span&gt;&lt;span class=&quot;ws-sr-only&quot;&gt;(pulada)&lt;/span&gt;&lt;span class=&quot;ws-fluxo__detalhe&quot;&gt;Pulada em 25/09&lt;/span&gt;&lt;/span&gt;
+    &lt;span&gt;&lt;/span&gt;
+  &lt;/li&gt;
+  &lt;li class=&quot;ws-fluxo__etapa is-atual&quot; aria-current=&quot;step&quot;&gt;
+    &lt;span class=&quot;ws-fluxo__marcador&quot; aria-hidden=&quot;true&quot;&gt;07&lt;/span&gt;
+    &lt;span class=&quot;ws-fluxo__nome&quot;&gt;&lt;span&gt;Diagramação&lt;/span&gt;&lt;span class=&quot;ws-sr-only&quot;&gt;(etapa atual)&lt;/span&gt;&lt;span class=&quot;ws-fluxo__detalhe&quot;&gt;Desde 18/10 · Mesa: Ana Lima&lt;/span&gt;&lt;/span&gt;
+    &lt;span class=&quot;ws-fluxo__extra&quot;&gt;R3/3&lt;/span&gt;
+  &lt;/li&gt;
+  &lt;li class=&quot;ws-fluxo__etapa&quot;&gt;
+    &lt;span class=&quot;ws-fluxo__marcador&quot; aria-hidden=&quot;true&quot;&gt;08&lt;/span&gt;
+    &lt;span class=&quot;ws-fluxo__nome&quot;&gt;&lt;span&gt;Revisão&lt;/span&gt; &lt;span class=&quot;ws-tag ws-tag--opcional ws-tag--peq&quot;&gt;Opcional&lt;/span&gt;&lt;span class=&quot;ws-sr-only&quot;&gt;(a fazer)&lt;/span&gt;&lt;/span&gt;
+    &lt;span class=&quot;ws-fluxo__extra&quot;&gt;R1/2&lt;/span&gt;
+  &lt;/li&gt;
+  &lt;li class=&quot;ws-fluxo__etapa&quot;&gt;
+    &lt;span class=&quot;ws-fluxo__marcador&quot; aria-hidden=&quot;true&quot;&gt;09&lt;/span&gt;
+    &lt;span class=&quot;ws-fluxo__nome&quot;&gt;&lt;span&gt;Catalogação — ISBN e ficha catalográfica&lt;/span&gt;&lt;span class=&quot;ws-sr-only&quot;&gt;(a fazer)&lt;/span&gt;&lt;/span&gt;
+    &lt;span&gt;&lt;/span&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="historico" aria-labelledby="historico-t">
+  <header class="sg-secao__cab">
+    <h2 id="historico-t">Linha do tempo e dados do livro</h2>
+    <p>Uma linha por movimentação, da mais recente para a mais antiga. O tipo vem no ícone e no texto: avanço (<code>arrow-right</code>), repetição (<code>rotate-ccw</code>), retrocesso (<code>undo-2</code>), pulo de opcional (<code>skip-forward</code>), troca de mesa (<code>arrow-left-right</code>), resgate (<code>search</code>). Retrocesso e resgate têm marcador tracejado; a movimentação aberta, marcador cheio.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Histórico do livro</p>
+    <div class="sg-ex__demo">
+      <ol class="ws-linha-tempo">
+        <li class="ws-evento ws-evento--repeticao is-aberto">
+          <span class="ws-evento__icone" aria-hidden="true"><i data-lucide="rotate-ccw"></i></span>
+          <div class="ws-evento__corpo">
+            <p class="ws-evento__titulo">Diagramação de novo, rodada 3 de 3</p>
+            <p class="ws-evento__meta">Repetição · Mesa: Ana Lima · Registrado por Ana Lima</p>
+          </div>
+          <time class="ws-evento__data" datetime="2026-10-18T09:12">18/10 09:12</time>
+        </li>
+        <li class="ws-evento ws-evento--retrocesso">
+          <span class="ws-evento__icone" aria-hidden="true"><i data-lucide="undo-2"></i></span>
+          <div class="ws-evento__corpo">
+            <p class="ws-evento__titulo">Voltou de Revisão para Diagramação</p>
+            <p class="ws-evento__meta">Retrocesso · Rodada 2 de 3 · Mesa: Bruno Reis · Registrado por Diego Paz</p>
+          </div>
+          <time class="ws-evento__data" datetime="2026-10-10T14:32">10/10 14:32</time>
+        </li>
+        <li class="ws-evento ws-evento--avanco">
+          <span class="ws-evento__icone" aria-hidden="true"><i data-lucide="arrow-right"></i></span>
+          <div class="ws-evento__corpo">
+            <p class="ws-evento__titulo">Revisão aprovada. Entrou em Catalogação</p>
+            <p class="ws-evento__meta">Avanço · Mesa: Carla Mota · Registrado por Diego Paz</p>
+          </div>
+          <time class="ws-evento__data" datetime="2026-10-06T10:20">06/10 10:20</time>
+        </li>
+        <li class="ws-evento ws-evento--resgate">
+          <span class="ws-evento__icone" aria-hidden="true"><i data-lucide="search"></i></span>
+          <div class="ws-evento__corpo">
+            <p class="ws-evento__titulo">Resgate concluído. Encontrado na gráfica</p>
+            <p class="ws-evento__meta">Resgate · Volta para Fechamento de arquivo · Mesa: Bruno Reis</p>
+          </div>
+          <time class="ws-evento__data" datetime="2026-09-30T16:00">30/09 16:00</time>
+        </li>
+      </ol>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-21"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-21"><code>&lt;ol class=&quot;ws-linha-tempo&quot;&gt;
+  &lt;li class=&quot;ws-evento ws-evento--repeticao is-aberto&quot;&gt;
+    &lt;span class=&quot;ws-evento__icone&quot; aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+    &lt;div class=&quot;ws-evento__corpo&quot;&gt;
+      &lt;p class=&quot;ws-evento__titulo&quot;&gt;Diagramação de novo, rodada 3 de 3&lt;/p&gt;
+      &lt;p class=&quot;ws-evento__meta&quot;&gt;Repetição · Mesa: Ana Lima · Registrado por Ana Lima&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;time class=&quot;ws-evento__data&quot; datetime=&quot;2026-10-18T09:12&quot;&gt;18/10 09:12&lt;/time&gt;
+  &lt;/li&gt;
+  &lt;li class=&quot;ws-evento ws-evento--retrocesso&quot;&gt;
+    &lt;span class=&quot;ws-evento__icone&quot; aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;undo-2&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+    &lt;div class=&quot;ws-evento__corpo&quot;&gt;
+      &lt;p class=&quot;ws-evento__titulo&quot;&gt;Voltou de Revisão para Diagramação&lt;/p&gt;
+      &lt;p class=&quot;ws-evento__meta&quot;&gt;Retrocesso · Rodada 2 de 3 · Mesa: Bruno Reis · Registrado por Diego Paz&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;time class=&quot;ws-evento__data&quot; datetime=&quot;2026-10-10T14:32&quot;&gt;10/10 14:32&lt;/time&gt;
+  &lt;/li&gt;
+  &lt;li class=&quot;ws-evento ws-evento--avanco&quot;&gt;
+    &lt;span class=&quot;ws-evento__icone&quot; aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;arrow-right&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+    &lt;div class=&quot;ws-evento__corpo&quot;&gt;
+      &lt;p class=&quot;ws-evento__titulo&quot;&gt;Revisão aprovada. Entrou em Catalogação&lt;/p&gt;
+      &lt;p class=&quot;ws-evento__meta&quot;&gt;Avanço · Mesa: Carla Mota · Registrado por Diego Paz&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;time class=&quot;ws-evento__data&quot; datetime=&quot;2026-10-06T10:20&quot;&gt;06/10 10:20&lt;/time&gt;
+  &lt;/li&gt;
+  &lt;li class=&quot;ws-evento ws-evento--resgate&quot;&gt;
+    &lt;span class=&quot;ws-evento__icone&quot; aria-hidden=&quot;true&quot;&gt;&lt;i data-lucide=&quot;search&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+    &lt;div class=&quot;ws-evento__corpo&quot;&gt;
+      &lt;p class=&quot;ws-evento__titulo&quot;&gt;Resgate concluído. Encontrado na gráfica&lt;/p&gt;
+      &lt;p class=&quot;ws-evento__meta&quot;&gt;Resgate · Volta para Fechamento de arquivo · Mesa: Bruno Reis&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;time class=&quot;ws-evento__data&quot; datetime=&quot;2026-09-30T16:00&quot;&gt;30/09 16:00&lt;/time&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Dados do livro (lista de definições)</p>
+    <div class="sg-ex__demo">
+      <dl class="ws-dados">
+        <div><dt>Livro</dt><dd class="ws-codigo">0112</dd></div>
+        <div><dt>ISBN</dt><dd class="ws-codigo">978-65-87401-12-4</dd></div>
+        <div><dt>Tem cópia</dt><dd>Não</dd></div>
+        <div><dt>Pessoas</dt><dd>Marina Couto <span class="ws-texto-suave">· Autora</span></dd></div>
+      </dl>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-22"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-22"><code>&lt;dl class=&quot;ws-dados&quot;&gt;
+  &lt;div&gt;&lt;dt&gt;Livro&lt;/dt&gt;&lt;dd class=&quot;ws-codigo&quot;&gt;0112&lt;/dd&gt;&lt;/div&gt;
+  &lt;div&gt;&lt;dt&gt;ISBN&lt;/dt&gt;&lt;dd class=&quot;ws-codigo&quot;&gt;978-65-87401-12-4&lt;/dd&gt;&lt;/div&gt;
+  &lt;div&gt;&lt;dt&gt;Tem cópia&lt;/dt&gt;&lt;dd&gt;Não&lt;/dd&gt;&lt;/div&gt;
+  &lt;div&gt;&lt;dt&gt;Pessoas&lt;/dt&gt;&lt;dd&gt;Marina Couto &lt;span class=&quot;ws-texto-suave&quot;&gt;· Autora&lt;/span&gt;&lt;/dd&gt;&lt;/div&gt;
+&lt;/dl&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="alertas" aria-labelledby="alertas-t">
+  <header class="sg-secao__cab">
+    <h2 id="alertas-t">Alertas e toasts</h2>
+    <p>Tom de voz de coordenador editorial: livro, etapa e rodada antes de qualquer adjetivo. Sem exclamação, sem caixa alta para alarme, sem emoji. O filete lateral só ganha cor de status quando o alerta é sobre status.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Alertas: informativo, ok, no limite, cobrado</p>
+    <div class="sg-ex__demo">
+      <div class="ws-pilha ws-pilha--peq">
+        <div class="ws-alerta" role="status">
+          <i class="ws-alerta__icone" data-lucide="info"></i>
+          <div class="ws-alerta__corpo"><p>Capa do livro 119 aguarda aprovação desde 12/10. Responsável: Ana Lima.</p></div>
+        </div>
+        <div class="ws-alerta ws-alerta--ok" role="status">
+          <i class="ws-alerta__icone" data-lucide="check"></i>
+          <div class="ws-alerta__corpo"><p>Livro 0108 avançou para Revisão. Rodada 1 de 2.</p></div>
+        </div>
+        <div class="ws-alerta ws-alerta--limite" role="status">
+          <i class="ws-alerta__icone" data-lucide="triangle-alert"></i>
+          <div class="ws-alerta__corpo">
+            <p class="ws-alerta__titulo">Livro 112 voltou para diagramação. Rodada 3 de 3.</p>
+            <p>A próxima volta será cobrada.</p>
+          </div>
+        </div>
+        <div class="ws-alerta ws-alerta--cobrado" role="alert">
+          <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
+          <div class="ws-alerta__corpo">
+            <p class="ws-alerta__titulo">Revisão do livro 103 na rodada 3 de 2.</p>
+            <p>Uma rodada será cobrada.</p>
+            <div class="ws-alerta__acoes"><a href="#">Ver livro</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-23"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-23"><code>&lt;div class=&quot;ws-pilha ws-pilha--peq&quot;&gt;
+  &lt;div class=&quot;ws-alerta&quot; role=&quot;status&quot;&gt;
+    &lt;i class=&quot;ws-alerta__icone&quot; data-lucide=&quot;info&quot;&gt;&lt;/i&gt;
+    &lt;div class=&quot;ws-alerta__corpo&quot;&gt;&lt;p&gt;Capa do livro 119 aguarda aprovação desde 12/10. Responsável: Ana Lima.&lt;/p&gt;&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-alerta ws-alerta--ok&quot; role=&quot;status&quot;&gt;
+    &lt;i class=&quot;ws-alerta__icone&quot; data-lucide=&quot;check&quot;&gt;&lt;/i&gt;
+    &lt;div class=&quot;ws-alerta__corpo&quot;&gt;&lt;p&gt;Livro 0108 avançou para Revisão. Rodada 1 de 2.&lt;/p&gt;&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-alerta ws-alerta--limite&quot; role=&quot;status&quot;&gt;
+    &lt;i class=&quot;ws-alerta__icone&quot; data-lucide=&quot;triangle-alert&quot;&gt;&lt;/i&gt;
+    &lt;div class=&quot;ws-alerta__corpo&quot;&gt;
+      &lt;p class=&quot;ws-alerta__titulo&quot;&gt;Livro 112 voltou para diagramação. Rodada 3 de 3.&lt;/p&gt;
+      &lt;p&gt;A próxima volta será cobrada.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-alerta ws-alerta--cobrado&quot; role=&quot;alert&quot;&gt;
+    &lt;i class=&quot;ws-alerta__icone&quot; data-lucide=&quot;circle-alert&quot;&gt;&lt;/i&gt;
+    &lt;div class=&quot;ws-alerta__corpo&quot;&gt;
+      &lt;p class=&quot;ws-alerta__titulo&quot;&gt;Revisão do livro 103 na rodada 3 de 2.&lt;/p&gt;
+      &lt;p&gt;Uma rodada será cobrada.&lt;/p&gt;
+      &lt;div class=&quot;ws-alerta__acoes&quot;&gt;&lt;a href=&quot;#&quot;&gt;Ver livro&lt;/a&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Toast que some sozinho</p><p class="sg-ex__nota">WareSys.toast(mensagem, tipo, {titulo, duracao}). Some em 6 s e pausa com o mouse ou o foco em cima. O texto entra por textContent: nunca interpreta HTML.</p>
+    <div class="sg-ex__demo">
+      <div class="ws-btn-grupo">
+        <button class="ws-btn ws-btn--secundario" type="button" onclick="WareSys.toast('Livro 0108 avançou para Revisão. Rodada 1 de 2.', 'ok')">Toast ok</button>
+        <button class="ws-btn ws-btn--secundario" type="button" onclick="WareSys.toast('Livro 112 voltou para diagramação.', 'limite', {titulo: 'Rodada 3 de 3.'})">Toast no limite</button>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-24"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-24"><code>&lt;div class=&quot;ws-btn-grupo&quot;&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario&quot; type=&quot;button&quot; onclick=&quot;WareSys.toast(&#x27;Livro 0108 avançou para Revisão. Rodada 1 de 2.&#x27;, &#x27;ok&#x27;)&quot;&gt;Toast ok&lt;/button&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario&quot; type=&quot;button&quot; onclick=&quot;WareSys.toast(&#x27;Livro 112 voltou para diagramação.&#x27;, &#x27;limite&#x27;, {titulo: &#x27;Rodada 3 de 3.&#x27;})&quot;&gt;Toast no limite&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Toast escrito pelo PHP</p><p class="sg-ex__nota">Na página, coloque dentro de &lt;div class="ws-toasts" aria-live="polite"&gt; com data-ws-toast. Aqui está fixo (data-ws-duracao="0", position: static) só para mostrar.</p>
+    <div class="sg-ex__demo">
+      <!-- O flash da sessão, escrito pelo PHP -->
+      <div class="ws-toast ws-alerta ws-alerta--ok" role="status" data-ws-duracao="0" style="position:static">
+        <i class="ws-alerta__icone" data-lucide="check"></i>
+        <div class="ws-alerta__corpo"><p>Livro 0112 passou para a mesa de Bruno Reis. Continua na rodada 3.</p></div>
+        <button class="ws-fechar" type="button" data-ws-toast-fechar aria-label="Fechar aviso"><i data-lucide="x" class="ws-icone--peq"></i></button>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-25"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-25"><code>&lt;!-- O flash da sessão, escrito pelo PHP --&gt;
+&lt;div class=&quot;ws-toast ws-alerta ws-alerta--ok&quot; role=&quot;status&quot; data-ws-duracao=&quot;0&quot; style=&quot;position:static&quot;&gt;
+  &lt;i class=&quot;ws-alerta__icone&quot; data-lucide=&quot;check&quot;&gt;&lt;/i&gt;
+  &lt;div class=&quot;ws-alerta__corpo&quot;&gt;&lt;p&gt;Livro 0112 passou para a mesa de Bruno Reis. Continua na rodada 3.&lt;/p&gt;&lt;/div&gt;
+  &lt;button class=&quot;ws-fechar&quot; type=&quot;button&quot; data-ws-toast-fechar aria-label=&quot;Fechar aviso&quot;&gt;&lt;i data-lucide=&quot;x&quot; class=&quot;ws-icone--peq&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="modal" aria-labelledby="modal-t">
+  <header class="sg-secao__cab">
+    <h2 id="modal-t">Modal de confirmação</h2>
+    <p>Usa <code>&lt;dialog&gt;</code> nativo: foco preso, resto da página inerte, Esc fecha, e o foco volta para o botão que abriu. Para pedir confirmação antes de enviar um formulário (substitui o <code>confirm()</code> de hoje), ponha <code>data-ws-confirmar="id-do-modal"</code> no <code>&lt;form&gt;</code> e <code>data-ws-confirmar-ok</code> no botão do modal. Sem JS, o formulário é enviado direto; a regra continua validada no PHP.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Confirmar antes de enviar</p><p class="sg-ex__nota">Para abrir um modal sem formulário: &lt;button data-ws-modal-abrir="id-do-modal"&gt;. No exemplo, o form tem onsubmit="return false" só para não sair da página.</p>
+    <div class="sg-ex__demo">
+      <form method="post" action="#" data-ws-confirmar="modal-exemplo" onsubmit="return false">
+        <input type="hidden" name="acao" value="repetir">
+        <button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="rotate-ccw"></i>Registrar nova rodada de revisão</button>
+      </form>
+
+      <dialog class="ws-modal" id="modal-exemplo" aria-labelledby="modal-exemplo-titulo" aria-describedby="modal-exemplo-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-exemplo-titulo">Registrar nova rodada de revisão?</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p id="modal-exemplo-texto">Esta será a rodada 3 de 2 e será cobrada.</p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Voltar</button>
+            <button class="ws-btn ws-btn--primario" type="button" data-ws-confirmar-ok>Registrar rodada 3</button>
+          </footer>
+        </div>
+      </dialog>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-26"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-26"><code>&lt;form method=&quot;post&quot; action=&quot;#&quot; data-ws-confirmar=&quot;modal-exemplo&quot; onsubmit=&quot;return false&quot;&gt;
+  &lt;input type=&quot;hidden&quot; name=&quot;acao&quot; value=&quot;repetir&quot;&gt;
+  &lt;button class=&quot;ws-btn ws-btn--secundario&quot; type=&quot;submit&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot;&gt;&lt;/i&gt;Registrar nova rodada de revisão&lt;/button&gt;
+&lt;/form&gt;
+
+&lt;dialog class=&quot;ws-modal&quot; id=&quot;modal-exemplo&quot; aria-labelledby=&quot;modal-exemplo-titulo&quot; aria-describedby=&quot;modal-exemplo-texto&quot;&gt;
+  &lt;div class=&quot;ws-modal__caixa&quot;&gt;
+    &lt;header class=&quot;ws-modal__cabecalho&quot;&gt;
+      &lt;h2 id=&quot;modal-exemplo-titulo&quot;&gt;Registrar nova rodada de revisão?&lt;/h2&gt;
+      &lt;button class=&quot;ws-fechar&quot; type=&quot;button&quot; data-ws-modal-fechar aria-label=&quot;Fechar&quot;&gt;&lt;i data-lucide=&quot;x&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+    &lt;/header&gt;
+    &lt;div class=&quot;ws-modal__corpo&quot;&gt;
+      &lt;p id=&quot;modal-exemplo-texto&quot;&gt;Esta será a rodada 3 de 2 e será cobrada.&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;footer class=&quot;ws-modal__rodape&quot;&gt;
+      &lt;button class=&quot;ws-btn ws-btn--secundario&quot; type=&quot;button&quot; data-ws-modal-fechar&gt;Voltar&lt;/button&gt;
+      &lt;button class=&quot;ws-btn ws-btn--primario&quot; type=&quot;button&quot; data-ws-confirmar-ok&gt;Registrar rodada 3&lt;/button&gt;
+    &lt;/footer&gt;
+  &lt;/div&gt;
+&lt;/dialog&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="estados" aria-labelledby="estados-t">
+  <header class="sg-secao__cab">
+    <h2 id="estados-t">Vazio, carregamento e paginação</h2>
+    <p>Estados de apoio, no mesmo tom: o que aconteceu e o que fazer.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Estado vazio</p>
+    <div class="sg-ex__demo">
+      <div class="ws-vazio">
+        <i class="ws-vazio__icone" data-lucide="inbox"></i>
+        <h3 class="ws-h2">Nenhum livro na sua mesa.</h3>
+        <p class="ws-vazio__texto">Livros aparecem aqui quando alguém passa um livro para você ou quando você avança um livro escolhendo a sua mesa.</p>
+        <a class="ws-btn ws-btn--secundario" href="livros.php">Ver todos os livros</a>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-27"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-27"><code>&lt;div class=&quot;ws-vazio&quot;&gt;
+  &lt;i class=&quot;ws-vazio__icone&quot; data-lucide=&quot;inbox&quot;&gt;&lt;/i&gt;
+  &lt;h3 class=&quot;ws-h2&quot;&gt;Nenhum livro na sua mesa.&lt;/h3&gt;
+  &lt;p class=&quot;ws-vazio__texto&quot;&gt;Livros aparecem aqui quando alguém passa um livro para você ou quando você avança um livro escolhendo a sua mesa.&lt;/p&gt;
+  &lt;a class=&quot;ws-btn ws-btn--secundario&quot; href=&quot;livros.php&quot;&gt;Ver todos os livros&lt;/a&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Carregamento simples</p><p class="sg-ex__nota">Como a página é gerada pelo PHP, quase não há espera. Use em relatório pesado ou no botão em envio (.is-carregando + disabled).</p>
+    <div class="sg-ex__demo">
+      <div class="ws-carregando" role="status" aria-live="polite">
+        <span>Carregando livros…</span>
+        <span class="ws-carregando__trilho" aria-hidden="true"></span>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-28"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-28"><code>&lt;div class=&quot;ws-carregando&quot; role=&quot;status&quot; aria-live=&quot;polite&quot;&gt;
+  &lt;span&gt;Carregando livros…&lt;/span&gt;
+  &lt;span class=&quot;ws-carregando__trilho&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Paginação</p>
+    <div class="sg-ex__demo">
+      <div class="ws-tabela-rodape">
+        <span>21–40 de 64 livros</span>
+        <nav class="ws-paginacao" aria-label="Paginação">
+          <a class="ws-paginacao__item" href="?pagina=1" aria-label="Página anterior"><i data-lucide="chevron-left" class="ws-icone--peq"></i></a>
+          <a class="ws-paginacao__item" href="?pagina=1">1</a>
+          <a class="ws-paginacao__item" href="?pagina=2" aria-current="page">2</a>
+          <a class="ws-paginacao__item" href="?pagina=3">3</a>
+          <span class="ws-paginacao__reticencias">…</span>
+          <a class="ws-paginacao__item" href="?pagina=4">4</a>
+          <a class="ws-paginacao__item" href="?pagina=3" aria-label="Próxima página"><i data-lucide="chevron-right" class="ws-icone--peq"></i></a>
+        </nav>
+      </div>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-29"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-29"><code>&lt;div class=&quot;ws-tabela-rodape&quot;&gt;
+  &lt;span&gt;21–40 de 64 livros&lt;/span&gt;
+  &lt;nav class=&quot;ws-paginacao&quot; aria-label=&quot;Paginação&quot;&gt;
+    &lt;a class=&quot;ws-paginacao__item&quot; href=&quot;?pagina=1&quot; aria-label=&quot;Página anterior&quot;&gt;&lt;i data-lucide=&quot;chevron-left&quot; class=&quot;ws-icone--peq&quot;&gt;&lt;/i&gt;&lt;/a&gt;
+    &lt;a class=&quot;ws-paginacao__item&quot; href=&quot;?pagina=1&quot;&gt;1&lt;/a&gt;
+    &lt;a class=&quot;ws-paginacao__item&quot; href=&quot;?pagina=2&quot; aria-current=&quot;page&quot;&gt;2&lt;/a&gt;
+    &lt;a class=&quot;ws-paginacao__item&quot; href=&quot;?pagina=3&quot;&gt;3&lt;/a&gt;
+    &lt;span class=&quot;ws-paginacao__reticencias&quot;&gt;…&lt;/span&gt;
+    &lt;a class=&quot;ws-paginacao__item&quot; href=&quot;?pagina=4&quot;&gt;4&lt;/a&gt;
+    &lt;a class=&quot;ws-paginacao__item&quot; href=&quot;?pagina=3&quot; aria-label=&quot;Próxima página&quot;&gt;&lt;i data-lucide=&quot;chevron-right&quot; class=&quot;ws-icone--peq&quot;&gt;&lt;/i&gt;&lt;/a&gt;
+  &lt;/nav&gt;
+&lt;/div&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="navegacao" aria-labelledby="navegacao-t">
+  <header class="sg-secao__cab">
+    <h2 id="navegacao-t">Navegação e estrutura</h2>
+    <p>Sidebar com o menu real (Painel, Minha mesa, Livros, Pessoas, Relatórios, Configurações). Item ativo: fundo Tiffany 100, ícone Tiffany profundo, peso 600 e filete à esquerda, marcado com <code>aria-current="page"</code>. Abaixo de 1024px a sidebar vira gaveta: funciona sem JS (link para <code>#ws-sidebar</code> + <code>:target</code>); o waresys.js acrescenta Esc, aria-expanded e foco. O esqueleto completo está em <code>telas/painel.html</code>.</p>
+  </header>
+  <div class="sg-ex">
+    <p class="sg-ex__titulo">Menu</p><p class="sg-ex__nota">Em PHP: &lt;?= $paginaAtual === 'livros' ? 'aria-current="page"' : '' ?&gt; em cada item.</p>
+    <div class="sg-ex__demo">
+      <nav class="ws-nav" style="max-width:240px;background:var(--ws-cor-superficie);border:1px solid var(--ws-cor-linha)">
+        <ul class="ws-nav__lista">
+          <li><a class="ws-nav__item" href="index.php"><i data-lucide="layout-dashboard"></i>Painel</a></li>
+          <li><a class="ws-nav__item" href="minha_mesa.php"><i data-lucide="inbox"></i>Minha mesa<span class="ws-nav__contador">4</span></a></li>
+          <li><a class="ws-nav__item" href="livros.php" aria-current="page"><i data-lucide="book-open"></i>Livros</a></li>
+          <li><a class="ws-nav__item" href="pessoas.php"><i data-lucide="users"></i>Pessoas</a></li>
+          <li><a class="ws-nav__item" href="relatorios.php"><i data-lucide="file-text"></i>Relatórios</a></li>
+          <li><a class="ws-nav__item" href="configuracoes.php"><i data-lucide="settings"></i>Configurações</a></li>
+        </ul>
+      </nav>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-30"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-30"><code>&lt;nav class=&quot;ws-nav&quot; style=&quot;max-width:240px;background:var(--ws-cor-superficie);border:1px solid var(--ws-cor-linha)&quot;&gt;
+  &lt;ul class=&quot;ws-nav__lista&quot;&gt;
+    &lt;li&gt;&lt;a class=&quot;ws-nav__item&quot; href=&quot;index.php&quot;&gt;&lt;i data-lucide=&quot;layout-dashboard&quot;&gt;&lt;/i&gt;Painel&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a class=&quot;ws-nav__item&quot; href=&quot;minha_mesa.php&quot;&gt;&lt;i data-lucide=&quot;inbox&quot;&gt;&lt;/i&gt;Minha mesa&lt;span class=&quot;ws-nav__contador&quot;&gt;4&lt;/span&gt;&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a class=&quot;ws-nav__item&quot; href=&quot;livros.php&quot; aria-current=&quot;page&quot;&gt;&lt;i data-lucide=&quot;book-open&quot;&gt;&lt;/i&gt;Livros&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a class=&quot;ws-nav__item&quot; href=&quot;pessoas.php&quot;&gt;&lt;i data-lucide=&quot;users&quot;&gt;&lt;/i&gt;Pessoas&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a class=&quot;ws-nav__item&quot; href=&quot;relatorios.php&quot;&gt;&lt;i data-lucide=&quot;file-text&quot;&gt;&lt;/i&gt;Relatórios&lt;/a&gt;&lt;/li&gt;
+    &lt;li&gt;&lt;a class=&quot;ws-nav__item&quot; href=&quot;configuracoes.php&quot;&gt;&lt;i data-lucide=&quot;settings&quot;&gt;&lt;/i&gt;Configurações&lt;/a&gt;&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/nav&gt;</code></pre>
+    </details>
+  </div>
+<div class="sg-ex">
+    <p class="sg-ex__titulo">Barra de topo da página</p>
+    <div class="sg-ex__demo">
+      <header class="ws-topo" style="padding:0">
+        <div class="ws-topo__titulos">
+          <h1 class="ws-topo__titulo">Painel editorial</h1>
+          <p class="ws-topo__subtitulo">Livros em produção · outubro</p>
+        </div>
+        <div class="ws-topo__acoes">
+          <form class="ws-busca" role="search" method="get" action="livros.php">
+            <label class="ws-sr-only" for="topo-busca">Buscar livro</label>
+            <i class="ws-busca__icone ws-icone--peq" data-lucide="search"></i>
+            <input class="ws-input" id="topo-busca" type="search" name="busca" placeholder="Buscar livro ou ISBN">
+          </form>
+        </div>
+      </header>
+    </div>
+    <details class="sg-ex__codigo">
+      <summary>Ver HTML</summary>
+      <div class="sg-ex__barra"><button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-sg-copiar="sg-cod-31"><i data-lucide="copy" class="ws-icone--peq"></i>Copiar</button></div>
+      <pre id="sg-cod-31"><code>&lt;header class=&quot;ws-topo&quot; style=&quot;padding:0&quot;&gt;
+  &lt;div class=&quot;ws-topo__titulos&quot;&gt;
+    &lt;h1 class=&quot;ws-topo__titulo&quot;&gt;Painel editorial&lt;/h1&gt;
+    &lt;p class=&quot;ws-topo__subtitulo&quot;&gt;Livros em produção · outubro&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;ws-topo__acoes&quot;&gt;
+    &lt;form class=&quot;ws-busca&quot; role=&quot;search&quot; method=&quot;get&quot; action=&quot;livros.php&quot;&gt;
+      &lt;label class=&quot;ws-sr-only&quot; for=&quot;topo-busca&quot;&gt;Buscar livro&lt;/label&gt;
+      &lt;i class=&quot;ws-busca__icone ws-icone--peq&quot; data-lucide=&quot;search&quot;&gt;&lt;/i&gt;
+      &lt;input class=&quot;ws-input&quot; id=&quot;topo-busca&quot; type=&quot;search&quot; name=&quot;busca&quot; placeholder=&quot;Buscar livro ou ISBN&quot;&gt;
+    &lt;/form&gt;
+  &lt;/div&gt;
+&lt;/header&gt;</code></pre>
+    </details>
+  </div>
+</section>
+
+<section class="sg-secao" id="voz" aria-labelledby="voz-t">
+  <header class="sg-secao__cab">
+    <h2 id="voz-t">Tom de voz</h2>
+    <p>Fala como um coordenador editorial: direto, preciso e calmo. Livro, etapa e rodada antes de qualquer adjetivo. Sem exclamação, sem caixa alta para alarme, sem emoji.</p>
+  </header>
+  <div class="ws-tabela-wrap"><table class="ws-tabela">
+  <thead><tr><th scope="col">Princípio</th><th scope="col">Certo</th><th scope="col">Errado</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Direto</strong></td><td>Livro 112 voltou para diagramação. Rodada 3 de 3.</td><td class="ws-tabela__suave">Oba! Seu livro voltou!!!</td></tr>
+    <tr><td><strong>Preciso</strong></td><td>Revisão do livro 103 na rodada 3 de 2. Uma rodada será cobrada.</td><td class="ws-tabela__suave">A revisão passou um pouquinho do combinado.</td></tr>
+    <tr><td><strong>Calmo</strong></td><td>Capa do livro 119 aguarda aprovação desde 12/10. Responsável: Ana Lima.</td><td class="ws-tabela__suave">URGENTE!!! CAPA ATRASADA</td></tr>
+    <tr><td><strong>Vazio</strong></td><td>Nenhum livro em Revisão. Livros entram aqui quando saem da Diagramação.</td><td class="ws-tabela__suave">Ops! Nada por aqui 😕</td></tr>
+    <tr><td><strong>Erro</strong></td><td>O livro não foi salvo. ISBN: dígito verificador não confere.</td><td class="ws-tabela__suave">Erro! Algo deu errado.</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<section class="sg-secao" id="telas" aria-labelledby="telas-t">
+  <header class="sg-secao__cab">
+    <h2 id="telas-t">Telas de exemplo</h2>
+    <p>HTML estático com dados fictícios, só com classes do design system. Abra no navegador e redimensione até 360px.</p>
+  </header>
+  <div class="sg-telas"><a class="ws-card ws-card--superficie sg-tela" href="telas/login.html"><p class="ws-eyebrow ws-eyebrow--destaque">telas/login.html</p><h3 class="ws-card__titulo">Login</h3><p class="ws-card__texto">Painel da marca em cor lisa e formulário.</p></a><a class="ws-card ws-card--superficie sg-tela" href="telas/painel.html"><p class="ws-eyebrow ws-eyebrow--destaque">telas/painel.html</p><h3 class="ws-card__titulo">Painel editorial</h3><p class="ws-card__texto">Alerta de resgate, KPIs, livros que pedem atenção, livros por etapa, sua mesa, toast.</p></a><a class="ws-card ws-card--superficie sg-tela" href="telas/livro.html"><p class="ws-eyebrow ws-eyebrow--destaque">telas/livro.html</p><h3 class="ws-card__titulo">Detalhe do livro</h3><p class="ws-card__texto">Situação, rodadas por etapa, movimentar, observações, histórico, fluxo de 15 etapas, modais.</p></a><a class="ws-card ws-card--superficie sg-tela" href="telas/livro-form.html"><p class="ws-eyebrow ws-eyebrow--destaque">telas/livro-form.html</p><h3 class="ws-card__titulo">Cadastro de livro</h3><p class="ws-card__texto">Formulário com erro de ISBN, pessoas vinculadas e observações.</p></a><a class="ws-card ws-card--superficie sg-tela" href="telas/livros.html"><p class="ws-eyebrow ws-eyebrow--destaque">telas/livros.html</p><h3 class="ws-card__titulo">Livros com filtros</h3><p class="ws-card__texto">Filtro por etapa (Revisão), tabela que empilha no celular, paginação, estado vazio.</p></a><a class="ws-card ws-card--superficie sg-tela" href="telas/equipe.html"><p class="ws-eyebrow ws-eyebrow--destaque">telas/equipe.html</p><h3 class="ws-card__titulo">Equipe</h3><p class="ws-card__texto">Usuários, perfis de acesso e criação de usuário.</p></a></div>
+</section>
+    </main>
+  </div>
+
+  <script>
+    /* Só desta página: copiar código e alternar tema de pré-visualização */
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sg-copiar]');
+      if (!b) return;
+      var texto = document.getElementById(b.getAttribute('data-sg-copiar')).textContent;
+      var pronto = function () { if (window.WareSys) WareSys.toast('HTML copiado.', 'ok', { duracao: 2500 }); };
+      if (navigator.clipboard) navigator.clipboard.writeText(texto).then(pronto, function () {});
+    });
+    document.getElementById('sg-tema').addEventListener('click', function () {
+      var raiz = document.documentElement;
+      var escuro = raiz.getAttribute('data-theme') !== 'escuro';
+      raiz.setAttribute('data-theme', escuro ? 'escuro' : 'claro');
+      this.setAttribute('aria-pressed', String(escuro));
+    });
+  </script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <script src="js/waresys.js" defer></script>
+</body>
+</html>

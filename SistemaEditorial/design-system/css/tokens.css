@@ -1,0 +1,205 @@
+/* ==========================================================================
+   WareSys · Design system · tokens.css
+   --------------------------------------------------------------------------
+   Todas as variáveis (custom properties) da marca: cores, tipografia,
+   espaçamento, bordas e camadas. Fonte de verdade: Manual de Marca v1.1.
+
+   Regra de uso: os componentes usam SEMPRE os tokens semânticos
+   (--ws-cor-*), nunca os valores brutos da paleta. É isso que permite o
+   tema escuro: ele só redefine os tokens semânticos, no fim do arquivo.
+
+   Ordem de inclusão no <head>: tokens.css → base.css → layout.css →
+   components.css.
+   ========================================================================== */
+
+:root {
+
+  /* ------------------------------------------------------------------------
+     1. Paleta da marca (valores brutos, manual pág. 08)
+     ------------------------------------------------------------------------ */
+
+  /* Escala do azul Tiffany.
+     100–300: fundos e hovers · 500: base / ação primária · 600: pressionado
+     700+: texto, ícones e símbolo sobre fundos claros (700 = "Tiffany profundo") */
+  --ws-tiffany-100: #F6FCFB;
+  --ws-tiffany-200: #ECF9F7;
+  --ws-tiffany-300: #D9F3F0;
+  --ws-tiffany-400: #B7E8E3;
+  --ws-tiffany-500: #81D8D0;
+  --ws-tiffany-600: #61AAAF;
+  --ws-tiffany-700: #3D6C7B;
+  --ws-tiffany-800: #325868;
+  --ws-tiffany-900: #294757;
+
+  /* Neutros da marca */
+  --ws-cinza-profundo: #172937; /* texto, wordmark, fundos escuros, rodapé */
+  --ws-gelo:           #EAF5FB; /* fundo das páginas */
+  --ws-branco:         #FFFFFF; /* superfícies de produto, tabelas */
+
+  /* Neutros de apoio (medidos no manual, págs. 09–11) */
+  --ws-cinza-texto-suave: #5D5D60; /* metadados, responsável, legendas (6,4:1 sobre branco) */
+  --ws-cinza-linha:       #DAE3EA; /* linhas de 1px: cards, tabela, divisórias */
+  --ws-cinza-linha-forte: #C9D2D7; /* régua de cabeçalho e de tabela */
+  --ws-cinza-campo:       #7A8C99; /* borda de input: 3:1 sobre branco (WCAG 1.4.11) */
+  --ws-cinza-neutro:      #EEF2F5; /* fundo de etiqueta neutra (rodada, perfil) */
+
+  /* ------------------------------------------------------------------------
+     2. Cores de status — FUNCIONAIS, nunca decorativas.
+     Só aparecem para indicar a situação do livro no fluxo, sempre com
+     texto ao lado (nunca só a cor). O "ponto" é a cor viva; o "texto" é
+     o tom escuro, que passa AA sobre branco e gelo.
+     ------------------------------------------------------------------------ */
+  --ws-ok-ponto:       #16A34A; /* no prazo · em andamento */
+  --ws-ok-texto:       #15803D;
+  --ws-limite-ponto:   #F59E0B; /* rodadas no limite · livro parado */
+  --ws-limite-texto:   #B45309;
+  --ws-cobrado-ponto:  #EF4444; /* acima do limite · cobrado · extraviado */
+  --ws-cobrado-texto:  #B91C1C;
+
+  /* ------------------------------------------------------------------------
+     3. Tokens semânticos — é isto que os componentes usam
+     ------------------------------------------------------------------------ */
+  --ws-cor-fundo:              var(--ws-gelo);            /* fundo da página */
+  --ws-cor-superficie:         var(--ws-branco);          /* tabelas, sidebar, modal, campos */
+  --ws-cor-superficie-escura:  var(--ws-cinza-profundo);  /* rodapé, painel da marca */
+  --ws-cor-texto:              var(--ws-cinza-profundo);
+  --ws-cor-texto-suave:        var(--ws-cinza-texto-suave);
+  --ws-cor-texto-inverso:      var(--ws-branco);          /* texto sobre cinza profundo */
+  --ws-cor-linha:              var(--ws-cinza-linha);
+  --ws-cor-linha-forte:        var(--ws-cinza-linha-forte);
+  --ws-cor-linha-campo:        var(--ws-cinza-campo);
+  --ws-cor-neutro:             var(--ws-cinza-neutro);
+
+  --ws-cor-acao:               var(--ws-tiffany-500);     /* botão primário */
+  --ws-cor-acao-hover:         var(--ws-tiffany-400);
+  --ws-cor-acao-pressionado:   var(--ws-tiffany-600);
+  --ws-cor-texto-sobre-acao:   var(--ws-cinza-profundo);  /* ~9:1 sobre Tiffany 500 */
+  --ws-cor-destaque:           var(--ws-tiffany-700);     /* links, ícones, eyebrow de livro */
+  --ws-cor-destaque-forte:     var(--ws-tiffany-800);     /* hover de link */
+  --ws-cor-realce:             var(--ws-tiffany-100);     /* hover de linha, item ativo */
+  --ws-cor-realce-forte:       var(--ws-tiffany-200);     /* pressionado do secundário, página atual */
+  --ws-cor-etiqueta:           var(--ws-tiffany-300);     /* fundo da etiqueta de etapa */
+  --ws-cor-foco:               var(--ws-tiffany-700);     /* anel de foco */
+  --ws-cor-selecao:            var(--ws-tiffany-300);     /* ::selection */
+
+  --ws-cor-desabilitado-fundo: #E4ECF1;
+  --ws-cor-desabilitado-texto: #7E8B95;
+  --ws-cor-veu:                rgba(23, 41, 55, 0.6);     /* fundo atrás do modal / menu móvel */
+
+  /* ------------------------------------------------------------------------
+     4. Tipografia — uma família só: Inter (manual pág. 10)
+     ------------------------------------------------------------------------ */
+  --ws-fonte: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --ws-fonte-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", Menlo, monospace;
+
+  /* Escala: tamanho / peso / espaçamento entre letras / entrelinha */
+  --ws-fs-display: 56px;  --ws-fw-display: 700;  --ws-ls-display: -0.03em;  --ws-lh-display: 1.05;
+  --ws-fs-h1:      32px;  --ws-fw-h1:      600;  --ws-ls-h1:      -0.025em; --ws-lh-h1:      1.15;
+  --ws-fs-h2:      20px;  --ws-fw-h2:      600;  --ws-ls-h2:      -0.02em;  --ws-lh-h2:      1.3;
+  --ws-fs-destaque: 15px; --ws-fw-destaque: 500;                            --ws-lh-destaque: 1.4;
+  --ws-fs-corpo:   13px;  --ws-fw-corpo:   400;                             --ws-lh-corpo:   1.5;
+  --ws-fs-eyebrow: 12px;  --ws-fw-eyebrow: 600;  --ws-ls-eyebrow: 0.12em;   --ws-lh-eyebrow: 1.4;
+  --ws-fs-codigo:  12px;  --ws-fw-codigo:  400;
+
+  /* Pesos nomeados (para casos pontuais) */
+  --ws-peso-regular: 400;
+  --ws-peso-medio:   500;
+  --ws-peso-semi:    600;
+  --ws-peso-negrito: 700;
+
+  /* ------------------------------------------------------------------------
+     5. Espaçamento — base de 4px
+     ------------------------------------------------------------------------ */
+  --ws-esp-1: 4px;
+  --ws-esp-2: 8px;
+  --ws-esp-3: 12px;
+  --ws-esp-4: 16px;
+  --ws-esp-5: 24px;
+  --ws-esp-6: 32px;
+  --ws-esp-7: 48px;
+  --ws-esp-8: 64px;
+
+  /* ------------------------------------------------------------------------
+     6. Bordas, sombras e efeitos
+     O manual proíbe sombras, gradientes, brilhos e cantos arredondados em
+     cards. Os tokens existem para deixar isso explícito: não invente valor.
+     ------------------------------------------------------------------------ */
+  --ws-raio: 0;
+  --ws-borda-largura: 1px;
+  --ws-borda: var(--ws-borda-largura) solid var(--ws-cor-linha);
+  --ws-borda-forte: var(--ws-borda-largura) solid var(--ws-cor-linha-forte);
+  --ws-barra-status: 3px;        /* barra superior do contador / lateral do alerta */
+  --ws-sombra: none;
+  --ws-foco-largura: 2px;
+  --ws-foco-afastamento: 2px;
+
+  /* ------------------------------------------------------------------------
+     7. Tamanhos de controle e de layout
+     ------------------------------------------------------------------------ */
+  --ws-controle-altura: 40px;         /* botão, input, select */
+  --ws-controle-altura-peq: 32px;     /* botão pequeno, paginação */
+  --ws-icone: 18px;                   /* ícone Lucide padrão */
+  --ws-icone-peq: 16px;
+
+  --ws-sidebar-largura: 240px;
+  --ws-barra-movel-altura: 56px;
+  --ws-conteudo-max: 1280px;
+  --ws-grade-colunas: 12;
+  --ws-grade-espaco: 24px;
+
+  /* Pontos de quebra (referência — CSS não aceita var() em @media):
+     360 celular · 768 tablet · 1024 desktop · 1280 desktop largo */
+
+  /* ------------------------------------------------------------------------
+     8. Camadas (z-index) e movimento
+     ------------------------------------------------------------------------ */
+  --ws-z-sidebar: 50;
+  --ws-z-veu: 40;
+  --ws-z-toast: 90;
+  --ws-transicao: 120ms ease-out;     /* só troca de cor; nada de animação decorativa */
+}
+
+/* ==========================================================================
+   Tema escuro
+   --------------------------------------------------------------------------
+   O sistema já guarda o tema em usuarios.tema e escreve
+   <html data-theme="escuro">. O manual não define tema escuro; esta versão
+   segue a lógica da versão negativa do logo: fundo cinza profundo, texto
+   gelo, Tiffany 500 como destaque (ele tem contraste alto sobre o escuro).
+   Só os tokens semânticos mudam — nenhum componente precisa de regra extra.
+   ========================================================================== */
+[data-theme="escuro"] {
+  --ws-cor-fundo:              #12212C;
+  --ws-cor-superficie:         var(--ws-cinza-profundo);
+  --ws-cor-superficie-escura:  #0D1820;
+  --ws-cor-texto:              var(--ws-gelo);
+  --ws-cor-texto-suave:        #A9B8C3;
+  --ws-cor-texto-inverso:      var(--ws-gelo);
+  --ws-cor-linha:              #2C4252;
+  --ws-cor-linha-forte:        #3A5263;
+  --ws-cor-linha-campo:        #6B8090;   /* 3:1 sobre a superfície escura */
+  --ws-cor-neutro:             #233847;
+
+  --ws-cor-acao:               var(--ws-tiffany-500);
+  --ws-cor-acao-hover:         var(--ws-tiffany-400);
+  --ws-cor-acao-pressionado:   var(--ws-tiffany-600);
+  --ws-cor-texto-sobre-acao:   var(--ws-cinza-profundo);
+  --ws-cor-destaque:           var(--ws-tiffany-500);
+  --ws-cor-destaque-forte:     var(--ws-tiffany-400);
+  --ws-cor-realce:             #1F3646;
+  --ws-cor-realce-forte:       #24404F;
+  --ws-cor-etiqueta:           #24404F;
+  --ws-cor-foco:               var(--ws-tiffany-500);
+  --ws-cor-selecao:            var(--ws-tiffany-800);
+
+  --ws-cor-desabilitado-fundo: #233847;
+  --ws-cor-desabilitado-texto: #7E8F9C;
+  --ws-cor-veu:                rgba(5, 12, 17, 0.7);
+
+  /* Status: tons claros para manter contraste AA sobre o fundo escuro */
+  --ws-ok-texto:      #4ADE80;
+  --ws-limite-texto:  #FBBF24;
+  --ws-cobrado-texto: #F87171;
+
+  color-scheme: dark;
+}

@@ -1,0 +1,27 @@
+WareSys · design system de frontend (v1.0)
+==========================================
+
+Fonte de verdade: Manual de Marca v1.1. Abra styleguide.html no navegador para ver
+cada token e componente com o HTML para copiar.
+
+Arquivos
+  css/tokens.css      variáveis: cores (+ tema escuro), tipografia, espaçamento, bordas
+  css/base.css        reset leve, tipografia, links, foco visível, ícones
+  css/layout.css      sidebar, barra móvel, cabeçalho da página, grade de 12 colunas,
+                      grade modular visível, marcas de registro "+"
+  css/components.css  todos os componentes (.ws-*)
+  js/waresys.js       menu no celular, modal, confirmação de formulário, toasts,
+                      contador de rodadas (opcional: tudo tem versão sem JS)
+  styleguide.html     documentação viva
+  telas/*.html        login, painel, detalhe do livro, cadastro, livros com filtros, equipe
+  img/logo/           coloque aqui os SVG originais do logo (ver LEIAME.txt da pasta)
+
+Inclusão (nesta ordem): tokens.css, base.css, layout.css, components.css.
+Scripts no fim do <body>: lucide (CDN) e js/waresys.js com defer.
+
+Importante
+  - Não carregue junto com style.css / style_base.css / dark.css antigos na mesma página.
+    Migre uma tela por vez.
+  - Tema escuro: <html data-theme="escuro">, o mesmo valor que usuarios.tema já guarda.
+  - Sem internet, a Inter e o Lucide não carregam: baixe lucide.min.js (0.469.0) para js/
+    e troque o <script> para o arquivo local.
