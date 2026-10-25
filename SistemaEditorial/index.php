@@ -77,18 +77,7 @@ $mesAtual = $mesesPt[(int)date('n') - 1];
 $podeNovoLivro = usuarioTemPermissao('livros.gerenciar');
 $podeNovaPessoa = usuarioTemPermissao('pessoas.gerenciar');
 
-/** "1 livro" / "3 livros". */
-function qtdTexto(int $n, string $singular, string $plural): string
-{
-    return $n . ' ' . ($n === 1 ? $singular : $plural);
-}
-
-/** Rodada no formato do design system: "R3/3" (etapa com limite de rodadas) ou "R2" (sem limite). */
-function rotuloRodada(int $rodada, $limite): string
-{
-    return 'R' . $rodada . ($limite !== null ? '/' . (int)$limite : '');
-}
-
+// qtdTexto() e rotuloRodada() ficam em includes/formatacao.php (compartilhadas com as outras telas).
 $tituloPagina = 'Painel editorial';
 $paginaAtual = 'painel';
 require __DIR__ . '/includes/cabecalho.php';

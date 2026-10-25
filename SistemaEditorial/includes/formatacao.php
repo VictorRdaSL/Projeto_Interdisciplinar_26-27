@@ -19,3 +19,21 @@ function escaparHtml(?string $texto): string
 {
     return htmlspecialchars($texto ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
+
+/** Código do livro com 4 dígitos ("0112"), a partir do id. Passa de 4 dígitos só se o id passar de 9999. */
+function codigoLivro(int $id): string
+{
+    return str_pad((string)$id, 4, '0', STR_PAD_LEFT);
+}
+
+/** "1 livro" / "3 livros". */
+function qtdTexto(int $n, string $singular, string $plural): string
+{
+    return $n . ' ' . ($n === 1 ? $singular : $plural);
+}
+
+/** Rodada no formato do design system: "R3/3" (etapa com limite de rodadas) ou "R2" (sem limite). */
+function rotuloRodada(int $rodada, $limite): string
+{
+    return 'R' . $rodada . ($limite !== null ? '/' . (int)$limite : '');
+}
