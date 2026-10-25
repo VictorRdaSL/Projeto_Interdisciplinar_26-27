@@ -13,3 +13,9 @@ function formatarDataHora(?string $dataHora, string $vazio = '—'): string
     $momento = strtotime($dataHora);
     return $momento === false ? $vazio : date('d/m/Y H:i', $momento);
 }
+
+/** Escapa texto para HTML (sempre com aspas e UTF-8). Toda saída dinâmica das telas novas passa por aqui. */
+function escaparHtml(?string $texto): string
+{
+    return htmlspecialchars($texto ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
