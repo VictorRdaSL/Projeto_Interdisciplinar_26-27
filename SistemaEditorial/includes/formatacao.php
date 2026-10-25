@@ -68,3 +68,17 @@ function htmlContadorRodadas(string $nomeEtapa, int $limite, ?int $atual, string
         . ($legenda !== '' ? '<p class="ws-rodadas__legenda">' . escaparHtml($legenda) . '</p>' : '')
         . '</div>';
 }
+
+/** Iniciais para o avatar: 1ª letra do primeiro e do último nome; nome único = 2 primeiras letras; vazio = "?". */
+function iniciaisDoNome(string $nome): string
+{
+    $partes = preg_split('/\s+/u', trim($nome), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    if (count($partes) >= 2) {
+        $iniciais = mb_substr($partes[0], 0, 1, 'UTF-8') . mb_substr($partes[count($partes) - 1], 0, 1, 'UTF-8');
+    } elseif (count($partes) === 1) {
+        $iniciais = mb_substr($partes[0], 0, 2, 'UTF-8');
+    } else {
+        return '?';
+    }
+    return mb_strtoupper($iniciais, 'UTF-8');
+}
