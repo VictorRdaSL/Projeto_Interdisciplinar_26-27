@@ -230,33 +230,6 @@ function formatarDuracaoEtapa(string $dataEntrada, ?string $dataSaida): string
     return $dataSaida === null ? $texto . ' (em andamento)' : $texto;
 }
 
-/**
- * Contador de rodadas do design system: um bloco por rodada de 1 até limite+1 (o último é "R4+"). O PHP marca cada
- * bloco (.is-atual, .is-limite, .is-cobrada, .is-futura) porque o CSS só calcula as cores pelos data-* até limite 6
- * e rodada 12. Tudo o que entra aqui já é número ou texto escapado.
- */
-function htmlContadorRodadas(string $nomeEtapa, int $limite, int $atual, string $legenda = ''): string
-{
-    $limite = max(1, $limite);
-    $atual = max(0, $atual);
-    $situacao = $atual === 0 ? 'ainda sem rodada' : ($atual > $limite ? 'acima do limite, cobrada' : ($atual === $limite ? 'no limite' : 'no prazo'));
-    $blocos = '';
-    for ($n = 1; $n <= $limite + 1; $n++) {
-        $classes = ['ws-rodada'];
-        if ($n === min($atual, $limite + 1)) $classes[] = 'is-atual';
-        if ($n === $limite) $classes[] = 'is-limite';
-        if ($n > $limite) $classes[] = 'is-cobrada';
-        if ($n > $atual) $classes[] = 'is-futura';
-        $blocos .= '<li class="' . implode(' ', $classes) . '">R' . $n . ($n > $limite ? '+' : '') . '</li>';
-    }
-    $aria = $nomeEtapa . ': rodada ' . $atual . ' de ' . $limite . ' incluídas, ' . $situacao;
-    return '<div class="ws-rodadas" data-limite="' . $limite . '" data-atual="' . $atual . '" role="group" aria-label="' . escaparHtml($aria) . '">'
-        . '<span class="ws-rodadas__etapa">' . escaparHtml($nomeEtapa) . '</span>'
-        . '<ol class="ws-rodadas__blocos">' . $blocos . '</ol>'
-        . ($legenda !== '' ? '<p class="ws-rodadas__legenda">' . escaparHtml($legenda) . '</p>' : '')
-        . '</div>';
-}
-
 // Resolução das ações de movimentação disponíveis para esta tela.
 $etapaAtual = buscarEtapa($conn, (int)$livro['etapa_atual_id']);
 $acoesDisponiveis = [];
