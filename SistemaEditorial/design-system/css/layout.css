@@ -1,0 +1,452 @@
+/* ==========================================================================
+   WareSys · Design system · layout.css
+   --------------------------------------------------------------------------
+   Estrutura do app: sidebar + barra móvel + cabeçalho da página + área de
+   conteúdo e grade de 12 colunas. Depende de tokens.css e base.css.
+   (A grade modular visível e as marcas "+" foram retiradas a pedido:
+   fundos são de cor lisa.)
+
+   Esqueleto mínimo (ver telas/painel.html):
+
+   <body>
+     <a class="ws-pular" href="#conteudo">Pular para o conteúdo</a>
+     <div class="ws-app">
+       <header class="ws-barra-movel">…botão de menu + logo…</header>
+       <aside class="ws-sidebar" id="ws-sidebar">…</aside>
+       <a class="ws-app__veu" href="#" data-ws-menu-fechar aria-hidden="true" tabindex="-1"></a>
+       <main class="ws-principal" id="conteudo">
+         <header class="ws-topo">…título, subtítulo, busca…</header>
+         <div class="ws-conteudo">…</div>
+       </main>
+     </div>
+   </body>
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Casca do app
+   Desktop (≥1024px): sidebar fixa à esquerda + conteúdo.
+   Tablet e celular: sidebar vira gaveta (ver seção 3).
+   -------------------------------------------------------------------------- */
+.ws-app {
+  display: grid;
+  grid-template-columns: var(--ws-sidebar-largura) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.ws-principal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* deixa tabelas largas rolarem por dentro, sem estourar a página */
+}
+
+/* --------------------------------------------------------------------------
+   2. Sidebar
+   Fundo branco, linha de 1px à direita. Item ativo: fundo Tiffany 100,
+   ícone Tiffany profundo, peso 600 e filete à esquerda (não depende só
+   de cor). Marque o item com aria-current="page".
+   -------------------------------------------------------------------------- */
+.ws-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--ws-cor-superficie);
+  border-right: var(--ws-borda);
+}
+
+/* Área do logo: mesma altura do cabeçalho da página */
+.ws-sidebar__marca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ws-esp-2);
+  min-height: 72px;
+  padding: var(--ws-esp-4) var(--ws-esp-5);
+  border-bottom: var(--ws-borda);
+}
+
+.ws-sidebar .ws-sidebar__fechar {
+  display: none; /* só aparece na gaveta móvel */
+}
+
+.ws-nav {
+  flex: 1;
+  padding: var(--ws-esp-4) var(--ws-esp-3);
+}
+
+.ws-nav__titulo {
+  padding: var(--ws-esp-2) var(--ws-esp-3);
+}
+
+.ws-nav__lista {
+  display: grid;
+  gap: 2px;
+}
+
+.ws-nav__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ws-esp-3);
+  min-height: var(--ws-controle-altura);
+  padding: 0 var(--ws-esp-3);
+  color: var(--ws-cor-texto);
+  font-size: var(--ws-fs-corpo);
+  text-decoration: none;
+  transition: background-color var(--ws-transicao), color var(--ws-transicao);
+}
+
+.ws-nav__item [data-lucide],
+.ws-nav__item svg.lucide {
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-nav__item:hover {
+  background: var(--ws-cor-realce);
+  color: var(--ws-cor-texto);
+}
+
+.ws-nav__item[aria-current="page"],
+.ws-nav__item.is-ativo {
+  background: var(--ws-cor-realce);
+  font-weight: var(--ws-peso-semi);
+}
+
+.ws-nav__item[aria-current="page"] [data-lucide],
+.ws-nav__item[aria-current="page"] svg.lucide,
+.ws-nav__item.is-ativo svg.lucide {
+  color: var(--ws-cor-destaque);
+}
+
+/* Filete de 2px à esquerda do item ativo */
+.ws-nav__item[aria-current="page"]::before,
+.ws-nav__item.is-ativo::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--ws-cor-destaque);
+}
+
+/* Contador opcional ao lado do item (ex.: livros na minha mesa) */
+.ws-nav__contador {
+  margin-left: auto;
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+  color: var(--ws-cor-texto-suave);
+}
+
+/* Rodapé da sidebar: usuário logado, perfil e sair */
+.ws-sidebar__rodape {
+  display: grid;
+  gap: var(--ws-esp-3);
+  padding: var(--ws-esp-4) var(--ws-esp-5);
+  border-top: var(--ws-borda);
+}
+
+.ws-sidebar__rodape .ws-btn {
+  justify-self: start;
+}
+
+.ws-usuario {
+  display: flex;
+  align-items: center;
+  gap: var(--ws-esp-3);
+  min-width: 0;
+}
+
+/* Iniciais do usuário: quadrado (cantos retos), linha de 1px */
+.ws-usuario__iniciais {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: var(--ws-borda-forte);
+  font-size: var(--ws-fs-eyebrow);
+  font-weight: var(--ws-peso-semi);
+  letter-spacing: 0.04em;
+}
+
+.ws-usuario__nome {
+  overflow: hidden;
+  font-weight: var(--ws-peso-semi);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ws-usuario__perfil {
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+/* --------------------------------------------------------------------------
+   3. Barra móvel e gaveta (abaixo de 1024px)
+   Funciona SEM JavaScript: o botão de menu é um link para #ws-sidebar e a
+   gaveta abre pelo seletor :target. O waresys.js melhora isso (aria-
+   expanded, Esc, foco), mas não é obrigatório.
+   -------------------------------------------------------------------------- */
+.ws-barra-movel {
+  display: none;
+}
+
+.ws-app__veu {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .ws-app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-barra-movel {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: var(--ws-esp-3);
+    height: var(--ws-barra-movel-altura);
+    padding: 0 var(--ws-esp-4);
+    background: var(--ws-cor-superficie);
+    border-bottom: var(--ws-borda);
+  }
+
+  .ws-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--ws-z-sidebar);
+    width: min(85vw, 300px);
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition: transform 160ms ease-out, visibility 0s linear 160ms;
+  }
+
+  .ws-sidebar .ws-sidebar__fechar {
+    display: inline-flex;
+  }
+
+  /* Aberta: via :target (sem JS) ou via classe colocada pelo waresys.js */
+  .ws-sidebar:target,
+  .ws-app.is-menu-aberto .ws-sidebar {
+    visibility: visible;
+    transform: none;
+    transition: transform 160ms ease-out, visibility 0s;
+  }
+
+  .ws-sidebar:target ~ .ws-app__veu,
+  .ws-app.is-menu-aberto .ws-app__veu {
+    position: fixed;
+    inset: 0;
+    z-index: var(--ws-z-veu);
+    display: block;
+    background: var(--ws-cor-veu);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. Cabeçalho da página (.ws-topo)
+   Título (H1), subtítulo ("Livros em produção · outubro") e busca.
+   Ações da página (botões) podem entrar em .ws-topo__acoes.
+   -------------------------------------------------------------------------- */
+.ws-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ws-esp-4) var(--ws-esp-5);
+  width: 100%;
+  max-width: var(--ws-conteudo-max);
+  margin: 0 auto;
+  padding: var(--ws-esp-6) var(--ws-esp-6) var(--ws-esp-5);
+}
+
+.ws-topo__titulos {
+  display: grid;
+  gap: var(--ws-esp-1);
+  min-width: 0;
+}
+
+.ws-topo__titulo {
+  overflow-wrap: anywhere;
+}
+
+.ws-topo__subtitulo {
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-topo__voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ws-esp-1);
+  margin-bottom: var(--ws-esp-2);
+}
+
+.ws-topo__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ws-esp-3);
+}
+
+.ws-topo__acoes .ws-busca {
+  width: min(100%, 280px);
+}
+
+@media (min-width: 768px) {
+  .ws-topo__acoes {
+    flex-wrap: nowrap;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. Área de conteúdo
+   -------------------------------------------------------------------------- */
+.ws-conteudo {
+  display: grid;
+  gap: var(--ws-esp-6);
+  width: 100%;
+  max-width: var(--ws-conteudo-max);
+  margin: 0 auto;
+  padding: 0 var(--ws-esp-6) var(--ws-esp-7);
+}
+
+/* Seção com título: <section class="ws-secao"><header class="ws-secao__cabecalho">… */
+.ws-secao {
+  display: grid;
+  gap: var(--ws-esp-4);
+  min-width: 0;
+}
+
+.ws-secao__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ws-esp-3);
+}
+
+.ws-secao__cabecalho p {
+  margin-top: var(--ws-esp-1);
+  color: var(--ws-cor-texto-suave);
+}
+
+/* Pilha vertical simples, para empilhar blocos dentro de uma coluna */
+.ws-pilha {
+  display: grid;
+  gap: var(--ws-esp-5);
+  align-content: start;
+  min-width: 0;
+}
+
+.ws-pilha--peq {
+  gap: var(--ws-esp-4);
+}
+
+/* Botão solto numa pilha/seção não estica na largura toda */
+.ws-secao > .ws-btn,
+.ws-pilha > .ws-btn,
+.ws-card > .ws-btn {
+  justify-self: start;
+}
+
+/* Linha de itens lado a lado que quebra quando falta espaço */
+.ws-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ws-esp-3);
+}
+
+.ws-linha--fim {
+  justify-content: flex-end;
+}
+
+.ws-linha--entre {
+  justify-content: space-between;
+}
+
+/* Rodapé do app: cinza profundo */
+.ws-rodape {
+  margin-top: auto;
+  padding: var(--ws-esp-5) var(--ws-esp-6);
+  background: var(--ws-cor-superficie-escura);
+  color: var(--ws-cor-texto-inverso);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+.ws-rodape a {
+  color: inherit;
+}
+
+@media (max-width: 767px) {
+  .ws-topo {
+    padding: var(--ws-esp-5) var(--ws-esp-4) var(--ws-esp-4);
+  }
+
+  .ws-topo__acoes,
+  .ws-topo__acoes .ws-busca {
+    width: 100%;
+  }
+
+  .ws-conteudo {
+    gap: var(--ws-esp-5);
+    padding: 0 var(--ws-esp-4) var(--ws-esp-6);
+  }
+
+  .ws-rodape {
+    padding: var(--ws-esp-4);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. Grade de 12 colunas
+   Uso: <div class="ws-grade"><div class="ws-col-8">…</div><div class="ws-col-4">…</div></div>
+   - Celular: toda coluna ocupa a largura inteira.
+   - ≥768px: .ws-col-md-* define a largura no tablet.
+   - ≥1024px: .ws-col-* define a largura no desktop.
+   -------------------------------------------------------------------------- */
+.ws-grade {
+  display: grid;
+  grid-template-columns: repeat(var(--ws-grade-colunas), minmax(0, 1fr));
+  gap: var(--ws-grade-espaco);
+  align-items: start;
+}
+
+.ws-grade > * {
+  grid-column: span 12;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .ws-col-md-3  { grid-column: span 3; }
+  .ws-col-md-4  { grid-column: span 4; }
+  .ws-col-md-6  { grid-column: span 6; }
+  .ws-col-md-8  { grid-column: span 8; }
+  .ws-col-md-12 { grid-column: span 12; }
+}
+
+@media (min-width: 1024px) {
+  .ws-grade > .ws-col-2  { grid-column: span 2; }
+  .ws-grade > .ws-col-3  { grid-column: span 3; }
+  .ws-grade > .ws-col-4  { grid-column: span 4; }
+  .ws-grade > .ws-col-5  { grid-column: span 5; }
+  .ws-grade > .ws-col-6  { grid-column: span 6; }
+  .ws-grade > .ws-col-7  { grid-column: span 7; }
+  .ws-grade > .ws-col-8  { grid-column: span 8; }
+  .ws-grade > .ws-col-9  { grid-column: span 9; }
+  .ws-grade > .ws-col-12 { grid-column: span 12; }
+}
+
+@media (max-width: 767px) {
+  .ws-grade {
+    gap: var(--ws-esp-4);
+  }
+}
