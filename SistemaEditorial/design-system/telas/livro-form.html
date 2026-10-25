@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="claro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Novo livro · WareSys</title>
+  <!-- Fonte: Inter (única família da marca) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+  <!-- Design system WareSys (nesta ordem) -->
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/layout.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <a class="ws-pular" href="#conteudo">Pular para o conteúdo</a>
+
+  <div class="ws-app">
+
+    <!-- Barra do celular/tablet (abaixo de 1024px). O link funciona sem JS (:target). -->
+    <header class="ws-barra-movel">
+      <a class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" href="#ws-sidebar" data-ws-menu-abrir aria-label="Abrir menu">
+        <i data-lucide="menu"></i>
+      </a>
+      <a class="ws-logo ws-logo--assinatura ws-logo--peq" href="painel.html" aria-label="WareSys, ir para o Painel">
+          <!-- Troque o span abaixo pelo SVG original: <img src="../img/logo/waresys-simbolo.svg" alt=""> -->
+          <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+          <span class="ws-logo__wordmark">WareSys</span>
+        </a>
+    </header>
+
+    <!-- Sidebar: mesmo menu das telas reais -->
+    <aside class="ws-sidebar" id="ws-sidebar" aria-label="Menu principal">
+      <div class="ws-sidebar__marca">
+        <a class="ws-logo ws-logo--assinatura" href="painel.html" aria-label="WareSys, ir para o Painel">
+          <!-- Troque o span abaixo pelo SVG original: <img src="../img/logo/waresys-simbolo.svg" alt=""> -->
+          <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+          <span class="ws-logo__wordmark">WareSys</span>
+        </a>
+        <a class="ws-btn ws-btn--icone ws-btn--peq ws-sidebar__fechar" href="#" data-ws-menu-fechar aria-label="Fechar menu">
+          <i data-lucide="x"></i>
+        </a>
+      </div>
+      <nav class="ws-nav">
+        <ul class="ws-nav__lista">
+          <li><a class="ws-nav__item" href="painel.html"><i data-lucide="layout-dashboard"></i>Painel</a></li>
+          <li><a class="ws-nav__item" href="#"><i data-lucide="inbox"></i>Minha mesa<span class="ws-nav__contador" aria-label="4 livros">4</span></a></li>
+          <li><a class="ws-nav__item" href="livros.html" aria-current="page"><i data-lucide="book-open"></i>Livros</a></li>
+          <li><a class="ws-nav__item" href="#"><i data-lucide="users"></i>Pessoas</a></li>
+          <li><a class="ws-nav__item" href="#"><i data-lucide="file-text"></i>Relatórios</a></li>
+          <li><a class="ws-nav__item" href="equipe.html"><i data-lucide="settings"></i>Configurações</a></li>
+        </ul>
+      </nav>
+      <div class="ws-sidebar__rodape">
+        <div class="ws-usuario">
+          <span class="ws-usuario__iniciais" aria-hidden="true">AL</span>
+          <div style="min-width:0">
+            <p class="ws-usuario__nome">Ana Lima</p>
+            <p class="ws-usuario__perfil">Gerente</p>
+          </div>
+        </div>
+        <a class="ws-btn ws-btn--link" href="login.html"><i data-lucide="log-out" class="ws-icone--peq"></i>Sair</a>
+      </div>
+    </aside>
+    <a class="ws-app__veu" href="#" data-ws-menu-fechar tabindex="-1" aria-hidden="true"></a>
+
+    <main class="ws-principal" id="conteudo">
+      <header class="ws-topo">
+        <div class="ws-topo__titulos">
+          <a class="ws-topo__voltar ws-link-limpo" href="livros.html"><i data-lucide="arrow-left" class="ws-icone--peq"></i>Livros</a>
+          <h1 class="ws-topo__titulo">Novo livro</h1>
+          <p class="ws-topo__subtitulo">O livro entra em Orçamento, na mesa escolhida.</p>
+        </div>
+      </header>
+
+      <div class="ws-conteudo">
+        <div class="ws-grade">
+          <div class="ws-col-8 ws-pilha">
+
+            <!-- Resumo de erro depois do envio (o PHP só mostra se houver erro) -->
+            <div class="ws-alerta ws-alerta--cobrado" role="alert" id="resumo-erro">
+              <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
+              <div class="ws-alerta__corpo">
+                <p class="ws-alerta__titulo">O livro não foi salvo. Corrija 1 campo.</p>
+                <p><a href="#isbn">ISBN: dígito verificador não confere.</a></p>
+              </div>
+            </div>
+
+            <form class="ws-form ws-card ws-card--superficie" method="post" action="#" novalidate>
+              <!-- <?= csrf_field() ?> -->
+
+              <fieldset class="ws-grupo-campos">
+                <legend><h2>Dados do livro</h2></legend>
+                <div class="ws-form__grade">
+                  <div class="ws-campo ws-campo--inteiro">
+                    <label class="ws-campo__rotulo" for="titulo">Título</label>
+                    <input class="ws-input" id="titulo" name="titulo" value="Arquivo das águas" required>
+                  </div>
+
+                  <div class="ws-campo ws-campo--erro">
+                    <label class="ws-campo__rotulo" for="isbn">ISBN <span class="ws-campo__opcional">(opcional)</span></label>
+                    <input class="ws-input ws-input--codigo" id="isbn" name="isbn" value="978-65-87401-12-5" inputmode="numeric" aria-invalid="true" aria-describedby="isbn-erro isbn-ajuda">
+                    <p class="ws-campo__erro" id="isbn-erro"><i data-lucide="circle-alert"></i>Dígito verificador não confere. Para este número, o último dígito é 4.</p>
+                    <p class="ws-campo__ajuda" id="isbn-ajuda">ISBN-13. Pode ficar vazio até a Catalogação.</p>
+                  </div>
+
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="tem_copia">Tem cópia?</label>
+                    <select class="ws-select" id="tem_copia" name="tem_copia"><option selected>Não</option><option>Sim</option></select>
+                  </div>
+
+                  <div class="ws-campo ws-campo--inteiro">
+                    <label class="ws-campo__rotulo" for="responsavel">Mesa inicial</label>
+                    <select class="ws-select" id="responsavel" name="responsavel_atual_id" aria-describedby="responsavel-ajuda" required><option>Ana Lima</option><option>Bruno Reis</option><option selected>Carla Mota</option><option>Diego Paz</option><option>Helena Souza</option></select>
+                    <p class="ws-campo__ajuda" id="responsavel-ajuda">Quem recebe o livro em Orçamento.</p>
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset class="ws-grupo-campos">
+                <legend><h2>Pessoas vinculadas</h2></legend>
+                <p class="ws-texto-suave" style="margin-top:-8px">Autores, organizadores e ilustradores. Não são usuários do sistema.</p>
+
+                <div class="ws-linha-campos">
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="pessoa-1">Pessoa</label>
+                    <select class="ws-select" id="pessoa-1" name="pessoa_id[]"><option>Selecione uma pessoa</option><option>Beatriz Sena</option><option>Célia Nogueira</option><option selected>Joana Prates</option><option>Lia Prado</option><option>Marina Couto</option><option>Otávio Lins</option></select>
+                  </div>
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="papel-1">Papel</label>
+                    <select class="ws-select" id="papel-1" name="papel_id[]"><option selected>Autor</option><option>Organizador</option><option>Ilustrador</option></select>
+                  </div>
+                  <button class="ws-btn ws-btn--secundario ws-btn--icone" type="button" aria-label="Remover Joana Prates"><i data-lucide="trash-2"></i></button>
+                </div>
+
+                <div class="ws-linha-campos">
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="pessoa-2">Pessoa</label>
+                    <select class="ws-select" id="pessoa-2" name="pessoa_id[]"><option>Selecione uma pessoa</option><option>Beatriz Sena</option><option>Célia Nogueira</option><option>Joana Prates</option><option selected>Lia Prado</option><option>Marina Couto</option><option>Otávio Lins</option></select>
+                  </div>
+                  <div class="ws-campo">
+                    <label class="ws-campo__rotulo" for="papel-2">Papel</label>
+                    <select class="ws-select" id="papel-2" name="papel_id[]"><option>Autor</option><option>Organizador</option><option selected>Ilustrador</option></select>
+                  </div>
+                  <button class="ws-btn ws-btn--secundario ws-btn--icone" type="button" aria-label="Remover Lia Prado"><i data-lucide="trash-2"></i></button>
+                </div>
+
+                <div class="ws-linha">
+                  <button class="ws-btn ws-btn--secundario ws-btn--peq" type="button"><i data-lucide="plus"></i>Adicionar pessoa</button>
+                  <a href="#">Cadastrar pessoa nova</a>
+                </div>
+              </fieldset>
+
+              <fieldset class="ws-grupo-campos">
+                <legend><h2>Observações</h2></legend>
+                <div class="ws-campo">
+                  <label class="ws-campo__rotulo" for="observacoes">Observações do livro <span class="ws-campo__opcional">(opcional)</span></label>
+                  <textarea class="ws-textarea" id="observacoes" name="observacoes" aria-describedby="obs-ajuda" placeholder="Pedidos da autora, prazos combinados, materiais pendentes."></textarea>
+                  <p class="ws-campo__ajuda" id="obs-ajuda">Texto livre. Fica no livro, não na etapa.</p>
+                </div>
+              </fieldset>
+
+              <div class="ws-form__acoes">
+                <button class="ws-btn ws-btn--primario" type="submit">Salvar livro <span class="ws-btn__seta" aria-hidden="true">→</span></button>
+                <a class="ws-btn ws-btn--link" href="livros.html">Cancelar</a>
+              </div>
+            </form>
+          </div>
+
+          <aside class="ws-col-4 ws-pilha" aria-label="Como o livro entra no fluxo">
+            <section class="ws-card">
+              <p class="ws-eyebrow ws-eyebrow--destaque">Depois de salvar</p>
+              <h2 class="ws-card__titulo">O livro entra em Orçamento</h2>
+              <p class="ws-card__texto">A primeira movimentação é criada na mesa escolhida. Etapa, mesa e rodada passam a aparecer no histórico.</p>
+            </section>
+            <section class="ws-card">
+              <h2 class="ws-card__titulo">Rodadas incluídas</h2>
+              <div class="ws-rodadas" data-limite="3" data-atual="regra" role="group" aria-label="Diagramação: 3 rodadas incluídas; a rodada 3 acende o alerta e a 4 é cobrada">
+        <span class="ws-rodadas__etapa">Diagramação</span>
+        <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3</li><li class="ws-rodada">R4+</li></ol>
+      </div>
+              <div class="ws-rodadas" data-limite="2" data-atual="regra" role="group" aria-label="Revisão: 2 rodadas incluídas; a rodada 2 acende o alerta e a 3 é cobrada">
+        <span class="ws-rodadas__etapa">Revisão</span>
+        <ol class="ws-rodadas__blocos"><li class="ws-rodada">R1</li><li class="ws-rodada">R2</li><li class="ws-rodada">R3+</li></ol>
+      </div>
+              <p class="ws-texto-suave">A última rodada incluída acende o alerta; o que passa disso é cobrado.</p>
+            </section>
+          </aside>
+        </div>
+      </div>
+
+      <footer class="ws-rodape">
+        <p>WareSys · controle editorial para editoras · Projeto acadêmico FATEC</p>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Ícones Lucide (traço 1,5 aplicado pelo waresys.js) + comportamentos -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <script src="../js/waresys.js" defer></script>
+</body>
+</html>

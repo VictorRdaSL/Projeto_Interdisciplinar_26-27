@@ -1,0 +1,2002 @@
+/* ==========================================================================
+   WareSys · Design system · components.css
+   --------------------------------------------------------------------------
+   Todos os componentes, com prefixo ws- e nomes no estilo BEM:
+   bloco (.ws-btn), elemento (.ws-btn__icone), modificador (.ws-btn--primario).
+   Estados usam .is-* ou atributos ARIA (aria-current, aria-invalid...).
+   Depende de tokens.css, base.css e layout.css.
+
+   Sumário
+    1. Logo
+    2. Botões
+    3. Campos de formulário
+    4. Etiquetas (tags)
+    5. Status com ponto
+    6. Cards
+    7. Indicadores (KPI)
+    8. Tabela de dados
+    9. Contador de rodadas
+   10. Fluxo de etapas (lista vertical) e barra de progresso
+   11. Linha do tempo (histórico do livro)
+   12. Lista de definições (dados do livro)
+   13. Alertas
+   14. Toasts
+   15. Modal de confirmação
+   16. Estado vazio e carregamento
+   17. Paginação
+   18. Barra de filtros
+   19. Login
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. Logo
+   --------------------------------------------------------------------------
+   O símbolo NÃO é redesenhado aqui. Coloque os SVG originais em img/logo/
+   (ver img/logo/LEIAME.txt) dentro de .ws-logo__simbolo.
+   - .ws-logo--assinatura: símbolo + wordmark, mín. 96px de largura.
+   - .ws-logo--simbolo:    só o símbolo completo, mín. 32px.
+   - .ws-logo--simplificado: abaixo de 32px (16–31px), arquivo simplificado.
+   Proporções do manual (pág. 04): corpo do wordmark = 77% da altura do
+   símbolo; respiro entre eles = 30%.
+   Versões de cor: principal, negativa, sobre Tiffany, monocromática.
+   Se o SVG usar fill="currentColor", a cor vem destas classes; se o SVG
+   tiver cor própria, use o arquivo da versão certa.
+   ========================================================================== */
+.ws-logo {
+  --ws-logo-altura: 28px;
+  --ws-logo-cor-simbolo: var(--ws-tiffany-700);
+  --ws-logo-cor-wordmark: var(--ws-cinza-profundo);
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ws-logo-altura) * 0.3);
+  color: var(--ws-logo-cor-wordmark);
+  text-decoration: none;
+}
+
+.ws-logo__simbolo {
+  display: inline-flex;
+  flex: none;
+  height: var(--ws-logo-altura);
+  color: var(--ws-logo-cor-simbolo);
+}
+
+.ws-logo__simbolo img,
+.ws-logo__simbolo svg {
+  width: auto;
+  height: 100%;
+}
+
+/* Espaço reservado enquanto o SVG original não é inserido.
+   Remova a classe quando colocar o <img> ou <svg>. */
+.ws-logo__simbolo--reservado {
+  width: var(--ws-logo-altura);
+  border: 1px dashed currentColor;
+}
+
+.ws-logo__wordmark {
+  font-size: calc(var(--ws-logo-altura) * 0.77);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Tamanhos */
+.ws-logo--assinatura { min-width: 96px; }
+
+.ws-logo--grande { --ws-logo-altura: 48px; }
+.ws-logo--peq    { --ws-logo-altura: 22px; }
+
+.ws-logo--simbolo .ws-logo__wordmark { display: none; }
+.ws-logo--simbolo .ws-logo__simbolo  { min-height: 32px; min-width: 32px; }
+
+.ws-logo--simplificado { --ws-logo-altura: 24px; }
+.ws-logo--simplificado .ws-logo__wordmark { display: none; }
+
+/* Versões de cor */
+.ws-logo--negativa {          /* símbolo Tiffany sobre cinza profundo */
+  --ws-logo-cor-simbolo: var(--ws-tiffany-500);
+  --ws-logo-cor-wordmark: var(--ws-branco);
+}
+
+.ws-logo--sobre-tiffany {     /* campanhas e destaque */
+  --ws-logo-cor-simbolo: var(--ws-cinza-profundo);
+  --ws-logo-cor-wordmark: var(--ws-cinza-profundo);
+}
+
+.ws-logo--mono {              /* impressão em 1 cor, etiquetas */
+  --ws-logo-cor-simbolo: var(--ws-cinza-profundo);
+  --ws-logo-cor-wordmark: var(--ws-cinza-profundo);
+}
+
+/* No tema escuro, a versão principal vira a negativa automaticamente */
+[data-theme="escuro"] .ws-logo:not(.ws-logo--sobre-tiffany):not(.ws-logo--mono) {
+  --ws-logo-cor-simbolo: var(--ws-tiffany-500);
+  --ws-logo-cor-wordmark: var(--ws-gelo);
+}
+
+
+/* ==========================================================================
+   2. Botões
+   --------------------------------------------------------------------------
+   <button class="ws-btn ws-btn--primario">Avançar <span class="ws-btn__seta" aria-hidden="true">→</span></button>
+   - primário:   Tiffany sólido, texto cinza profundo. Hover 400, pressionado 600.
+   - secundário: contorno de 1px.
+   - link:       só texto em Tiffany profundo.
+   - escuro:     cinza profundo, para usar sobre fundo Tiffany.
+   Desabilitado: atributo disabled (ou aria-disabled="true" em <a>).
+   ========================================================================== */
+.ws-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ws-esp-2);
+  min-height: var(--ws-controle-altura);
+  padding: 0 var(--ws-esp-4);
+  border: 1px solid transparent;
+  border-radius: var(--ws-raio);
+  background: transparent;
+  color: var(--ws-cor-texto);
+  font-size: var(--ws-fs-destaque);
+  font-weight: var(--ws-fw-destaque);
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--ws-transicao), border-color var(--ws-transicao), color var(--ws-transicao);
+}
+
+.ws-btn:hover {
+  color: var(--ws-cor-texto);
+}
+
+.ws-btn__seta {
+  font-weight: var(--ws-peso-regular);
+}
+
+/* Primário */
+.ws-btn--primario {
+  background: var(--ws-cor-acao);
+  border-color: var(--ws-cor-acao);
+  color: var(--ws-cor-texto-sobre-acao);
+}
+
+.ws-btn--primario:hover {
+  background: var(--ws-cor-acao-hover);
+  border-color: var(--ws-cor-acao-hover);
+  color: var(--ws-cor-texto-sobre-acao);
+}
+
+.ws-btn--primario:active,
+.ws-btn--primario.is-pressionado {
+  background: var(--ws-cor-acao-pressionado);
+  border-color: var(--ws-cor-acao-pressionado);
+}
+
+/* Secundário (contorno) */
+.ws-btn--secundario {
+  background: var(--ws-cor-superficie);
+  border-color: var(--ws-cor-linha-forte);
+}
+
+.ws-btn--secundario:hover {
+  background: var(--ws-cor-realce);
+  border-color: var(--ws-cor-destaque);
+}
+
+.ws-btn--secundario:active,
+.ws-btn--secundario.is-pressionado {
+  background: var(--ws-cor-realce-forte);
+}
+
+/* Link */
+.ws-btn--link {
+  min-height: auto;
+  padding: 0;
+  color: var(--ws-cor-destaque);
+}
+
+.ws-btn--link:hover {
+  color: var(--ws-cor-destaque-forte);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Escuro (sobre fundo Tiffany) */
+.ws-btn--escuro {
+  background: var(--ws-cinza-profundo);
+  border-color: var(--ws-cinza-profundo);
+  color: var(--ws-branco);
+}
+
+.ws-btn--escuro:hover {
+  background: var(--ws-tiffany-900);
+  border-color: var(--ws-tiffany-900);
+  color: var(--ws-branco);
+}
+
+.ws-btn--escuro:active,
+.ws-btn--escuro.is-pressionado {
+  background: #0F1D27;
+}
+
+/* Foco: anel um pouco afastado, para aparecer sobre o Tiffany */
+.ws-btn:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Tamanhos e larguras */
+.ws-btn--peq {
+  min-height: var(--ws-controle-altura-peq);
+  padding: 0 var(--ws-esp-3);
+  font-size: var(--ws-fs-corpo);
+}
+
+.ws-btn--bloco {
+  width: 100%;
+}
+
+/* Botão só com ícone: sempre com aria-label */
+.ws-btn--icone {
+  width: var(--ws-controle-altura);
+  padding: 0;
+}
+
+.ws-btn--icone.ws-btn--peq {
+  width: var(--ws-controle-altura-peq);
+}
+
+/* Desabilitado */
+.ws-btn:disabled,
+.ws-btn[aria-disabled="true"],
+.ws-btn.is-desabilitado {
+  background: var(--ws-cor-desabilitado-fundo);
+  border-color: var(--ws-cor-desabilitado-fundo);
+  color: var(--ws-cor-desabilitado-texto);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ws-btn--link:disabled,
+.ws-btn--link[aria-disabled="true"] {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Grupo de botões */
+.ws-btn-grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ws-esp-3);
+}
+
+@media (max-width: 479px) {
+  .ws-btn-grupo--empilhar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ws-btn {
+    white-space: normal;
+  }
+}
+
+
+/* ==========================================================================
+   3. Campos de formulário
+   --------------------------------------------------------------------------
+   <div class="ws-campo">
+     <label class="ws-campo__rotulo" for="isbn">ISBN</label>
+     <input class="ws-input" id="isbn" name="isbn" aria-describedby="isbn-ajuda">
+     <p class="ws-campo__ajuda" id="isbn-ajuda">ISBN-13. Pode ficar vazio até a Catalogação.</p>
+   </div>
+   Erro: .ws-campo--erro no wrapper + aria-invalid="true" no campo +
+   <p class="ws-campo__erro" id="…">…</p> ligado por aria-describedby.
+   Versão acessível (aprovada): fundo branco, borda #7A8C99 (3:1),
+   foco em Tiffany profundo.
+   ========================================================================== */
+.ws-campo {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+}
+
+.ws-campo__rotulo {
+  font-weight: var(--ws-peso-medio);
+}
+
+.ws-campo__opcional {
+  color: var(--ws-cor-texto-suave);
+  font-weight: var(--ws-peso-regular);
+}
+
+.ws-campo__ajuda {
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+.ws-campo__erro {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ws-esp-1);
+  color: var(--ws-cobrado-texto);
+  font-size: var(--ws-fs-eyebrow);
+  font-weight: var(--ws-peso-medio);
+}
+
+.ws-campo__erro svg.lucide,
+.ws-campo__erro [data-lucide] {
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+}
+
+.ws-input,
+.ws-select,
+.ws-textarea {
+  display: block;
+  width: 100%;
+  min-height: var(--ws-controle-altura);
+  padding: 0 var(--ws-esp-3);
+  border: 1px solid var(--ws-cor-linha-campo);
+  border-radius: var(--ws-raio);
+  background-color: var(--ws-cor-superficie);
+  color: var(--ws-cor-texto);
+  font-size: var(--ws-fs-corpo);
+  transition: border-color var(--ws-transicao);
+}
+
+.ws-input::placeholder,
+.ws-textarea::placeholder {
+  color: var(--ws-cor-texto-suave);
+  opacity: 1;
+}
+
+.ws-input:hover,
+.ws-select:hover,
+.ws-textarea:hover {
+  border-color: var(--ws-cor-texto);
+}
+
+.ws-input:focus-visible,
+.ws-select:focus-visible,
+.ws-textarea:focus-visible,
+.ws-input:focus,
+.ws-select:focus,
+.ws-textarea:focus {
+  border-color: var(--ws-cor-foco);
+  outline: 1px solid var(--ws-cor-foco); /* soma 2px com a borda */
+  outline-offset: 0;
+}
+
+/* Código (ISBN) digitado em mono */
+.ws-input--codigo {
+  font-family: var(--ws-fonte-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Textarea: campo de observações do livro */
+.ws-textarea {
+  min-height: 120px;
+  padding: 10px var(--ws-esp-3);
+  line-height: var(--ws-lh-corpo);
+  resize: vertical;
+}
+
+/* Select com seta própria (sem a do navegador) */
+.ws-select {
+  padding-right: 36px;
+  -webkit-appearance: none;
+          appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235D5D60' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  cursor: pointer;
+}
+
+[data-theme="escuro"] .ws-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23A9B8C3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.ws-select--peq,
+.ws-input--peq {
+  min-height: var(--ws-controle-altura-peq);
+}
+
+/* Desabilitado e somente leitura */
+.ws-input:disabled,
+.ws-select:disabled,
+.ws-textarea:disabled {
+  background-color: var(--ws-cor-desabilitado-fundo);
+  border-color: var(--ws-cor-desabilitado-fundo);
+  color: var(--ws-cor-desabilitado-texto);
+  cursor: not-allowed;
+}
+
+.ws-input[readonly] {
+  background-color: var(--ws-cor-neutro);
+  border-color: var(--ws-cor-linha);
+}
+
+/* Erro */
+.ws-campo--erro .ws-input,
+.ws-campo--erro .ws-select,
+.ws-campo--erro .ws-textarea,
+.ws-input[aria-invalid="true"],
+.ws-select[aria-invalid="true"],
+.ws-textarea[aria-invalid="true"] {
+  border-color: var(--ws-cobrado-texto);
+}
+
+/* Checkbox e rádio: nativos, só com a cor da marca */
+.ws-opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ws-esp-2);
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.ws-opcao input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ws-cor-destaque);
+}
+
+/* Busca com ícone */
+.ws-busca {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.ws-busca__icone {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--ws-cor-texto-suave);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.ws-busca .ws-input {
+  padding-left: 38px;
+}
+
+/* Remove o "x" nativo do type=search no Chrome/Edge para não duplicar ícone */
+.ws-busca input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/* Formulário em grade: 2 colunas no tablet+, 1 no celular */
+.ws-form {
+  display: grid;
+  gap: var(--ws-esp-5);
+}
+
+.ws-form__grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ws-esp-4) var(--ws-esp-5);
+}
+
+.ws-form__grade > .ws-campo--inteiro {
+  grid-column: 1 / -1;
+}
+
+.ws-form__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ws-esp-4);
+  padding-top: var(--ws-esp-5);
+  border-top: var(--ws-borda);
+}
+
+/* Grupo de campos com título (fieldset) */
+.ws-grupo-campos {
+  display: grid;
+  gap: var(--ws-esp-4);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ws-grupo-campos > legend {
+  float: left; /* faz a legend respeitar o gap do grid */
+  width: 100%;
+  padding: 0;
+}
+
+/* Grupos seguidos ganham uma linha de 1px entre eles */
+.ws-grupo-campos + .ws-grupo-campos {
+  padding-top: var(--ws-esp-5);
+  border-top: var(--ws-borda);
+}
+
+/* Linha repetível (pessoa + papel + remover) */
+.ws-linha-campos {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: var(--ws-esp-3);
+  align-items: end;
+}
+
+@media (max-width: 767px) {
+  .ws-form__grade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-linha-campos {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ws-linha-campos > .ws-campo:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* ==========================================================================
+   4. Etiquetas (tags)
+   --------------------------------------------------------------------------
+   Rótulos curtos, sem cor de status:
+   - .ws-tag            etapa atual ("Em diagramação") — fundo Tiffany 300
+   - .ws-tag--rodada    rodada ("Revisão 1/2") — neutra, números em mono
+   - .ws-tag--opcional  "Opcional" — só contorno Tiffany profundo
+   - .ws-tag--neutra    perfil, "Concluído", "Cancelado" — contorno cinza
+   ========================================================================== */
+.ws-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ws-esp-1);
+  min-height: 24px;
+  padding: 0 var(--ws-esp-2);
+  border: 1px solid transparent;
+  background: var(--ws-cor-etiqueta);
+  color: var(--ws-cor-texto);
+  font-size: var(--ws-fs-eyebrow);
+  font-weight: var(--ws-peso-medio);
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ws-tag--rodada {
+  background: var(--ws-cor-neutro);
+}
+
+.ws-tag--rodada .ws-codigo,
+.ws-tag .ws-codigo {
+  font-size: 11px;
+}
+
+.ws-tag--opcional {
+  background: transparent;
+  border-color: var(--ws-cor-destaque);
+  color: var(--ws-cor-destaque);
+}
+
+.ws-tag--neutra {
+  background: transparent;
+  border-color: var(--ws-cor-linha-forte);
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-tag--peq {
+  min-height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.ws-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ws-esp-2);
+}
+
+
+/* ==========================================================================
+   5. Status com ponto (manual pág. 09)
+   --------------------------------------------------------------------------
+   Sempre ponto + texto (nunca só cor). Só na coluna/área de status.
+   <span class="ws-status ws-status--limite">No limite</span>
+   Mapeamento no WareSys:
+   - --ok        no prazo / em andamento
+   - --limite    rodadas no limite · livro parado
+   - --cobrado   acima do limite (cobrável) · extraviado
+   Concluído e cancelado NÃO usam cor de status: use .ws-tag--neutra.
+   ========================================================================== */
+.ws-status {
+  --ws-status-ponto: var(--ws-ok-ponto);
+  --ws-status-texto: var(--ws-ok-texto);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ws-status-texto);
+  font-size: var(--ws-fs-corpo);
+  font-weight: var(--ws-peso-medio);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.ws-status::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%; /* o ponto é a única forma redonda do sistema */
+  background: var(--ws-status-ponto);
+}
+
+.ws-status--ok {
+  --ws-status-ponto: var(--ws-ok-ponto);
+  --ws-status-texto: var(--ws-ok-texto);
+}
+
+.ws-status--limite,
+.ws-status--parado {
+  --ws-status-ponto: var(--ws-limite-ponto);
+  --ws-status-texto: var(--ws-limite-texto);
+}
+
+.ws-status--cobrado,
+.ws-status--extraviado {
+  --ws-status-ponto: var(--ws-cobrado-ponto);
+  --ws-status-texto: var(--ws-cobrado-texto);
+}
+
+/* Detalhe opcional depois do texto ("· 18 dias") em tom suave */
+.ws-status__detalhe {
+  color: var(--ws-cor-texto-suave);
+  font-weight: var(--ws-peso-regular);
+}
+
+
+/* ==========================================================================
+   6. Cards
+   --------------------------------------------------------------------------
+   Card do manual: transparente, sem raio, sem sombra, linha de 1px.
+   - .ws-card              padrão
+   - .ws-card--superficie  com fundo branco (blocos de formulário, tabelas)
+   - .ws-card--livro       eyebrow + título + texto + responsável
+   ========================================================================== */
+.ws-card {
+  display: grid;
+  gap: var(--ws-esp-3);
+  align-content: start;
+  min-width: 0;
+  padding: var(--ws-esp-5);
+  border: var(--ws-borda);
+  border-radius: var(--ws-raio);
+  background: transparent;
+}
+
+.ws-card--superficie {
+  background: var(--ws-cor-superficie);
+}
+
+.ws-card--compacto {
+  padding: var(--ws-esp-4);
+}
+
+.ws-card__cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ws-esp-2) var(--ws-esp-3);
+}
+
+.ws-card__titulo {
+  font-size: var(--ws-fs-h2);
+  font-weight: var(--ws-fw-h2);
+  letter-spacing: var(--ws-ls-h2);
+  line-height: var(--ws-lh-h2);
+}
+
+.ws-card__titulo a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ws-card__titulo a:hover {
+  color: var(--ws-cor-destaque);
+  text-decoration: underline;
+}
+
+.ws-card__texto {
+  color: var(--ws-cor-texto);
+}
+
+.ws-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ws-esp-1) var(--ws-esp-3);
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-card__meta svg.lucide,
+.ws-card__meta [data-lucide] {
+  width: var(--ws-icone-peq);
+  height: var(--ws-icone-peq);
+}
+
+.ws-card__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ws-esp-3);
+  margin-top: var(--ws-esp-2);
+  padding-top: var(--ws-esp-3);
+  border-top: var(--ws-borda);
+}
+
+/* Card de livro: o eyebrow ("LIVRO 0112 · DIAGRAMAÇÃO") vem em Tiffany profundo */
+.ws-card--livro .ws-eyebrow {
+  color: var(--ws-cor-destaque);
+}
+
+/* Card de seção com ícone (como os do manual pág. 14) */
+.ws-card__icone {
+  color: var(--ws-cor-destaque);
+}
+
+/* Linhas de card coladas (bordas de 1px compartilhadas) */
+.ws-cards-colados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px;
+  border: var(--ws-borda);
+  background: var(--ws-cor-linha);
+}
+
+.ws-cards-colados > .ws-card {
+  border: 0;
+  background: var(--ws-cor-fundo);
+}
+
+
+/* ==========================================================================
+   7. Indicadores (KPI)
+   --------------------------------------------------------------------------
+   Células coladas com linha de 1px (manual pág. 13). Número na cor do
+   status só quando o indicador É um status (no limite / acima do limite).
+   <div class="ws-kpis">
+     <a class="ws-kpi" href="livros.php"><span class="ws-kpi__rotulo">Em produção</span>
+       <span class="ws-kpi__valor">14 <span class="ws-kpi__unidade">livros</span></span></a>
+     <div class="ws-kpi ws-kpi--limite">…</div>
+   </div>
+   ========================================================================== */
+.ws-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  border: var(--ws-borda);
+  background: var(--ws-cor-linha);
+}
+
+.ws-kpi {
+  display: grid;
+  gap: var(--ws-esp-2);
+  align-content: start;
+  padding: var(--ws-esp-4) var(--ws-esp-5) var(--ws-esp-5);
+  background: var(--ws-cor-superficie);
+  color: var(--ws-cor-texto);
+  text-decoration: none;
+}
+
+a.ws-kpi:hover {
+  background: var(--ws-cor-realce);
+  color: var(--ws-cor-texto);
+}
+
+.ws-kpi__rotulo {
+  font-size: var(--ws-fs-eyebrow);
+  font-weight: var(--ws-fw-eyebrow);
+  letter-spacing: var(--ws-ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-kpi__valor {
+  font-size: var(--ws-fs-h1);
+  font-weight: var(--ws-fw-h1);
+  letter-spacing: var(--ws-ls-h1);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-kpi__valor--texto {
+  font-size: var(--ws-fs-h2);
+  letter-spacing: var(--ws-ls-h2);
+  line-height: var(--ws-lh-h2);
+}
+
+.ws-kpi__unidade {
+  font-size: var(--ws-fs-corpo);
+  font-weight: var(--ws-peso-regular);
+  letter-spacing: 0;
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-kpi__nota {
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+.ws-kpi--limite .ws-kpi__valor  { color: var(--ws-limite-texto); }
+.ws-kpi--cobrado .ws-kpi__valor { color: var(--ws-cobrado-texto); }
+.ws-kpi--ok .ws-kpi__valor      { color: var(--ws-ok-texto); }
+
+
+/* ==========================================================================
+   8. Tabela de dados
+   --------------------------------------------------------------------------
+   <div class="ws-tabela-wrap" tabindex="0" role="region" aria-label="Livros em produção">
+     <table class="ws-tabela">…</table>
+   </div>
+   - Cabeçalho em eyebrow, linhas de 1px, hover em Tiffany 100.
+   - .ws-tabela__codigo  coluna em mono (Livro, ISBN)
+   - .ws-tabela__num     coluna numérica à direita (Rodadas)
+   - Celular: por padrão a tabela rola na horizontal DENTRO do wrap.
+     Para empilhar em cartões, use .ws-tabela--empilhar e coloque
+     data-rotulo="Etapa atual" em cada <td>.
+   ========================================================================== */
+.ws-tabela-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: var(--ws-borda);
+  background: var(--ws-cor-superficie);
+  -webkit-overflow-scrolling: touch;
+}
+
+.ws-tabela {
+  width: 100%;
+  font-size: var(--ws-fs-corpo);
+}
+
+.ws-tabela caption {
+  padding: var(--ws-esp-3) var(--ws-esp-4);
+  text-align: left;
+  caption-side: top;
+}
+
+.ws-tabela th {
+  padding: var(--ws-esp-3) var(--ws-esp-4);
+  border-bottom: var(--ws-borda-forte);
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+  font-weight: var(--ws-fw-eyebrow);
+  letter-spacing: var(--ws-ls-eyebrow);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.ws-tabela td {
+  padding: var(--ws-esp-3) var(--ws-esp-4);
+  border-bottom: var(--ws-borda);
+  vertical-align: middle;
+}
+
+.ws-tabela tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ws-tabela tbody tr {
+  transition: background-color var(--ws-transicao);
+}
+
+.ws-tabela tbody tr:hover {
+  background: var(--ws-cor-realce);
+}
+
+.ws-tabela__codigo {
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ws-tabela__num {
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.ws-tabela__suave {
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-tabela__acoes {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+/* Título do livro como link limpo na linha */
+.ws-tabela__titulo a {
+  color: var(--ws-cor-texto);
+  font-weight: var(--ws-peso-medio);
+  text-decoration: none;
+}
+
+.ws-tabela__titulo a:hover {
+  color: var(--ws-cor-destaque);
+  text-decoration: underline;
+}
+
+.ws-tabela__sub {
+  display: block;
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+/* Linha vazia ("Nenhum livro encontrado…") */
+.ws-tabela__vazia td {
+  padding: var(--ws-esp-6) var(--ws-esp-4);
+  color: var(--ws-cor-texto-suave);
+  text-align: center;
+}
+
+/* Rodapé da tabela: contagem + paginação */
+.ws-tabela-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ws-esp-3);
+  padding-top: var(--ws-esp-3);
+  color: var(--ws-cor-texto-suave);
+}
+
+/* Barra simples dentro de célula (ex.: livros por etapa) */
+.ws-barra {
+  display: flex;
+  align-items: center;
+  gap: var(--ws-esp-3);
+  min-width: 160px;
+}
+
+.ws-barra__trilho {
+  flex: 1;
+  height: 8px;
+  border: var(--ws-borda);
+}
+
+.ws-barra__preenchimento {
+  display: block;
+  width: var(--ws-barra-valor, 0%);
+  height: 100%;
+  background: var(--ws-cor-acao);
+}
+
+.ws-barra__valor {
+  min-width: 2ch;
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Empilhamento no celular (opcional) */
+@media (max-width: 639px) {
+  .ws-tabela--empilhar thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .ws-tabela--empilhar,
+  .ws-tabela--empilhar tbody,
+  .ws-tabela--empilhar tr,
+  .ws-tabela--empilhar td {
+    display: block;
+    width: 100%;
+  }
+
+  .ws-tabela--empilhar tr {
+    padding: var(--ws-esp-3) 0;
+    border-bottom: var(--ws-borda);
+  }
+
+  .ws-tabela--empilhar tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .ws-tabela--empilhar td {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    column-gap: var(--ws-esp-3);
+    row-gap: 0;
+    padding: var(--ws-esp-1) var(--ws-esp-4);
+    border-bottom: 0;
+    text-align: left !important;
+  }
+
+  /* Conteúdo da célula sempre na 2ª coluna, mesmo com vários elementos */
+  .ws-tabela--empilhar td > * {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .ws-tabela--empilhar td::before {
+    content: attr(data-rotulo);
+    grid-column: 1;
+    grid-row: 1 / span 4;
+    font-family: var(--ws-fonte);
+    color: var(--ws-cor-texto-suave);
+    font-size: 11px;
+    font-weight: var(--ws-fw-eyebrow);
+    letter-spacing: var(--ws-ls-eyebrow);
+    text-transform: uppercase;
+  }
+
+  .ws-tabela--empilhar td:not([data-rotulo])::before {
+    content: none;
+  }
+
+  .ws-tabela--empilhar td:not([data-rotulo]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-tabela--empilhar .ws-tabela__vazia td {
+    display: block;
+  }
+}
+
+
+/* ==========================================================================
+   9. Contador de rodadas (manual pág. 09)
+   --------------------------------------------------------------------------
+   O PHP só preenche os números: limite e rodada atual em data-*, e um
+   bloco por rodada de 1 até limite+1. As cores saem do CSS:
+     rodadas 1 .. limite−1  → verde (no prazo)
+     rodada  limite         → amarelo (última incluída: alerta)
+     rodada  limite+1 (R4+) → vermelho (cobrada)
+   Rodadas já feitas e a atual mostram a barra colorida; as futuras
+   ficam com a barra cinza. A atual ganha contorno e peso 600.
+
+   <div class="ws-rodadas" data-limite="3" data-atual="2"
+        aria-label="Diagramação: rodada 2 de 3 incluídas">
+     <span class="ws-rodadas__etapa">Diagramação</span>
+     <ol class="ws-rodadas__blocos">
+       <li class="ws-rodada">R1</li><li class="ws-rodada">R2</li>
+       <li class="ws-rodada">R3</li><li class="ws-rodada">R4+</li>
+     </ol>
+   </div>
+
+   Em PHP:
+     <?php for ($n = 1; $n <= $limite + 1; $n++): ?>
+       <li class="ws-rodada">R<?= $n ?><?= $n > $limite ? '+' : '' ?></li>
+     <?php endfor; ?>
+   Se a <ol> vier vazia, o waresys.js gera os blocos. Quando a rodada
+   passa de limite+1 (R5, R6…), o último bloco continua sendo "atual" e o
+   waresys.js troca o texto "R4+" pelo número real.
+   Suporte de CSS: limite de 1 a 6, rodada atual de 0 a 12.
+   ========================================================================== */
+.ws-rodadas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ws-esp-2) var(--ws-esp-4);
+}
+
+.ws-rodadas__etapa {
+  min-width: 96px;
+}
+
+.ws-rodadas__blocos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ws-esp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-rodada {
+  --ws-rodada-cor: var(--ws-ok-ponto);
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  height: 32px;
+  padding: 0 var(--ws-esp-2);
+  border: var(--ws-borda-forte);
+  border-top: var(--ws-barra-status) solid var(--ws-rodada-cor);
+  background: var(--ws-cor-superficie);
+  color: var(--ws-cor-texto);
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Legenda opcional abaixo dos blocos ("Rodada 2 de 3. Próxima ainda incluída.") */
+.ws-rodadas__legenda {
+  flex-basis: 100%;
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+/* Estados aplicados direto por classe (alternativa ao data-*):
+   .is-limite, .is-cobrada, .is-futura, .is-atual */
+.ws-rodada.is-limite  { --ws-rodada-cor: var(--ws-limite-ponto); }
+.ws-rodada.is-cobrada { --ws-rodada-cor: var(--ws-cobrado-ponto); }
+
+/* Cor da barra pelo limite: rodada = limite → amarelo; acima → vermelho */
+.ws-rodadas[data-limite="1"] .ws-rodada:nth-child(1),
+.ws-rodadas[data-limite="2"] .ws-rodada:nth-child(2),
+.ws-rodadas[data-limite="3"] .ws-rodada:nth-child(3),
+.ws-rodadas[data-limite="4"] .ws-rodada:nth-child(4),
+.ws-rodadas[data-limite="5"] .ws-rodada:nth-child(5),
+.ws-rodadas[data-limite="6"] .ws-rodada:nth-child(6) {
+  --ws-rodada-cor: var(--ws-limite-ponto);
+}
+
+.ws-rodadas[data-limite="1"] .ws-rodada:nth-child(n+2),
+.ws-rodadas[data-limite="2"] .ws-rodada:nth-child(n+3),
+.ws-rodadas[data-limite="3"] .ws-rodada:nth-child(n+4),
+.ws-rodadas[data-limite="4"] .ws-rodada:nth-child(n+5),
+.ws-rodadas[data-limite="5"] .ws-rodada:nth-child(n+6),
+.ws-rodadas[data-limite="6"] .ws-rodada:nth-child(n+7) {
+  --ws-rodada-cor: var(--ws-cobrado-ponto);
+}
+
+/* Rodadas futuras (depois da atual): barra cinza, texto suave */
+.ws-rodadas[data-atual="0"] .ws-rodada:nth-child(n+1),
+.ws-rodadas[data-atual="1"] .ws-rodada:nth-child(n+2),
+.ws-rodadas[data-atual="2"] .ws-rodada:nth-child(n+3),
+.ws-rodadas[data-atual="3"] .ws-rodada:nth-child(n+4),
+.ws-rodadas[data-atual="4"] .ws-rodada:nth-child(n+5),
+.ws-rodadas[data-atual="5"] .ws-rodada:nth-child(n+6),
+.ws-rodadas[data-atual="6"] .ws-rodada:nth-child(n+7),
+.ws-rodadas[data-atual="7"] .ws-rodada:nth-child(n+8),
+.ws-rodadas[data-atual="8"] .ws-rodada:nth-child(n+9),
+.ws-rodadas[data-atual="9"] .ws-rodada:nth-child(n+10),
+.ws-rodadas[data-atual="10"] .ws-rodada:nth-child(n+11),
+.ws-rodadas[data-atual="11"] .ws-rodada:nth-child(n+12),
+.ws-rodadas[data-atual="12"] .ws-rodada:nth-child(n+13) {
+  --ws-rodada-cor: var(--ws-cor-linha-forte);
+  color: var(--ws-cor-texto-suave);
+}
+
+/* Rodada atual: contorno no tom do texto e peso 600.
+   A 2ª linha de cada par marca o último bloco (R4+) quando a rodada
+   atual passa do número de blocos (R5, R6…). */
+.ws-rodadas[data-atual="1"] .ws-rodada:nth-child(1),
+.ws-rodadas[data-atual="1"] .ws-rodada:last-child:nth-child(-n+1),
+.ws-rodadas[data-atual="2"] .ws-rodada:nth-child(2),
+.ws-rodadas[data-atual="2"] .ws-rodada:last-child:nth-child(-n+2),
+.ws-rodadas[data-atual="3"] .ws-rodada:nth-child(3),
+.ws-rodadas[data-atual="3"] .ws-rodada:last-child:nth-child(-n+3),
+.ws-rodadas[data-atual="4"] .ws-rodada:nth-child(4),
+.ws-rodadas[data-atual="4"] .ws-rodada:last-child:nth-child(-n+4),
+.ws-rodadas[data-atual="5"] .ws-rodada:nth-child(5),
+.ws-rodadas[data-atual="5"] .ws-rodada:last-child:nth-child(-n+5),
+.ws-rodadas[data-atual="6"] .ws-rodada:nth-child(6),
+.ws-rodadas[data-atual="6"] .ws-rodada:last-child:nth-child(-n+6),
+.ws-rodadas[data-atual="7"] .ws-rodada:nth-child(7),
+.ws-rodadas[data-atual="7"] .ws-rodada:last-child:nth-child(-n+7),
+.ws-rodadas[data-atual="8"] .ws-rodada:nth-child(8),
+.ws-rodadas[data-atual="8"] .ws-rodada:last-child:nth-child(-n+8),
+.ws-rodadas[data-atual="9"] .ws-rodada:nth-child(9),
+.ws-rodadas[data-atual="9"] .ws-rodada:last-child:nth-child(-n+9),
+.ws-rodadas[data-atual="10"] .ws-rodada:nth-child(10),
+.ws-rodadas[data-atual="10"] .ws-rodada:last-child:nth-child(-n+10),
+.ws-rodadas[data-atual="11"] .ws-rodada:nth-child(11),
+.ws-rodadas[data-atual="11"] .ws-rodada:last-child:nth-child(-n+11),
+.ws-rodadas[data-atual="12"] .ws-rodada:nth-child(12),
+.ws-rodadas[data-atual="12"] .ws-rodada:last-child:nth-child(-n+12) {
+  border-left-color: var(--ws-cor-texto);
+  border-right-color: var(--ws-cor-texto);
+  border-bottom-color: var(--ws-cor-texto);
+  font-weight: var(--ws-peso-semi);
+}
+
+.ws-rodada.is-futura {
+  --ws-rodada-cor: var(--ws-cor-linha-forte) !important;
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-rodada.is-atual {
+  border-left-color: var(--ws-cor-texto);
+  border-right-color: var(--ws-cor-texto);
+  border-bottom-color: var(--ws-cor-texto);
+  font-weight: var(--ws-peso-semi);
+}
+
+/* Versão "regra": mostra todas as barras coloridas, sem rodada atual
+   (como na pág. 09 do manual). Use data-atual="regra". */
+.ws-rodadas[data-atual="regra"] .ws-rodada {
+  color: var(--ws-cor-texto);
+}
+
+
+/* ==========================================================================
+   10. Fluxo de etapas (lista vertical compacta) e barra de progresso
+   --------------------------------------------------------------------------
+   As 15 etapas em coluna. Estado em classe + texto para leitor de tela:
+   .is-concluida · .is-atual (+ aria-current="step") · .is-pulada · futura
+   (sem classe). Etapas opcionais levam a etiqueta .ws-tag--opcional.
+   <ol class="ws-fluxo">
+     <li class="ws-fluxo__etapa is-concluida">
+       <span class="ws-fluxo__marcador"><i data-lucide="check"></i></span>
+       <span class="ws-fluxo__nome">Orçamento <span class="ws-sr-only">(concluída)</span></span>
+     </li>
+     …
+   </ol>
+   ========================================================================== */
+.ws-fluxo {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-fluxo__etapa {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--ws-esp-3);
+  min-height: 36px;
+  padding: 6px 0;
+}
+
+/* Linha vertical ligando os marcadores */
+.ws-fluxo__etapa::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 11.5px;
+  width: 1px;
+  background: var(--ws-cor-linha-forte);
+}
+
+.ws-fluxo__etapa:first-child::before { top: 50%; }
+.ws-fluxo__etapa:last-child::before  { bottom: 50%; }
+
+.ws-fluxo__marcador {
+  position: relative; /* fica por cima da linha */
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ws-cor-linha-forte);
+  background: var(--ws-cor-superficie);
+  color: var(--ws-cor-texto-suave);
+  font-family: var(--ws-fonte-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-fluxo__marcador svg.lucide,
+.ws-fluxo__marcador [data-lucide] {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.ws-fluxo__nome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--ws-esp-2);
+  min-width: 0;
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-fluxo__detalhe {
+  flex-basis: 100%;
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+.ws-fluxo__extra {
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+  color: var(--ws-cor-texto-suave);
+}
+
+/* Concluída: marcador Tiffany com ✓ */
+.ws-fluxo__etapa.is-concluida .ws-fluxo__marcador {
+  border-color: var(--ws-cor-acao);
+  background: var(--ws-cor-acao);
+  color: var(--ws-cor-texto-sobre-acao);
+}
+
+.ws-fluxo__etapa.is-concluida .ws-fluxo__nome {
+  color: var(--ws-cor-texto);
+}
+
+/* A linha entre etapas concluídas fica no Tiffany profundo */
+.ws-fluxo__etapa.is-concluida::before {
+  background: var(--ws-cor-destaque);
+}
+
+/* Atual: contorno de 2px Tiffany profundo, texto 600 */
+.ws-fluxo__etapa.is-atual .ws-fluxo__marcador {
+  border: 2px solid var(--ws-cor-destaque);
+  color: var(--ws-cor-destaque);
+  font-weight: var(--ws-peso-semi);
+}
+
+.ws-fluxo__etapa.is-atual .ws-fluxo__nome {
+  color: var(--ws-cor-texto);
+  font-weight: var(--ws-peso-semi);
+}
+
+.ws-fluxo__etapa.is-atual {
+  background: var(--ws-cor-realce);
+  margin: 0 calc(var(--ws-esp-2) * -1);
+  padding-left: var(--ws-esp-2);
+  padding-right: var(--ws-esp-2);
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+}
+
+.ws-fluxo__etapa.is-atual::before {
+  left: calc(11.5px + var(--ws-esp-2));
+}
+
+/* Pulada (opcional não feita): marcador tracejado, nome riscado */
+.ws-fluxo__etapa.is-pulada .ws-fluxo__marcador {
+  border-style: dashed;
+}
+
+.ws-fluxo__etapa.is-pulada .ws-fluxo__nome > span:first-child {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* Barra de progresso ("Etapa 7 de 15"): segmentos de 1px de linha */
+.ws-progresso {
+  display: grid;
+  gap: var(--ws-esp-2);
+}
+
+.ws-progresso__rotulo {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ws-esp-3);
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-progresso__trilho {
+  height: 8px;
+  border: var(--ws-borda-forte);
+  background: var(--ws-cor-superficie);
+}
+
+.ws-progresso__preenchimento {
+  display: block;
+  width: var(--ws-progresso, 0%);
+  height: 100%;
+  background: var(--ws-cor-acao);
+}
+
+
+/* ==========================================================================
+   11. Linha do tempo (histórico do livro)
+   --------------------------------------------------------------------------
+   Um item por movimentação, do mais recente para o mais antigo. O tipo
+   (avanço, repetição, retrocesso, pulo de opcional, troca de mesa,
+   resgate) vem no ícone e no texto — sem cor de status. Rodada cobrável
+   ganha um .ws-status--cobrado ao lado.
+   <ol class="ws-linha-tempo">
+     <li class="ws-evento ws-evento--retrocesso">
+       <span class="ws-evento__icone"><i data-lucide="undo-2"></i></span>
+       <div class="ws-evento__corpo">
+         <p class="ws-evento__titulo">Voltou para Diagramação</p>
+         <p class="ws-evento__meta">Rodada 3 de 3 · Mesa: Ana Lima · Registrado por Bruno Reis</p>
+       </div>
+       <time class="ws-evento__data" datetime="2026-10-18T14:32">18/10 14:32</time>
+     </li>
+   </ol>
+   ========================================================================== */
+.ws-linha-tempo {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-evento {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  column-gap: var(--ws-esp-3);
+  padding-bottom: var(--ws-esp-4);
+}
+
+.ws-evento::before {
+  content: "";
+  position: absolute;
+  top: 32px;
+  bottom: 0;
+  left: 15.5px;
+  width: 1px;
+  background: var(--ws-cor-linha-forte);
+}
+
+.ws-evento:last-child {
+  padding-bottom: 0;
+}
+
+.ws-evento:last-child::before {
+  content: none;
+}
+
+.ws-evento__icone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: var(--ws-borda-forte);
+  background: var(--ws-cor-superficie);
+  color: var(--ws-cor-destaque);
+}
+
+.ws-evento__corpo {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 6px;
+}
+
+.ws-evento__corpo p + p {
+  margin-top: 0;
+}
+
+.ws-evento__titulo {
+  font-weight: var(--ws-peso-semi);
+}
+
+.ws-evento__meta {
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-evento__data {
+  padding-top: 7px;
+  color: var(--ws-cor-texto-suave);
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Movimentação aberta (etapa atual): marcador cheio em Tiffany */
+.ws-evento.is-aberto .ws-evento__icone {
+  border-color: var(--ws-cor-acao);
+  background: var(--ws-cor-acao);
+  color: var(--ws-cor-texto-sobre-acao);
+}
+
+/* Resgate e retrocesso: marcador tracejado (diferença por forma, não cor) */
+.ws-evento--retrocesso .ws-evento__icone,
+.ws-evento--resgate .ws-evento__icone {
+  border-style: dashed;
+}
+
+@media (max-width: 479px) {
+  .ws-evento {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .ws-evento__data {
+    grid-column: 2;
+    grid-row: 1;
+    padding-top: 0;
+    padding-bottom: 2px;
+  }
+
+  .ws-evento__corpo {
+    grid-column: 2;
+    padding-top: 0;
+  }
+}
+
+
+/* ==========================================================================
+   12. Lista de definições (dados do livro)
+   --------------------------------------------------------------------------
+   <dl class="ws-dados"><div><dt>ISBN</dt><dd class="ws-codigo">978-…</dd></div>…</dl>
+   ========================================================================== */
+.ws-dados {
+  display: grid;
+  margin: 0;
+}
+
+.ws-dados > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 40%) minmax(0, 1fr);
+  gap: var(--ws-esp-3);
+  padding: 10px 0;
+  border-bottom: var(--ws-borda);
+}
+
+.ws-dados > div:first-child {
+  padding-top: 0;
+}
+
+.ws-dados > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ws-dados dt {
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-dados dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+
+/* ==========================================================================
+   13. Alertas
+   --------------------------------------------------------------------------
+   Card branco, linha de 1px e filete lateral de 3px. A cor do filete e
+   do ícone só aparece quando o alerta é sobre status do fluxo.
+   Tom de voz: livro, etapa e rodada primeiro. Sem exclamação.
+   <div class="ws-alerta ws-alerta--limite" role="status">
+     <i class="ws-alerta__icone" data-lucide="triangle-alert"></i>
+     <div class="ws-alerta__corpo">
+       <p class="ws-alerta__titulo">Livro 0112 na rodada 3 de 3 de Diagramação.</p>
+       <p>A próxima volta será cobrada.</p>
+     </div>
+   </div>
+   Variantes: --info (padrão) · --ok · --limite · --cobrado
+   ========================================================================== */
+.ws-alerta {
+  --ws-alerta-cor: var(--ws-cor-destaque);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--ws-esp-3);
+  padding: var(--ws-esp-3) var(--ws-esp-4);
+  border: var(--ws-borda);
+  border-left: var(--ws-barra-status) solid var(--ws-alerta-cor);
+  background: var(--ws-cor-superficie);
+}
+
+.ws-alerta__icone {
+  margin-top: 1px;
+  color: var(--ws-alerta-cor);
+}
+
+.ws-alerta__corpo {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ws-alerta__corpo p + p {
+  margin-top: 0;
+}
+
+.ws-alerta__titulo {
+  font-weight: var(--ws-peso-semi);
+}
+
+.ws-alerta__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ws-esp-3);
+  margin-top: var(--ws-esp-2);
+}
+
+.ws-alerta--ok      { --ws-alerta-cor: var(--ws-ok-ponto); }
+.ws-alerta--limite  { --ws-alerta-cor: var(--ws-limite-ponto); }
+.ws-alerta--cobrado { --ws-alerta-cor: var(--ws-cobrado-ponto); }
+
+/* No tema escuro o ícone usa o tom de texto (mais legível que o ponto) */
+[data-theme="escuro"] .ws-alerta--ok      .ws-alerta__icone { color: var(--ws-ok-texto); }
+[data-theme="escuro"] .ws-alerta--limite  .ws-alerta__icone { color: var(--ws-limite-texto); }
+[data-theme="escuro"] .ws-alerta--cobrado .ws-alerta__icone { color: var(--ws-cobrado-texto); }
+
+/* Botão fechar (alerta e toast) */
+.ws-fechar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -8px -4px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-fechar:hover {
+  background: var(--ws-cor-realce);
+  color: var(--ws-cor-texto);
+}
+
+
+/* ==========================================================================
+   14. Toasts
+   --------------------------------------------------------------------------
+   Confirmação curta depois de uma ação ("Livro 112 voltou para
+   diagramação. Rodada 3 de 3."). O PHP pode escrever o flash da sessão
+   como toast; o waresys.js esconde depois de data-ws-duracao ms (padrão
+   6000), pausando enquanto o mouse ou o foco estão nele.
+   <div class="ws-toasts" aria-live="polite">
+     <div class="ws-toast ws-alerta ws-alerta--ok" role="status" data-ws-toast>
+       …conteúdo de alerta…
+       <button class="ws-fechar" type="button" data-ws-toast-fechar aria-label="Fechar aviso">…</button>
+     </div>
+   </div>
+   ========================================================================== */
+.ws-toasts {
+  position: fixed;
+  right: var(--ws-esp-5);
+  bottom: var(--ws-esp-5);
+  z-index: var(--ws-z-toast);
+  display: grid;
+  gap: var(--ws-esp-2);
+  width: min(400px, calc(100vw - 2 * var(--ws-esp-4)));
+  pointer-events: none;
+}
+
+.ws-toast {
+  pointer-events: auto;
+  /* só as 3 bordas de linha; a da esquerda é o filete de status */
+  border-top-color: var(--ws-cor-linha-forte);
+  border-right-color: var(--ws-cor-linha-forte);
+  border-bottom-color: var(--ws-cor-linha-forte);
+}
+
+.ws-toast.is-saindo {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+@media (max-width: 767px) {
+  .ws-toasts {
+    right: var(--ws-esp-4);
+    bottom: var(--ws-esp-4);
+    left: var(--ws-esp-4);
+    width: auto;
+  }
+}
+
+
+/* ==========================================================================
+   15. Modal de confirmação
+   --------------------------------------------------------------------------
+   Usa <dialog> nativo: o navegador já prende o foco, deixa o resto da
+   página inerte e fecha com Esc. O waresys.js cuida de abrir/fechar, de
+   devolver o foco e de confirmar formulários (data-ws-confirmar).
+   <dialog class="ws-modal" id="modal-rodada" aria-labelledby="modal-rodada-titulo">
+     <div class="ws-modal__caixa">
+       <header class="ws-modal__cabecalho">
+         <h2 id="modal-rodada-titulo">Registrar nova rodada de revisão?</h2>
+         <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar">…</button>
+       </header>
+       <div class="ws-modal__corpo">…</div>
+       <footer class="ws-modal__rodape">…botões…</footer>
+     </div>
+   </dialog>
+   ========================================================================== */
+.ws-modal {
+  width: min(480px, calc(100vw - 2 * var(--ws-esp-4)));
+  max-height: calc(100vh - 2 * var(--ws-esp-4));
+  margin: auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: var(--ws-cor-texto);
+}
+
+.ws-modal::backdrop {
+  background: var(--ws-cor-veu);
+}
+
+.ws-modal__caixa {
+  position: relative;
+  display: grid;
+  max-height: calc(100vh - 2 * var(--ws-esp-4));
+  overflow-y: auto;
+  border: var(--ws-borda-forte);
+  background: var(--ws-cor-superficie);
+}
+
+.ws-modal__cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ws-esp-3);
+  padding: var(--ws-esp-5) var(--ws-esp-5) 0;
+}
+
+.ws-modal__corpo {
+  display: grid;
+  gap: var(--ws-esp-3);
+  padding: var(--ws-esp-4) var(--ws-esp-5) var(--ws-esp-5);
+}
+
+.ws-modal__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ws-esp-3);
+  padding: var(--ws-esp-4) var(--ws-esp-5);
+  border-top: var(--ws-borda);
+}
+
+@media (max-width: 479px) {
+  .ws-modal__rodape {
+    flex-direction: column-reverse;
+  }
+
+  .ws-modal__rodape .ws-btn {
+    width: 100%;
+  }
+}
+
+
+/* ==========================================================================
+   16. Estado vazio e carregamento
+   ========================================================================== */
+
+/* Vazio: linha tracejada (planta técnica), ícone, frase no tom da marca */
+.ws-vazio {
+  display: grid;
+  justify-items: center;
+  gap: var(--ws-esp-3);
+  padding: var(--ws-esp-7) var(--ws-esp-5);
+  border: 1px dashed var(--ws-cor-linha-forte);
+  color: var(--ws-cor-texto);
+  text-align: center;
+}
+
+.ws-vazio__icone {
+  width: 32px !important;
+  height: 32px !important;
+  color: var(--ws-cor-destaque);
+}
+
+.ws-vazio__texto {
+  max-width: 44ch;
+  color: var(--ws-cor-texto-suave);
+}
+
+/* Carregamento: texto + traço que corre num trilho de 1px.
+   Coloque aria-busy="true" na região que está carregando. */
+.ws-carregando {
+  display: grid;
+  gap: var(--ws-esp-2);
+  justify-items: start;
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-carregando__trilho {
+  position: relative;
+  width: 160px;
+  height: 2px;
+  overflow: hidden;
+  background: var(--ws-cor-linha);
+}
+
+.ws-carregando__trilho::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  background: var(--ws-cor-destaque);
+  animation: ws-carregando 1.1s ease-in-out infinite;
+}
+
+@keyframes ws-carregando {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(250%); }
+}
+
+/* Botão em envio: <button class="ws-btn ws-btn--primario is-carregando" disabled> */
+.ws-btn.is-carregando {
+  cursor: progress;
+}
+
+
+/* ==========================================================================
+   17. Paginação
+   --------------------------------------------------------------------------
+   <nav class="ws-paginacao" aria-label="Paginação">
+     <a class="ws-paginacao__item" href="?pagina=1" aria-label="Página anterior">…</a>
+     <a class="ws-paginacao__item" href="?pagina=2" aria-current="page">2</a>
+   </nav>
+   ========================================================================== */
+.ws-paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ws-esp-1);
+}
+
+.ws-paginacao__item {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--ws-controle-altura-peq);
+  height: var(--ws-controle-altura-peq);
+  padding: 0 var(--ws-esp-2);
+  border: var(--ws-borda);
+  background: var(--ws-cor-superficie);
+  color: var(--ws-cor-texto);
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.ws-paginacao__item:hover {
+  border-color: var(--ws-cor-destaque);
+  background: var(--ws-cor-realce);
+  color: var(--ws-cor-texto);
+}
+
+.ws-paginacao__item[aria-current="page"] {
+  border-color: var(--ws-cor-destaque);
+  background: var(--ws-cor-realce-forte);
+  color: var(--ws-cor-texto);
+  font-weight: var(--ws-peso-semi);
+}
+
+.ws-paginacao__item[aria-disabled="true"] {
+  color: var(--ws-cor-desabilitado-texto);
+  pointer-events: none;
+}
+
+.ws-paginacao__reticencias {
+  padding: 0 var(--ws-esp-1);
+  color: var(--ws-cor-texto-suave);
+}
+
+
+/* ==========================================================================
+   18. Barra de filtros (lista de livros)
+   --------------------------------------------------------------------------
+   Formulário GET: busca + selects + Filtrar / Limpar. Os filtros ativos
+   aparecem como etiquetas logo abaixo.
+   ========================================================================== */
+.ws-filtros {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(140px, 1fr)) auto;
+  gap: var(--ws-esp-3);
+  align-items: end;
+  padding: var(--ws-esp-4);
+  border: var(--ws-borda);
+  background: var(--ws-cor-superficie);
+}
+
+.ws-filtros__acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--ws-esp-3);
+  min-height: var(--ws-controle-altura);
+}
+
+@media (max-width: 1023px) {
+  .ws-filtros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ws-filtros > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 479px) {
+  .ws-filtros {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* ==========================================================================
+   19. Login
+   --------------------------------------------------------------------------
+   Duas colunas no desktop: painel da marca (cor lisa, cinza profundo) e
+   o formulário. No celular, o painel encolhe para uma faixa.
+   ========================================================================== */
+.ws-login {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.ws-login__marca {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--ws-esp-6);
+  padding: var(--ws-esp-7);
+  background: var(--ws-cor-superficie-escura);
+  color: var(--ws-branco);
+}
+
+[data-theme="escuro"] .ws-login__marca {
+  border-right: var(--ws-borda);
+}
+
+.ws-login__marca .ws-eyebrow {
+  color: var(--ws-tiffany-500);
+}
+
+.ws-login__frase {
+  max-width: 12ch;
+}
+
+.ws-login__texto {
+  max-width: 44ch;
+  color: #C5D3DC;
+}
+
+.ws-login__area {
+  display: grid;
+  place-items: center;
+  padding: var(--ws-esp-7) var(--ws-esp-5);
+}
+
+.ws-login__form {
+  display: grid;
+  gap: var(--ws-esp-5);
+  width: min(100%, 360px);
+}
+
+.ws-login__form .ws-btn--primario {
+  min-height: 44px;
+}
+
+.ws-login__rodape {
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-eyebrow);
+}
+
+@media (max-width: 1023px) {
+  .ws-login {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .ws-login__marca {
+    padding: var(--ws-esp-5) var(--ws-esp-4);
+  }
+
+  .ws-login__frase {
+    max-width: none;
+    font-size: var(--ws-fs-h1);
+    letter-spacing: var(--ws-ls-h1);
+  }
+
+  .ws-login__texto {
+    display: none;
+  }
+
+  .ws-login__area {
+    align-items: start;
+    padding: var(--ws-esp-6) var(--ws-esp-4);
+  }
+}

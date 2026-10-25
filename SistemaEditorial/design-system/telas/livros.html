@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="claro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Livros · WareSys</title>
+  <!-- Fonte: Inter (única família da marca) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+  <!-- Design system WareSys (nesta ordem) -->
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/layout.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <a class="ws-pular" href="#conteudo">Pular para o conteúdo</a>
+
+  <div class="ws-app">
+
+    <!-- Barra do celular/tablet (abaixo de 1024px). O link funciona sem JS (:target). -->
+    <header class="ws-barra-movel">
+      <a class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" href="#ws-sidebar" data-ws-menu-abrir aria-label="Abrir menu">
+        <i data-lucide="menu"></i>
+      </a>
+      <a class="ws-logo ws-logo--assinatura ws-logo--peq" href="painel.html" aria-label="WareSys, ir para o Painel">
+          <!-- Troque o span abaixo pelo SVG original: <img src="../img/logo/waresys-simbolo.svg" alt=""> -->
+          <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+          <span class="ws-logo__wordmark">WareSys</span>
+        </a>
+    </header>
+
+    <!-- Sidebar: mesmo menu das telas reais -->
+    <aside class="ws-sidebar" id="ws-sidebar" aria-label="Menu principal">
+      <div class="ws-sidebar__marca">
+        <a class="ws-logo ws-logo--assinatura" href="painel.html" aria-label="WareSys, ir para o Painel">
+          <!-- Troque o span abaixo pelo SVG original: <img src="../img/logo/waresys-simbolo.svg" alt=""> -->
+          <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+          <span class="ws-logo__wordmark">WareSys</span>
+        </a>
+        <a class="ws-btn ws-btn--icone ws-btn--peq ws-sidebar__fechar" href="#" data-ws-menu-fechar aria-label="Fechar menu">
+          <i data-lucide="x"></i>
+        </a>
+      </div>
+      <nav class="ws-nav">
+        <ul class="ws-nav__lista">
+          <li><a class="ws-nav__item" href="painel.html"><i data-lucide="layout-dashboard"></i>Painel</a></li>
+          <li><a class="ws-nav__item" href="#"><i data-lucide="inbox"></i>Minha mesa<span class="ws-nav__contador" aria-label="4 livros">4</span></a></li>
+          <li><a class="ws-nav__item" href="livros.html" aria-current="page"><i data-lucide="book-open"></i>Livros</a></li>
+          <li><a class="ws-nav__item" href="#"><i data-lucide="users"></i>Pessoas</a></li>
+          <li><a class="ws-nav__item" href="#"><i data-lucide="file-text"></i>Relatórios</a></li>
+          <li><a class="ws-nav__item" href="equipe.html"><i data-lucide="settings"></i>Configurações</a></li>
+        </ul>
+      </nav>
+      <div class="ws-sidebar__rodape">
+        <div class="ws-usuario">
+          <span class="ws-usuario__iniciais" aria-hidden="true">AL</span>
+          <div style="min-width:0">
+            <p class="ws-usuario__nome">Ana Lima</p>
+            <p class="ws-usuario__perfil">Gerente</p>
+          </div>
+        </div>
+        <a class="ws-btn ws-btn--link" href="login.html"><i data-lucide="log-out" class="ws-icone--peq"></i>Sair</a>
+      </div>
+    </aside>
+    <a class="ws-app__veu" href="#" data-ws-menu-fechar tabindex="-1" aria-hidden="true"></a>
+
+    <main class="ws-principal" id="conteudo">
+      <header class="ws-topo">
+        <div class="ws-topo__titulos">
+          <h1 class="ws-topo__titulo">Livros</h1>
+          <p class="ws-topo__subtitulo">Revisão · 3 livros em andamento</p>
+        </div>
+        <div class="ws-topo__acoes">
+          <a class="ws-btn ws-btn--primario" href="livro-form.html"><i data-lucide="plus"></i>Novo livro</a>
+        </div>
+      </header>
+
+      <div class="ws-conteudo">
+        <section class="ws-secao" aria-labelledby="filtros-titulo">
+          <h2 class="ws-sr-only" id="filtros-titulo">Filtros</h2>
+
+          <!-- Formulário GET: o PHP lê ?busca=&etapa=&mesa=&status= -->
+          <form class="ws-filtros" method="get" action="livros.html" role="search">
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="f-busca">Buscar</label>
+              <div class="ws-busca">
+                <i class="ws-busca__icone ws-icone--peq" data-lucide="search"></i>
+                <input class="ws-input" id="f-busca" type="search" name="busca" placeholder="Título, ISBN ou pessoa">
+              </div>
+            </div>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="f-etapa">Etapa</label>
+              <select class="ws-select" id="f-etapa" name="etapa">
+                <option value="">Todas</option><option>Orçamento</option><option>Contrato</option><option>Capa</option>
+                <option>Diagramação</option><option selected>Revisão</option><option>Catalogação</option>
+              </select>
+            </div>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="f-mesa">Mesa</label>
+              <select class="ws-select" id="f-mesa" name="mesa">
+                <option value="">Todas</option><option>Ana Lima</option><option>Bruno Reis</option><option>Carla Mota</option><option>Diego Paz</option><option>Helena Souza</option>
+              </select>
+            </div>
+            <div class="ws-campo">
+              <label class="ws-campo__rotulo" for="f-status">Situação</label>
+              <select class="ws-select" id="f-status" name="status">
+                <option value="">Todas</option><option selected>Em andamento</option><option>Extraviado</option>
+                <option>Concluído</option><option>Cancelado</option>
+              </select>
+            </div>
+            <div class="ws-filtros__acoes">
+              <button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="filter"></i>Filtrar</button>
+              <a class="ws-btn ws-btn--link" href="livros.html">Limpar</a>
+            </div>
+          </form>
+
+          <div class="ws-linha">
+            <span class="ws-texto-suave">Filtros ativos:</span>
+            <span class="ws-tags">
+              <span class="ws-tag">Etapa: Revisão</span>
+              <span class="ws-tag ws-tag--neutra">Em andamento</span>
+            </span>
+          </div>
+        </section>
+
+        <section class="ws-secao" aria-labelledby="lista-titulo">
+          <h2 class="ws-sr-only" id="lista-titulo">Livros em Revisão</h2>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="lista-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col">Livro</th>
+                  <th scope="col">Título</th>
+                  <th scope="col">ISBN</th>
+                  <th scope="col">Na etapa desde</th>
+                  <th scope="col">Mesa</th>
+                  <th scope="col" class="ws-tabela__num">Rodadas</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+              <tr>
+                <td class="ws-tabela__codigo" data-rotulo="Livro">0103</td>
+                <td class="ws-tabela__titulo" data-rotulo="Título"><a href="livro.html">Poemas de inverno</a><span class="ws-tabela__sub">Teodoro Alves</span></td>
+                <td data-rotulo="ISBN"><span class="ws-tabela__codigo">978-65-87401-03-2</span></td>
+                <td class="ws-tabela__codigo" data-rotulo="Na etapa desde">21/10/2026</td>
+                <td data-rotulo="Mesa">Diego Paz</td>
+                <td class="ws-tabela__num" data-rotulo="Rodadas">3/2</td>
+                <td data-rotulo="Status"><span class="ws-status ws-status--cobrado">Cobrado</span></td>
+              </tr>
+              <tr>
+                <td class="ws-tabela__codigo" data-rotulo="Livro">0127</td>
+                <td class="ws-tabela__titulo" data-rotulo="Título"><a href="livro.html">Arquivo das águas</a><span class="ws-tabela__sub">Joana Prates · Lia Prado</span></td>
+                <td data-rotulo="ISBN"><span class="ws-tabela__suave">—</span></td>
+                <td class="ws-tabela__codigo" data-rotulo="Na etapa desde">16/10/2026</td>
+                <td data-rotulo="Mesa">Diego Paz</td>
+                <td class="ws-tabela__num" data-rotulo="Rodadas">2/2</td>
+                <td data-rotulo="Status"><span class="ws-status ws-status--limite">No limite</span></td>
+              </tr>
+              <tr>
+                <td class="ws-tabela__codigo" data-rotulo="Livro">0108</td>
+                <td class="ws-tabela__titulo" data-rotulo="Título"><a href="livro.html">Cartografias do sertão</a><span class="ws-tabela__sub">Rui Medeiros (org.)</span></td>
+                <td data-rotulo="ISBN"><span class="ws-tabela__codigo">978-65-87401-08-7</span></td>
+                <td class="ws-tabela__codigo" data-rotulo="Na etapa desde">23/10/2026</td>
+                <td data-rotulo="Mesa">Bruno Reis</td>
+                <td class="ws-tabela__num" data-rotulo="Rodadas">1/2</td>
+                <td data-rotulo="Status"><span class="ws-status ws-status--ok">No prazo</span></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ws-tabela-rodape">
+            <span>1–3 de 3 livros</span>
+            <nav class="ws-paginacao" aria-label="Paginação">
+              <a class="ws-paginacao__item" aria-disabled="true" aria-label="Página anterior"><i data-lucide="chevron-left" class="ws-icone--peq"></i></a>
+              <a class="ws-paginacao__item" href="?pagina=1" aria-current="page">1</a>
+              <a class="ws-paginacao__item" aria-disabled="true" aria-label="Próxima página"><i data-lucide="chevron-right" class="ws-icone--peq"></i></a>
+            </nav>
+          </div>
+        </section>
+
+        <!-- Como fica quando o filtro não encontra nada -->
+        <section class="ws-secao" aria-labelledby="vazio-titulo">
+          <p class="ws-eyebrow" id="vazio-titulo">Exemplo: filtro sem resultado (Etapa: Impressão)</p>
+          <div class="ws-vazio">
+            <i class="ws-vazio__icone" data-lucide="book-open"></i>
+            <h3 class="ws-h2">Nenhum livro em Impressão.</h3>
+            <p class="ws-vazio__texto">Livros chegam aqui depois da Leitura da cópia até aprovação. Hoje há 1 livro nessa etapa.</p>
+            <a class="ws-btn ws-btn--secundario" href="livros.html">Limpar filtros</a>
+          </div>
+        </section>
+      </div>
+
+      <footer class="ws-rodape">
+        <p>WareSys · controle editorial para editoras · Projeto acadêmico FATEC</p>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Ícones Lucide (traço 1,5 aplicado pelo waresys.js) + comportamentos -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <script src="../js/waresys.js" defer></script>
+</body>
+</html>

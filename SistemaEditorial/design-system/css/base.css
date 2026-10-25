@@ -1,0 +1,310 @@
+/* ==========================================================================
+   WareSys · Design system · base.css
+   --------------------------------------------------------------------------
+   Reset leve, tipografia padrão, links, foco visível e utilitários de texto.
+   Depende de tokens.css.
+
+   ATENÇÃO: este arquivo estiliza elementos globais (body, h1, a...). Não
+   carregue junto com o style.css / style_base.css antigos na mesma página —
+   eles também mexem em * e body. A migração é feita tela a tela.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Reset leve
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+h1, h2, h3, h4, h5, h6,
+p, figure, blockquote,
+ul, ol, dl, dd {
+  margin: 0;
+}
+
+ul[class],
+ol[class] {
+  padding: 0;
+  list-style: none;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+img {
+  height: auto;
+}
+
+/* Formulários herdam a fonte (o navegador usa a do sistema por padrão) */
+input,
+button,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Corpo da página
+   Corpo 13/400, Inter, sobre o branco gelo.
+   -------------------------------------------------------------------------- */
+body {
+  min-height: 100vh;
+  background: var(--ws-cor-fundo);
+  color: var(--ws-cor-texto);
+  font-family: var(--ws-fonte);
+  font-size: var(--ws-fs-corpo);
+  font-weight: var(--ws-fw-corpo);
+  line-height: var(--ws-lh-corpo);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--ws-cor-selecao);
+  color: var(--ws-cor-texto);
+}
+
+/* --------------------------------------------------------------------------
+   3. Tipografia (manual pág. 10)
+   Os elementos h1/h2/h3 já recebem a escala; as classes .ws-* servem para
+   aplicar o estilo sem mudar a hierarquia do HTML (acessibilidade).
+   -------------------------------------------------------------------------- */
+h1, .ws-h1 {
+  font-size: var(--ws-fs-h1);
+  font-weight: var(--ws-fw-h1);
+  letter-spacing: var(--ws-ls-h1);
+  line-height: var(--ws-lh-h1);
+}
+
+h2, .ws-h2 {
+  font-size: var(--ws-fs-h2);
+  font-weight: var(--ws-fw-h2);
+  letter-spacing: var(--ws-ls-h2);
+  line-height: var(--ws-lh-h2);
+}
+
+h3, h4, h5, h6, .ws-destaque {
+  font-size: var(--ws-fs-destaque);
+  font-weight: var(--ws-fw-destaque);
+  line-height: var(--ws-lh-destaque);
+}
+
+.ws-display {
+  font-size: var(--ws-fs-display);
+  font-weight: var(--ws-fw-display);
+  letter-spacing: var(--ws-ls-display);
+  line-height: var(--ws-lh-display);
+}
+
+/* Display encolhe no celular para caber em 360px */
+@media (max-width: 767px) {
+  .ws-display { font-size: 40px; }
+}
+
+.ws-corpo {
+  font-size: var(--ws-fs-corpo);
+  font-weight: var(--ws-fw-corpo);
+  line-height: var(--ws-lh-corpo);
+}
+
+/* Eyebrow / metadado: 12/600, caixa alta, +12% */
+.ws-eyebrow {
+  font-size: var(--ws-fs-eyebrow);
+  font-weight: var(--ws-fw-eyebrow);
+  letter-spacing: var(--ws-ls-eyebrow);
+  line-height: var(--ws-lh-eyebrow);
+  text-transform: uppercase;
+  color: var(--ws-cor-texto-suave);
+}
+
+/* Eyebrow de livro ("LIVRO 0112 · DIAGRAMAÇÃO") usa o Tiffany profundo */
+.ws-eyebrow--destaque {
+  color: var(--ws-cor-destaque);
+}
+
+/* Código: IDs, ISBN, rodadas ("R3/3", "0112"). Mono do sistema com
+   algarismos tabulares, para as colunas alinharem. */
+code,
+kbd,
+samp,
+.ws-codigo {
+  font-family: var(--ws-fonte-mono);
+  font-size: var(--ws-fs-codigo);
+  font-weight: var(--ws-fw-codigo);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Números tabulares em Inter (KPIs, contagens) */
+.ws-numeros {
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-texto-suave {
+  color: var(--ws-cor-texto-suave);
+}
+
+.ws-texto-destaque {
+  color: var(--ws-cor-destaque);
+}
+
+strong, b {
+  font-weight: var(--ws-peso-semi);
+}
+
+small {
+  font-size: var(--ws-fs-eyebrow);
+}
+
+p + p {
+  margin-top: var(--ws-esp-3);
+}
+
+hr {
+  height: 0;
+  margin: var(--ws-esp-5) 0;
+  border: 0;
+  border-top: var(--ws-borda);
+}
+
+/* --------------------------------------------------------------------------
+   4. Links
+   Em texto corrido o link é sublinhado (não só cor — WCAG 1.4.1).
+   Em navegação, tabelas e títulos, use .ws-link-limpo.
+   -------------------------------------------------------------------------- */
+a {
+  color: var(--ws-cor-destaque);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--ws-transicao);
+}
+
+a:hover {
+  color: var(--ws-cor-destaque-forte);
+}
+
+.ws-link-limpo {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ws-link-limpo:hover {
+  color: var(--ws-cor-destaque);
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   5. Foco visível
+   Anel de 2px em Tiffany profundo, só quando o foco vem do teclado.
+   -------------------------------------------------------------------------- */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: var(--ws-foco-largura) solid var(--ws-cor-foco);
+  outline-offset: var(--ws-foco-afastamento);
+}
+
+/* --------------------------------------------------------------------------
+   6. Utilitários de acessibilidade
+   -------------------------------------------------------------------------- */
+
+/* Esconde visualmente, mas mantém para leitor de tela */
+.ws-sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Link "Pular para o conteúdo": aparece ao receber foco */
+.ws-pular {
+  position: absolute;
+  top: var(--ws-esp-2);
+  left: var(--ws-esp-2);
+  z-index: 100;
+  padding: var(--ws-esp-2) var(--ws-esp-3);
+  background: var(--ws-cor-superficie);
+  color: var(--ws-cor-texto);
+  border: var(--ws-borda-forte);
+  transform: translateY(-200%);
+}
+
+.ws-pular:focus {
+  transform: none;
+}
+
+/* Quem pediu menos movimento no sistema operacional não vê transição */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   7. Ícones Lucide
+   O script do Lucide troca <i data-lucide="..."> por <svg class="lucide">.
+   Traço 1,5 (manual pág. 11) e tamanho fixo, para não "pular" o layout
+   antes do script rodar.
+   -------------------------------------------------------------------------- */
+[data-lucide],
+svg.lucide {
+  display: inline-block;
+  flex: none;
+  width: var(--ws-icone);
+  height: var(--ws-icone);
+  vertical-align: middle;
+}
+
+svg.lucide {
+  stroke-width: 1.5;
+}
+
+.ws-icone--peq[data-lucide],
+svg.lucide.ws-icone--peq {
+  width: var(--ws-icone-peq);
+  height: var(--ws-icone-peq);
+}
+
+.ws-icone--destaque { color: var(--ws-cor-destaque); }
+.ws-icone--texto    { color: var(--ws-cor-texto); }
