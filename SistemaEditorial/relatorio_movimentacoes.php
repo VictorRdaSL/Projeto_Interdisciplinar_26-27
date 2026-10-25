@@ -51,39 +51,62 @@ if (!$erroPeriodo && ($_GET['export'] ?? '') === 'csv') {
 
 relatorioAbrir('Movimentações por período', 'Relatórios');
 ?>
-    <section class="painel">
-        <div class="painel-topo">
-            <div><h2>Movimentações</h2><p>Todas as movimentações de livros entre etapas e mesas que <strong>começaram</strong> no período (pela data de entrada). Saída vazia = ainda aberta.</p></div>
-        </div>
-        <form method="get" class="form-filtro-log">
+        <section class="ws-secao" aria-labelledby="filtros-titulo">
+          <h2 class="ws-sr-only" id="filtros-titulo">Filtros</h2>
+          <p class="ws-texto-suave">Todas as movimentações de livros entre etapas e mesas que <strong>começaram</strong> no período (pela data de entrada). Saída vazia = ainda aberta.</p>
+          <form class="ws-filtros" method="get">
             <?php relatorioCamposPeriodo($de, $ate); ?>
-            <?php relatorioBotoes('relatorio_movimentacoes.php', queryFiltros(['filtro_de' => $de, 'filtro_ate' => $ate]), (bool)$erroPeriodo); ?>
-        </form>
-        <?php if ($erroPeriodo): ?>
-            <div class="flash erro"><?= htmlspecialchars($erroPeriodo) ?></div>
-        <?php else: ?>
-        <p style="font-size:13px;color:#8a9b91;margin:0 0 10px;"><?= count($linhas) ?> movimentação(ões)<?= count($linhas) > LIMITE_LINHAS_TELA ? ' — mostrando as ' . LIMITE_LINHAS_TELA . ' mais recentes; o CSV leva todas' : '' ?>.</p>
-        <div class="tabela-container">
-            <table>
-                <thead><tr><th>Livro</th><th>Etapa</th><th>Rodada</th><th>Tipo</th><th>Responsável</th><th>Entrada</th><th>Saída</th><th>Excedente</th></tr></thead>
-                <tbody>
-                <?php if (!$linhas): ?>
-                    <tr><td colspan="8" class="vazio">Nenhuma movimentação no período.</td></tr>
-                <?php else: foreach (array_slice($linhas, 0, LIMITE_LINHAS_TELA) as $ln): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($ln['livro']) ?></td>
-                        <td><?= htmlspecialchars($ln['etapa']) ?></td>
-                        <td><?= (int)$ln['rodada'] ?></td>
-                        <td><?= htmlspecialchars($ln['tipo']) ?></td>
-                        <td><?= htmlspecialchars($ln['responsavel']) ?></td>
-                        <td><?= htmlspecialchars($ln['entrada']) ?></td>
-                        <td><?= htmlspecialchars($ln['saida'] ?: '—') ?></td>
-                        <td><?= $ln['excedente'] === 'Sim' ? '<span class="status atencao">Sim</span>' : 'Não' ?></td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
+            <?php relatorioBotoes('relatorio_movimentacoes.php'); ?>
+          </form>
+        </section>
+
+        <section class="ws-secao" aria-labelledby="resultado-titulo">
+<?php if ($erroPeriodo): ?>
+          <h2 class="ws-sr-only" id="resultado-titulo">Resultado</h2>
+          <?php relatorioErroPeriodo($erroPeriodo); ?>
+<?php else: ?>
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="resultado-titulo">Resultado</h2>
+              <p><?= escaparHtml(count($linhas) . ' movimentação(ões)' . (count($linhas) > LIMITE_LINHAS_TELA ? ' — mostrando as ' . LIMITE_LINHAS_TELA . ' mais recentes; o CSV leva todas' : '')) ?>.</p>
+            </div>
+            <?php relatorioExportar('relatorio_movimentacoes.php', queryFiltros(['filtro_de' => $de, 'filtro_ate' => $ate])); ?>
+          </div>
+<?php if (!$linhas): ?>
+          <?php relatorioVazio('Nenhuma movimentação no período.', 'Mude as datas e filtre de novo.'); ?>
+<?php else: ?>
+          <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="resultado-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col">Livro</th>
+                  <th scope="col">Etapa</th>
+                  <th scope="col" class="ws-tabela__num">Rodada</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Responsável</th>
+                  <th scope="col">Entrada</th>
+                  <th scope="col">Saída</th>
+                  <th scope="col">Excedente</th>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach (array_slice($linhas, 0, LIMITE_LINHAS_TELA) as $ln): ?>
+                <tr>
+                  <td class="ws-tabela__titulo" data-rotulo="Livro"><?= escaparHtml($ln['livro']) ?></td>
+                  <td data-rotulo="Etapa"><?= escaparHtml($ln['etapa']) ?></td>
+                  <td class="ws-tabela__num" data-rotulo="Rodada"><?= (int)$ln['rodada'] ?></td>
+                  <td data-rotulo="Tipo"><?= escaparHtml($ln['tipo']) ?></td>
+                  <td data-rotulo="Responsável"><?= escaparHtml($ln['responsavel']) ?></td>
+                  <td class="ws-tabela__codigo" data-rotulo="Entrada"><?= escaparHtml($ln['entrada']) ?></td>
+                  <td class="ws-tabela__codigo" data-rotulo="Saída"><?= escaparHtml($ln['saida'] ?: '—') ?></td>
+                  <td data-rotulo="Excedente"><?= $ln['excedente'] === 'Sim' ? htmlChipCobrado() : '<span class="ws-tabela__suave">—</span>' ?></td>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
             </table>
-        </div>
-        <?php endif; ?>
-    </section>
+          </div>
+<?php endif; ?>
+<?php endif; ?>
+        </section>
 <?php relatorioFechar();
