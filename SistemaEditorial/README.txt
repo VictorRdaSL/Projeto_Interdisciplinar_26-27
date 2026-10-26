@@ -55,7 +55,7 @@ FUNÇÕES
 - busca por título, pessoa ou ISBN
 
 INTERFACE
-Todos os estilos, scripts e ícones da interface vêm de design-system/ (CSS próprio, fonte
+Todos os estilos, scripts e ícones da interface vêm de assets/ (css/, js/ e fonts/: CSS próprio, fonte
 Inter e ícones Lucide locais, sem CDN). Os caminhos são montados a partir do 'base_url' do
 config/config.php (veja a instalação acima). O tema claro/escuro é salvo por usuário, em
 Configurações. O CSS antigo do sistema foi removido.

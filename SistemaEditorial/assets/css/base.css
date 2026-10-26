@@ -5,8 +5,8 @@
    Depende de tokens.css.
 
    ATENÇÃO: este arquivo estiliza elementos globais (body, h1, a...). Toda
-   tela do sistema carrega só o design system; o CSS antigo (style.css,
-   style_base.css, dark.css e auth.css) foi removido no Passo IV-10.
+   tela do sistema carrega só os arquivos de assets/css; o CSS antigo
+   (style.css, style_base.css, dark.css e auth.css) foi removido no IV-10.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------

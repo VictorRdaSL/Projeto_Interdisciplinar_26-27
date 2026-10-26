@@ -51,7 +51,7 @@ if (is_array($ws_flash) && isset($ws_flash['message']) && is_scalar($ws_flash['m
   </div>
 
   <!-- Ícones Lucide (local; traço 1,5 aplicado pelo waresys.js) + comportamentos -->
-  <script src="<?= escaparHtml($ws_base) ?>/design-system/js/lucide.min.js"></script>
-  <script src="<?= escaparHtml($ws_base) ?>/design-system/js/waresys.js" defer></script>
+  <script src="<?= escaparHtml($ws_base) ?>/assets/js/lucide.min.js"></script>
+  <script src="<?= escaparHtml($ws_base) ?>/assets/js/waresys.js" defer></script>
 </body>
 </html>

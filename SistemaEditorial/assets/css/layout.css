@@ -6,7 +6,7 @@
    (A grade modular visível e as marcas "+" foram retiradas a pedido:
    fundos são de cor lisa.)
 
-   Esqueleto mínimo (ver telas/painel.html):
+   Esqueleto mínimo (o que includes/cabecalho.php e rodape.php montam):
 
    <body>
      <a class="ws-pular" href="#conteudo">Pular para o conteúdo</a>

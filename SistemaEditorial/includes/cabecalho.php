@@ -47,11 +47,11 @@ $ws_perfil = nomePapel(papelAtual());
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= escaparHtml($ws_titulo) ?></title>
   <!-- Design system WareSys: fonte Inter local primeiro, depois os 4 CSS nesta ordem -->
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/fontes.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/tokens.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/base.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/layout.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/components.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/fontes.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/tokens.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/base.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/layout.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/components.css">
 </head>
 <body>
   <a class="ws-pular" href="#conteudo">Pular para o conteúdo</a>
