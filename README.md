@@ -4,7 +4,7 @@ Repositório do grupo de Projeto Interdisciplinar (PI) da FATEC — **Projeto_In
 
 **Nome do projeto:** WareSys
 
-**Integrantes da equipe:** Bruno Vilela, Cristhian, José Pedroso, Matheus Lanzieri, Victor
+**Integrantes da equipe:** Bruno Vilela, Cristhian, Matheus Lanzieri, Victor
 
 **Tema escolhido:** Sistema de Controle Editorial
 
