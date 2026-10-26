@@ -54,11 +54,11 @@ $ws_base = BASE_URL;
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Entrar · WareSys</title>
   <!-- Design system WareSys: fonte Inter local primeiro, depois os 4 CSS nesta ordem -->
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/fontes.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/tokens.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/base.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/layout.css">
-  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/design-system/css/components.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/fontes.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/tokens.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/base.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/layout.css">
+  <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/components.css">
 </head>
 <body>
   <main class="ws-login">
@@ -106,7 +106,7 @@ $ws_base = BASE_URL;
   </main>
 
   <!-- Ícones Lucide (local; traço 1,5 aplicado pelo waresys.js) + comportamentos -->
-  <script src="<?= escaparHtml($ws_base) ?>/design-system/js/lucide.min.js"></script>
-  <script src="<?= escaparHtml($ws_base) ?>/design-system/js/waresys.js" defer></script>
+  <script src="<?= escaparHtml($ws_base) ?>/assets/js/lucide.min.js"></script>
+  <script src="<?= escaparHtml($ws_base) ?>/assets/js/waresys.js" defer></script>
 </body>
 </html>
