@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Design system · WareSys</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="css/fontes.css">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
@@ -125,13 +123,11 @@
 <section class="sg-secao" id="uso" aria-labelledby="uso-t">
   <header class="sg-secao__cab">
     <h2 id="uso-t">Como usar</h2>
-    <p>Quatro arquivos CSS na ordem abaixo e um JS opcional. Sem build, sem framework. Todas as classes começam com <code>ws-</code> e seguem BEM: bloco (<code>.ws-btn</code>), elemento (<code>.ws-btn__seta</code>), modificador (<code>.ws-btn--primario</code>); estados usam <code>.is-*</code> ou atributos ARIA.</p>
+    <p>Cinco arquivos CSS na ordem abaixo (o <code>fontes.css</code> traz a Inter local) e dois JS: o Lucide e o <code>waresys.js</code>. Sem build, sem framework. Todas as classes começam com <code>ws-</code> e seguem BEM: bloco (<code>.ws-btn</code>), elemento (<code>.ws-btn__seta</code>), modificador (<code>.ws-btn--primario</code>); estados usam <code>.is-*</code> ou atributos ARIA.</p>
   </header>
   <div class="sg-ex">
     <pre><code>&lt;!-- No &lt;head&gt; (header.php comum) --&gt;
-&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;&gt;
-&lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
-&lt;link rel=&quot;stylesheet&quot; href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap&quot;&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/fontes.css&quot;&gt;
 &lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/tokens.css&quot;&gt;
 &lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/base.css&quot;&gt;
 &lt;link rel=&quot;stylesheet&quot; href=&quot;design-system/css/layout.css&quot;&gt;
@@ -141,7 +137,7 @@
 &lt;html lang=&quot;pt-BR&quot; data-theme=&quot;&lt;?= htmlspecialchars($_SESSION[&#x27;usuario_tema&#x27;] ?? &#x27;claro&#x27;) ?&gt;&quot;&gt;
 
 &lt;!-- No fim do &lt;body&gt; --&gt;
-&lt;script src=&quot;https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;design-system/js/lucide.min.js&quot;&gt;&lt;/script&gt;
 &lt;script src=&quot;design-system/js/waresys.js&quot; defer&gt;&lt;/script&gt;</code></pre>
   </div>
   <div class="ws-alerta" role="note">
@@ -154,8 +150,8 @@
   <div class="ws-alerta" role="note">
     <i class="ws-alerta__icone" data-lucide="wifi-off"></i>
     <div class="ws-alerta__corpo">
-      <p class="ws-alerta__titulo">Sem internet, a fonte e os ícones não carregam.</p>
-      <p>Para usar o XAMPP offline: baixe <code>lucide.min.js</code> (versão 0.469.0) para <code>design-system/js/</code> e instale a Inter na máquina. O CSS já cai para a fonte do sistema se a Inter faltar.</p>
+      <p class="ws-alerta__titulo">Funciona sem internet.</p>
+      <p>A Inter (<code>css/fontes.css</code> e <code>fonts/</code>) e o Lucide (<code>js/lucide.min.js</code>, versão 0.469.0) são locais: nada vem do Google Fonts nem de CDN.</p>
     </div>
   </div>
 </section>
@@ -297,7 +293,7 @@
 <section class="sg-secao" id="icones" aria-labelledby="icones-t">
   <header class="sg-secao__cab">
     <h2 id="icones-t">Ícones</h2>
-    <p>Lucide com traço 1,5, em Tiffany profundo (<code>.ws-icone--destaque</code>) ou cinza profundo (<code>.ws-icone--texto</code>). Inclua o script do Lucide pelo CDN e escreva <code>&lt;i data-lucide="nome"&gt;</code>; o <code>waresys.js</code> troca pelo SVG com o traço certo. Ícone decorativo leva aria-hidden (o waresys.js já põe); botão só com ícone leva aria-label.</p>
+    <p>Lucide com traço 1,5, em Tiffany profundo (<code>.ws-icone--destaque</code>) ou cinza profundo (<code>.ws-icone--texto</code>). Inclua o script local do Lucide (<code>js/lucide.min.js</code>) e escreva <code>&lt;i data-lucide="nome"&gt;</code>; o <code>waresys.js</code> troca pelo SVG com o traço certo. Ícone decorativo leva aria-hidden (o waresys.js já põe); botão só com ícone leva aria-label.</p>
   </header>
   <div class="sg-icones"><div class="sg-icone"><i data-lucide="layout-dashboard" class="ws-icone--destaque"></i><span>Painel</span><span class="ws-codigo ws-texto-suave">layout-dashboard</span></div><div class="sg-icone"><i data-lucide="inbox" class="ws-icone--destaque"></i><span>Minha mesa</span><span class="ws-codigo ws-texto-suave">inbox</span></div><div class="sg-icone"><i data-lucide="book-open" class="ws-icone--destaque"></i><span>Livros</span><span class="ws-codigo ws-texto-suave">book-open</span></div><div class="sg-icone"><i data-lucide="users" class="ws-icone--destaque"></i><span>Pessoas</span><span class="ws-codigo ws-texto-suave">users</span></div><div class="sg-icone"><i data-lucide="file-text" class="ws-icone--destaque"></i><span>Relatórios</span><span class="ws-codigo ws-texto-suave">file-text</span></div><div class="sg-icone"><i data-lucide="settings" class="ws-icone--destaque"></i><span>Configurações</span><span class="ws-codigo ws-texto-suave">settings</span></div><div class="sg-icone"><i data-lucide="arrow-right" class="ws-icone--destaque"></i><span>Avanço</span><span class="ws-codigo ws-texto-suave">arrow-right</span></div><div class="sg-icone"><i data-lucide="rotate-ccw" class="ws-icone--destaque"></i><span>Repetição</span><span class="ws-codigo ws-texto-suave">rotate-ccw</span></div><div class="sg-icone"><i data-lucide="undo-2" class="ws-icone--destaque"></i><span>Retrocesso</span><span class="ws-codigo ws-texto-suave">undo-2</span></div><div class="sg-icone"><i data-lucide="skip-forward" class="ws-icone--destaque"></i><span>Pulo de opcional</span><span class="ws-codigo ws-texto-suave">skip-forward</span></div><div class="sg-icone"><i data-lucide="arrow-left-right" class="ws-icone--destaque"></i><span>Troca de mesa</span><span class="ws-codigo ws-texto-suave">arrow-left-right</span></div><div class="sg-icone"><i data-lucide="search" class="ws-icone--destaque"></i><span>Resgate / busca</span><span class="ws-codigo ws-texto-suave">search</span></div><div class="sg-icone"><i data-lucide="pencil" class="ws-icone--destaque"></i><span>Editar</span><span class="ws-codigo ws-texto-suave">pencil</span></div><div class="sg-icone"><i data-lucide="plus" class="ws-icone--destaque"></i><span>Novo</span><span class="ws-codigo ws-texto-suave">plus</span></div><div class="sg-icone"><i data-lucide="ban" class="ws-icone--destaque"></i><span>Cancelar livro</span><span class="ws-codigo ws-texto-suave">ban</span></div><div class="sg-icone"><i data-lucide="clock" class="ws-icone--destaque"></i><span>Tempo na etapa</span><span class="ws-codigo ws-texto-suave">clock</span></div><div class="sg-icone"><i data-lucide="triangle-alert" class="ws-icone--destaque"></i><span>No limite</span><span class="ws-codigo ws-texto-suave">triangle-alert</span></div><div class="sg-icone"><i data-lucide="circle-alert" class="ws-icone--destaque"></i><span>Cobrado / erro</span><span class="ws-codigo ws-texto-suave">circle-alert</span></div><div class="sg-icone"><i data-lucide="check" class="ws-icone--destaque"></i><span>Concluído / ok</span><span class="ws-codigo ws-texto-suave">check</span></div><div class="sg-icone"><i data-lucide="info" class="ws-icone--destaque"></i><span>Informação</span><span class="ws-codigo ws-texto-suave">info</span></div></div>
 <div class="sg-ex">
@@ -1485,7 +1481,7 @@
       this.setAttribute('aria-pressed', String(escuro));
     });
   </script>
-  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <script src="js/lucide.min.js"></script>
   <script src="js/waresys.js" defer></script>
 </body>
 </html>
