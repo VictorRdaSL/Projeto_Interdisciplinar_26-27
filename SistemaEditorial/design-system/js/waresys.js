@@ -10,7 +10,7 @@
      6. Contador de rodadas: gera os blocos se vierem vazios e mostra o
         número real quando passa de R4+
    Inclua no fim do <body> ou com defer:
-     <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+     <script src="design-system/js/lucide.min.js"></script>
      <script src="design-system/js/waresys.js" defer></script>
    Tudo funciona com HTML gerado pelo PHP: sem SPA, sem fetch.
    ========================================================================== */
