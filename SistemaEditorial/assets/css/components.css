@@ -32,8 +32,8 @@
 /* ==========================================================================
    1. Logo
    --------------------------------------------------------------------------
-   O símbolo NÃO é redesenhado aqui. Coloque os SVG originais em img/logo/
-   (ver img/logo/LEIAME.txt) dentro de .ws-logo__simbolo.
+   O símbolo NÃO é redesenhado aqui. Coloque os SVG originais em assets/img/logo/
+   (pendência registrada no CLAUDE.md) dentro de .ws-logo__simbolo.
    - .ws-logo--assinatura: símbolo + wordmark, mín. 96px de largura.
    - .ws-logo--simbolo:    só o símbolo completo, mín. 32px.
    - .ws-logo--simplificado: abaixo de 32px (16–31px), arquivo simplificado.
