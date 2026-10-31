@@ -26,6 +26,37 @@ function codigoLivro(int $id): string
     return str_pad((string)$id, 4, '0', STR_PAD_LEFT);
 }
 
+/**
+ * "Etapa atual" de um livro para listas e CSV (Passo 20.11). Livro concluído ou cancelado não está em etapa nenhuma:
+ * a coluna mostra o status. No banco etapa_atual_id continua apontando para a última etapa (é o histórico), então
+ * só a EXIBIÇÃO muda.
+ */
+function textoEtapaAtual(string $status, ?string $etapaNome): string
+{
+    if ($status === 'concluido') return 'Concluído';
+    if ($status === 'cancelado') return 'Cancelado';
+    return ($etapaNome !== null && $etapaNome !== '') ? $etapaNome : '—';
+}
+
+/**
+ * "Mesa" de um livro para listas e CSV: a última mesa, marcada como "(concluído)" ou "(cancelado)" quando o livro já
+ * terminou (a pessoa com quem ele ficou no fim, não uma mesa de hoje). Sem mesa gravada: "—".
+ */
+function textoMesaAtual(string $status, ?string $mesaNome): string
+{
+    if ($mesaNome === null || $mesaNome === '') return '—';
+    if ($status === 'concluido') return $mesaNome . ' (concluído)';
+    if ($status === 'cancelado') return $mesaNome . ' (cancelado)';
+    return $mesaNome;
+}
+
+/** O mesmo, em HTML: concluído e cancelado como etiqueta neutra (sem cor de status), o resto como texto escapado. */
+function htmlEtapaAtual(string $status, ?string $etapaNome): string
+{
+    $texto = escaparHtml(textoEtapaAtual($status, $etapaNome));
+    return ($status === 'concluido' || $status === 'cancelado') ? '<span class="ws-tag ws-tag--neutra">' . $texto . '</span>' : $texto;
+}
+
 /** "1 livro" / "3 livros". */
 function qtdTexto(int $n, string $singular, string $plural): string
 {

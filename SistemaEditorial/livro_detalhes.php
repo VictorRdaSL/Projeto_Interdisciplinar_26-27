@@ -391,6 +391,17 @@ if ($movimentacoes && $etapaAtual) {
 $limiteEtapaAtual = ($etapaAtual && $etapaAtual['rodadas_incluidas'] !== null) ? (int)$etapaAtual['rodadas_incluidas'] : null;
 $livroAberto = in_array($livro['status'], ['em_andamento', 'extraviado'], true);
 
+// Concluído e cancelado não estão em etapa nenhuma (Passo 20.11): "Etapa atual" mostra o status (com a data), mesa e rodada
+// ficam em "—" e o Fluxo não marca etapa atual. No banco etapa_atual_id continua sendo a última etapa: é o histórico, e só
+// a exibição muda. A data do fim é a saída da última movimentação (livros.atualizado_em muda se alguém editar o livro).
+$statusFinal = in_array($livro['status'], ['concluido', 'cancelado'], true);
+$dataFimLivro = $statusFinal ? ($movimentacoes[0]['data_saida'] ?? $livro['atualizado_em']) : null;
+if ($statusFinal) {
+    $rodadaAtual = null;
+    $rodadaAtualExcedente = false;
+    $diasComMesaAtual = null;
+}
+
 // Fluxo: as etapas ATIVAS cadastradas (nunca um número fixo) + a etapa atual do livro, se ela tiver sido desativada.
 $stmtFluxo = $conn->prepare('SELECT * FROM etapas WHERE ativa = 1 OR id = ? ORDER BY ordem, id');
 $etapaAtualId = (int)$livro['etapa_atual_id'];
@@ -403,6 +414,21 @@ foreach ($etapasFluxo as $i => $ef) {
     if ((int)$ef['id'] === $etapaAtualId) $posicaoEtapaAtual = $i + 1;
 }
 $percentualProgresso = ($posicaoEtapaAtual > 0 && $totalEtapas > 0) ? (int)round($posicaoEtapaAtual / $totalEtapas * 100) : 0;
+// Barra de progresso: em andamento "Etapa N de M"; concluído = fluxo completo (100%); cancelado = até onde chegou, sem fechar a barra.
+$progressoAgora = $posicaoEtapaAtual;
+$progressoRotulo = 'Etapa ' . $posicaoEtapaAtual . ' de ' . $totalEtapas;
+$progressoTexto = 'Etapa ' . $posicaoEtapaAtual . ' de ' . $totalEtapas . ', ' . ($livro['etapa_nome'] ?? '');
+$mostrarProgresso = $posicaoEtapaAtual > 0 && $totalEtapas > 0;
+if ($livro['status'] === 'concluido' && $totalEtapas > 0) {
+    $percentualProgresso = 100;
+    $progressoAgora = $totalEtapas;
+    $progressoRotulo = 'Concluído';
+    $progressoTexto = 'Concluído: todas as etapas do fluxo';
+    $mostrarProgresso = true;
+} elseif ($livro['status'] === 'cancelado') {
+    $progressoRotulo = 'Cancelado';
+    $progressoTexto = 'Cancelado na etapa ' . $posicaoEtapaAtual . ' de ' . $totalEtapas . ', ' . ($livro['etapa_nome'] ?? '');
+}
 
 // Etapas que o livro já concluiu (saiu delas) e as que foram puladas (opcionais), a partir do histórico.
 $etapasConcluidas = [];
@@ -463,11 +489,11 @@ require __DIR__ . '/includes/cabecalho.php';
       <header class="ws-topo">
         <div class="ws-topo__titulos">
           <a class="ws-topo__voltar ws-link-limpo" href="livros.php"><i data-lucide="arrow-left" class="ws-icone--peq"></i>Livros</a>
-          <p class="ws-eyebrow ws-eyebrow--destaque">Livro <?= escaparHtml($codigo) ?> · <?= escaparHtml($livro['etapa_nome'] ?: 'Sem etapa') ?></p>
+          <p class="ws-eyebrow ws-eyebrow--destaque">Livro <?= escaparHtml($codigo) ?> · <?= escaparHtml($statusFinal ? textoEtapaAtual($livro['status'], $livro['etapa_nome']) : ($livro['etapa_nome'] ?: 'Sem etapa')) ?></p>
           <h1 class="ws-topo__titulo"><?= escaparHtml($livro['titulo']) ?></h1>
           <p class="ws-topo__subtitulo"><?= escaparHtml($pessoasTopo !== '' ? $pessoasTopo : 'Sem pessoas vinculadas') ?></p>
         </div>
-<?php if ($podeGerenciar): ?>
+<?php if ($podeGerenciar && $livro['status'] !== 'concluido'): /* livro concluído não é mais alterado (Passo 20.12) */ ?>
         <div class="ws-topo__acoes">
           <a class="ws-btn ws-btn--secundario" href="livro_form.php?id=<?= $livroId ?>"><i data-lucide="pencil"></i>Editar livro</a>
         </div>
@@ -502,6 +528,15 @@ require __DIR__ . '/includes/cabecalho.php';
         </div>
 <?php endif; ?>
 <?php endif; ?>
+<?php if ($livro['status'] === 'concluido'): ?>
+        <div class="ws-alerta" role="status">
+          <i class="ws-alerta__icone" data-lucide="lock"></i>
+          <div class="ws-alerta__corpo">
+            <p class="ws-alerta__titulo">Livro concluído</p>
+            <p>O livro já foi depositado na Biblioteca Nacional. O registro não pode mais ser alterado.</p>
+          </div>
+        </div>
+<?php endif; ?>
 <?php if ($livro['status'] === 'em_andamento' && $movAtual && $movAtual['data_saida'] === null && $movAtual['observacao'] !== null && $movAtual['observacao'] !== ''): ?>
         <!-- Recado de quem passou o livro para esta etapa/mesa (observação da movimentação aberta); o histórico completo fica na linha do tempo -->
         <div class="ws-alerta" role="status">
@@ -523,14 +558,16 @@ require __DIR__ . '/includes/cabecalho.php';
               <div class="ws-kpis">
                 <div class="ws-kpi">
                   <span class="ws-kpi__rotulo">Etapa atual</span>
-                  <span class="ws-kpi__valor ws-kpi__valor--texto"><?= escaparHtml($livro['etapa_nome'] ?: '—') ?></span>
-<?php if ($posicaoEtapaAtual > 0): ?>
+                  <span class="ws-kpi__valor ws-kpi__valor--texto"><?= $statusFinal ? htmlEtapaAtual($livro['status'], $livro['etapa_nome']) : escaparHtml($livro['etapa_nome'] ?: '—') ?></span>
+<?php if ($statusFinal): ?>
+                  <span class="ws-kpi__nota"><?= $livro['status'] === 'concluido' ? 'Concluído' : 'Cancelado' ?> em <?= escaparHtml(formatarDataHora($dataFimLivro)) ?></span>
+<?php elseif ($posicaoEtapaAtual > 0): ?>
                   <span class="ws-kpi__nota">Etapa <?= $posicaoEtapaAtual ?> de <?= $totalEtapas ?></span>
 <?php endif; ?>
                 </div>
                 <div class="ws-kpi">
                   <span class="ws-kpi__rotulo">Mesa</span>
-                  <span class="ws-kpi__valor ws-kpi__valor--texto"><?= escaparHtml($livro['responsavel_nome'] ?: '—') ?></span>
+                  <span class="ws-kpi__valor ws-kpi__valor--texto"><?= $statusFinal ? '—' : escaparHtml($livro['responsavel_nome'] ?: '—') ?></span>
 <?php if ($diasComMesaAtual !== null && $livroAberto): ?>
                   <span class="ws-kpi__nota">Com ela há <?= $diasComMesaAtual === 0 ? 'menos de 1 dia' : escaparHtml(qtdTexto($diasComMesaAtual, 'dia', 'dias')) ?></span>
 <?php endif; ?>
@@ -746,7 +783,7 @@ require __DIR__ . '/includes/cabecalho.php';
             <section class="ws-secao" aria-labelledby="obs-titulo">
               <div class="ws-secao__cabecalho">
                 <h2 id="obs-titulo">Observações</h2>
-<?php if ($podeGerenciar): ?>
+<?php if ($podeGerenciar && $livro['status'] !== 'concluido'): ?>
                 <a class="ws-btn ws-btn--link" href="livro_form.php?id=<?= $livroId ?>">Editar</a>
 <?php endif; ?>
               </div>
@@ -828,10 +865,10 @@ require __DIR__ . '/includes/cabecalho.php';
           <aside class="ws-col-4 ws-pilha" aria-label="Fluxo e dados do livro">
             <section class="ws-card ws-card--superficie" aria-labelledby="fluxo-titulo">
               <h2 id="fluxo-titulo">Fluxo</h2>
-<?php if ($posicaoEtapaAtual > 0): ?>
+<?php if ($mostrarProgresso): ?>
               <div class="ws-progresso">
-                <div class="ws-progresso__rotulo"><span>Etapa <?= $posicaoEtapaAtual ?> de <?= $totalEtapas ?></span><span class="ws-codigo"><?= $percentualProgresso ?>%</span></div>
-                <div class="ws-progresso__trilho" role="progressbar" aria-valuemin="1" aria-valuemax="<?= $totalEtapas ?>" aria-valuenow="<?= $posicaoEtapaAtual ?>" aria-valuetext="Etapa <?= $posicaoEtapaAtual ?> de <?= $totalEtapas ?>, <?= escaparHtml($livro['etapa_nome'] ?? '') ?>">
+                <div class="ws-progresso__rotulo"><span><?= escaparHtml($progressoRotulo) ?></span><span class="ws-codigo"><?= $percentualProgresso ?>%</span></div>
+                <div class="ws-progresso__trilho" role="progressbar" aria-valuemin="1" aria-valuemax="<?= $totalEtapas ?>" aria-valuenow="<?= $progressoAgora ?>" aria-valuetext="<?= escaparHtml($progressoTexto) ?>">
                   <span class="ws-progresso__preenchimento" style="--ws-progresso: <?= $percentualProgresso ?>%"></span>
                 </div>
               </div>
@@ -839,16 +876,20 @@ require __DIR__ . '/includes/cabecalho.php';
               <ol class="ws-fluxo" aria-label="Fluxo de etapas do livro <?= escaparHtml($codigo) ?>">
 <?php foreach ($etapasFluxo as $i => $ef):
     $eid = (int)$ef['id'];
-    $ehAtual = $eid === $etapaAtualId && $livro['status'] !== 'concluido';
+    $ehAtual = $eid === $etapaAtualId && !$statusFinal;
+    // Cancelado: nenhuma etapa é "atual"; a etapa onde o livro parou ganha só um detalhe neutro (e não vira "concluída",
+    // mesmo tendo a movimentação fechada pelo cancelamento).
+    $paradaAqui = $livro['status'] === 'cancelado' && $eid === $etapaAtualId;
     if ($ehAtual) { $estado = 'is-atual'; $estadoTexto = 'etapa atual'; }
+    elseif ($paradaAqui) { $estado = ''; $estadoTexto = 'o livro parou aqui, cancelado'; }
     elseif (isset($etapasConcluidas[$eid])) { $estado = 'is-concluida'; $estadoTexto = 'concluída'; }
     elseif (isset($etapasPuladas[$eid])) { $estado = 'is-pulada'; $estadoTexto = 'pulada'; }
     else { $estado = ''; $estadoTexto = 'a fazer'; }
     $detalhe = '';
-    if ($ehAtual) {
-        if ($livro['status'] === 'cancelado') {
-            $detalhe = 'Cancelado em ' . date('d/m', strtotime($movAtual['data_saida'] ?? $livro['atualizado_em']));
-        } elseif ($livro['status'] === 'extraviado') {
+    if ($paradaAqui) {
+        $detalhe = 'Parou aqui · cancelado em ' . date('d/m', strtotime($dataFimLivro));
+    } elseif ($ehAtual) {
+        if ($livro['status'] === 'extraviado') {
             $detalhe = 'Extraviado · Última mesa: ' . ($livro['responsavel_nome'] ?: '—');
         } elseif ($movAtual) {
             $detalhe = 'Desde ' . date('d/m', strtotime($movAtual['data_entrada'])) . ' · Mesa: ' . ($livro['responsavel_nome'] ?: '—');

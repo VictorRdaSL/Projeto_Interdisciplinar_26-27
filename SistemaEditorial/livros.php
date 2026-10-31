@@ -124,9 +124,9 @@ require __DIR__ . '/includes/cabecalho.php';
                   <td class="ws-tabela__codigo" data-rotulo="Livro"><?= escaparHtml(codigoLivro($id)) ?></td>
                   <td class="ws-tabela__titulo" data-rotulo="Título"><a href="livro_detalhes.php?id=<?= $id ?>"><?= escaparHtml($l['titulo']) ?></a><span class="ws-tabela__sub"><?= escaparHtml($l['pessoas_nomes'] ?: 'Sem pessoas vinculadas') ?></span></td>
                   <td data-rotulo="ISBN"><?php if ($l['isbn']): ?><span class="ws-tabela__codigo"><?= escaparHtml($isbnTela) ?></span><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
-                  <td data-rotulo="Etapa"><?= escaparHtml($l['etapa_nome'] ?: '—') ?></td>
+                  <td data-rotulo="Etapa"><?= htmlEtapaAtual($l['status'], $l['etapa_nome']) ?></td>
                   <td class="ws-tabela__codigo" data-rotulo="Na etapa desde"><?= escaparHtml(formatarDataHora($l['etapa_desde'])) ?></td>
-                  <td data-rotulo="Mesa"><?= escaparHtml($l['responsavel_nome'] ?: '—') ?></td>
+                  <td data-rotulo="Mesa"><?= escaparHtml(textoMesaAtual($l['status'], $l['responsavel_nome'])) ?></td>
                   <td class="ws-tabela__num" data-rotulo="Rodadas"><?= $temRodada ? escaparHtml(rotuloRodada((int)$l['rodada'], $limiteRodadas)) : '—' ?></td>
                   <td data-rotulo="Cópia"><?= ((int)$l['tem_copia'] === 1) ? 'Sim' : 'Não' ?></td>
                   <td data-rotulo="Status">
