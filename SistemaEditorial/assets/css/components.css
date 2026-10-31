@@ -1744,6 +1744,7 @@ a.ws-kpi:hover {
 .ws-modal__caixa {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* a coluna encolhe: título ou texto longo sem espaço quebra em vez de estourar a caixa */
   max-height: calc(100vh - 2 * var(--ws-esp-4));
   overflow-y: auto;
   border: var(--ws-borda-forte);
@@ -1758,10 +1759,20 @@ a.ws-kpi:hover {
   padding: var(--ws-esp-5) var(--ws-esp-5) 0;
 }
 
+.ws-modal__cabecalho > h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ws-modal__cabecalho > .ws-fechar {
+  flex: none; /* com título longo o botão de fechar não pode ser espremido */
+}
+
 .ws-modal__corpo {
   display: grid;
   gap: var(--ws-esp-3);
   padding: var(--ws-esp-4) var(--ws-esp-5) var(--ws-esp-5);
+  overflow-wrap: anywhere;
 }
 
 .ws-modal__rodape {

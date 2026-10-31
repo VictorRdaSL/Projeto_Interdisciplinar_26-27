@@ -16,6 +16,7 @@ const LIMITE_NOME_ETAPA = 120;       // etapas.nome
 const LIMITE_NOME_PAPEL = 80;        // papeis.nome
 const LIMITE_LOCAL_ENCONTRADO = 255; // resgates.local_encontrado
 const LIMITE_OBSERVACAO_MOVIMENTACAO = 1000; // movimentacoes.observacao (Passo 20.8)
+const LIMITE_JUSTIFICATIVA_EXCLUSAO = 200;   // justificativa de excluir livro: vai para log_alteracoes.valor_novo (255) junto de um prefixo (Passo 20.10)
 // livros.observacoes é TEXT (65.535 BYTES). Com até 4 bytes por caractere em utf8mb4,
 // 16.000 caracteres cabem com folga em qualquer idioma/emoji.
 const LIMITE_OBSERVACOES = 16000;
