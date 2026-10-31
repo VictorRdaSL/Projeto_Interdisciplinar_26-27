@@ -5,6 +5,11 @@
 SET NAMES utf8mb4;
 USE waresys;
 
+-- ATENÇÃO (Passo 20.9): Gerente e Administrador podem EXCLUIR uma etapa que nunca foi usada, inclusive uma destas 15.
+-- Por isso este arquivo só serve para um banco recém-criado: num banco em uso ele falha por chave duplicada (os ids 1..15
+-- são fixos e o INSERT é um comando só) e, se falhasse de outro jeito, recriaria etapas excluídas de propósito.
+-- Não rode o seed de novo para "consertar" um banco em uso.
+--
 -- Etapas do fluxo editorial (ids fixos 1..15; a ordem do fluxo é a coluna `ordem`).
 -- Opcionais: Ilustração, Aprovação da capa e Revisão. Limites incluídos: 3 rodadas de
 -- Diagramação e 2 de Revisão. dias_limite NULL = usa o padrão global (configuracoes).

@@ -27,6 +27,7 @@ function exigirEnvioUnico(): void
 $podeGerenciarUsuarios = usuarioTemPermissao('config.usuarios');
 $podeConfigurarDiasLimite = usuarioTemPermissao('config.dias_limite');
 $podeGerenciarEtapasPapeis = usuarioTemPermissao('config.etapas_papeis');
+$podeExcluirEtapa = usuarioTemPermissao('config.excluir_etapa'); // Gerente e Admin (Passo 20.9)
 $podeVerLog = usuarioTemPermissao('log.ver');
 
 // Log de alterações só para quem tem log.ver (Gerente e Admin). Quem não tem e chega com filtros do log na URL é recusado
@@ -66,6 +67,7 @@ $permissaoPorAcao = [
     'criar_etapa' => $podeGerenciarEtapasPapeis,
     'editar_etapa' => $podeGerenciarEtapasPapeis,
     'mover_etapa' => $podeGerenciarEtapasPapeis,
+    'excluir_etapa' => $podeExcluirEtapa,
     'criar_papel' => $podeGerenciarEtapasPapeis,
     'editar_papel' => $podeGerenciarEtapasPapeis,
 ];
@@ -188,6 +190,69 @@ function livrosNaEtapa(mysqli $conn, int $etapaId): int
     $stmt->bind_param('i', $etapaId);
     $stmt->execute();
     return (int)$stmt->get_result()->fetch_row()[0];
+}
+
+// Uso de uma etapa, para decidir se ela pode ser EXCLUÍDA (Passo 20.9). Livros de qualquer status contam (concluído e
+// cancelado também guardam a etapa em etapa_atual_id), e toda movimentação, aberta ou fechada, está no histórico.
+function usoDaEtapa(mysqli $conn, int $etapaId): array
+{
+    $stmt = $conn->prepare('SELECT (SELECT COUNT(*) FROM livros WHERE etapa_atual_id = ?) AS livros, (SELECT COUNT(*) FROM movimentacoes WHERE etapa_id = ?) AS movs');
+    $stmt->bind_param('ii', $etapaId, $etapaId);
+    $stmt->execute();
+    $r = $stmt->get_result()->fetch_assoc();
+    return ['livros' => (int)$r['livros'], 'movs' => (int)$r['movs']];
+}
+
+/**
+ * Por que a etapa NÃO pode ser excluída (texto para a tela), ou null se pode. Mesma função para a tela e para o
+ * POST, então as duas sempre concordam. $ativas = quantas etapas ativas existem agora; $podeDesativar = quem lê
+ * pode desativar (só o Admin), para a mensagem sugerir o caminho certo.
+ */
+function motivoBloqueioExclusaoEtapa(array $etapa, int $livros, int $movs, int $ativas, bool $podeDesativar): ?string
+{
+    if ((int)$etapa['finaliza_livro'] === 1) {
+        return 'Esta etapa finaliza o livro; sem ela nenhum livro poderia ser concluído. Ela não pode ser excluída.';
+    }
+    if ((int)$etapa['ativa'] === 1 && $ativas <= 1) {
+        return 'Esta é a única etapa ativa do fluxo. Não é possível excluí-la.';
+    }
+    if ($livros > 0 || $movs > 0) {
+        $partes = [];
+        if ($livros > 0) $partes[] = qtdTexto($livros, 'livro', 'livros') . ' nela';
+        if ($movs > 0) $partes[] = qtdTexto($movs, 'movimentação', 'movimentações') . ' no histórico';
+        $texto = 'Esta etapa tem ' . implode(' e ', $partes) . '.';
+        if ((int)$etapa['ativa'] !== 1) {
+            return $texto . ' Ela já está desativada: etapa com histórico não é excluída.';
+        }
+        return $texto . ($podeDesativar ? ' Desative em vez de excluir.' : ' Peça a um Administrador para desativá-la, se for o caso.');
+    }
+    return null;
+}
+
+/** Resumo da etapa para o log da exclusão: depois de excluída, é só o que resta dela. */
+function descricaoEtapaParaLog(array $e): string
+{
+    $sn = fn($v) => (int)$v === 1 ? 'sim' : 'não';
+    return $e['nome'] . ' — ordem ' . (int)$e['ordem'] . '; opcional: ' . $sn($e['opcional']) . '; repetível: ' . $sn($e['repetivel'])
+        . '; rodadas incluídas: ' . ($e['rodadas_incluidas'] !== null ? (int)$e['rodadas_incluidas'] : '—')
+        . '; dias limite: ' . ($e['dias_limite'] !== null ? (int)$e['dias_limite'] : '—')
+        . '; ativa: ' . $sn($e['ativa']) . '; finaliza o livro: ' . $sn($e['finaliza_livro']);
+}
+
+/** Deixa `ordem` em 1..N sem buracos (todas as etapas, ativas ou não), só gravando as linhas que mudam. */
+function renumerarEtapas(mysqli $conn): void
+{
+    $linhas = $conn->query('SELECT id, ordem FROM etapas ORDER BY ordem ASC, id ASC')->fetch_all(MYSQLI_ASSOC);
+    $stmt = $conn->prepare('UPDATE etapas SET ordem = ? WHERE id = ?');
+    $nova = 1;
+    foreach ($linhas as $linha) {
+        if ((int)$linha['ordem'] !== $nova) {
+            $id = (int)$linha['id'];
+            $stmt->bind_param('ii', $nova, $id);
+            $stmt->execute();
+        }
+        $nova++;
+    }
 }
 
 function nomeEtapaJaExiste(mysqli $conn, string $nome, int $ignorarId): bool
@@ -544,6 +609,55 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
     exit;
 }
 
+// Excluir etapa (Passo 20.9): Gerente e Admin, só etapa que nunca foi usada. A confirmação vem do modal (campo oculto
+// "confirmacao"); sem ela nada é excluído, nem sem JavaScript. Tudo numa transação que trava a linha da etapa.
+if ($podeExcluirEtapa && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'excluir_etapa') {
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $etapaId = (int)($_POST['etapa_id'] ?? 0);
+    if (entradaTexto($_POST, 'confirmacao') !== '1') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_PRECISA_CONFIRMAR];
+        header('Location: configuracoes.php'); exit;
+    }
+
+    $conn->begin_transaction();
+    try {
+        $stmtE = $conn->prepare('SELECT * FROM etapas WHERE id = ? FOR UPDATE');
+        $stmtE->bind_param('i', $etapaId);
+        $stmtE->execute();
+        $etapaExcluir = $stmtE->get_result()->fetch_assoc();
+        if (!$etapaExcluir) {
+            throw new InvalidArgumentException('Etapa não encontrada.');
+        }
+        $uso = usoDaEtapa($conn, $etapaId);
+        $ativasAgora = (int)$conn->query('SELECT COUNT(*) FROM etapas WHERE ativa = 1')->fetch_row()[0];
+        $motivo = motivoBloqueioExclusaoEtapa($etapaExcluir, $uso['livros'], $uso['movs'], $ativasAgora, $podeGerenciarEtapasPapeis);
+        if ($motivo !== null) {
+            throw new InvalidArgumentException($motivo);
+        }
+
+        $stmtD = $conn->prepare('DELETE FROM etapas WHERE id = ?');
+        $stmtD->bind_param('i', $etapaId);
+        $stmtD->execute();
+        renumerarEtapas($conn);
+        registrarLog($conn, (int)$_SESSION['usuario_id'], 'etapa.excluir', 'etapa', $etapaId, truncarParaLog(descricaoEtapaParaLog($etapaExcluir)), '(excluída; demais etapas reordenadas)');
+
+        $conn->commit();
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Etapa "' . $etapaExcluir['nome'] . '" excluída. As demais foram reordenadas.'];
+    } catch (Throwable $e) {
+        $conn->rollback();
+        // 1451 = uma ação simultânea passou a usar a etapa entre a conferência e o DELETE; a FK RESTRICT segurou.
+        $mensagem = ($e instanceof mysqli_sql_exception && $e->getCode() === 1451)
+            ? 'Esta etapa passou a ser usada e não foi excluída.'
+            : mensagemErroSegura($e, 'excluir a etapa');
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $mensagem];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_papel') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
@@ -621,7 +735,9 @@ $diasLimiteAtual = buscarDiasLimiteGlobal($conn);
 $etapas = [];
 $papeis = [];
 $contagemPorEtapa = [];
-if ($podeGerenciarEtapasPapeis) {
+$usoPorEtapa = [];          // [id da etapa] => ['livros' => N, 'movs' => N], para saber quais podem ser excluídas
+$motivoExclusaoPorEtapa = []; // [id da etapa] => texto do motivo, ou null se pode excluir
+if ($podeGerenciarEtapasPapeis || $podeExcluirEtapa) {
     $re = $conn->query('SELECT * FROM etapas ORDER BY ordem ASC, id ASC');
     while ($row = $re->fetch_assoc()) $etapas[] = $row;
 
@@ -630,6 +746,19 @@ if ($podeGerenciarEtapasPapeis) {
     $rc = $conn->query("SELECT etapa_atual_id, COUNT(*) total FROM livros WHERE status NOT IN ('concluido', 'cancelado') GROUP BY etapa_atual_id");
     while ($row = $rc->fetch_assoc()) $contagemPorEtapa[(int)$row['etapa_atual_id']] = (int)$row['total'];
 
+    // Uso total (qualquer status de livro + histórico) e o veredito de exclusão de cada etapa, numa consulta por tabela.
+    foreach ($etapas as $e) $usoPorEtapa[(int)$e['id']] = ['livros' => 0, 'movs' => 0];
+    $ru = $conn->query('SELECT etapa_atual_id AS id, COUNT(*) n FROM livros GROUP BY etapa_atual_id');
+    while ($row = $ru->fetch_assoc()) $usoPorEtapa[(int)$row['id']]['livros'] = (int)$row['n'];
+    $ru = $conn->query('SELECT etapa_id AS id, COUNT(*) n FROM movimentacoes GROUP BY etapa_id');
+    while ($row = $ru->fetch_assoc()) $usoPorEtapa[(int)$row['id']]['movs'] = (int)$row['n'];
+    $ativasAgoraTela = count(array_filter($etapas, fn($e) => (int)$e['ativa'] === 1));
+    foreach ($etapas as $e) {
+        $u = $usoPorEtapa[(int)$e['id']];
+        $motivoExclusaoPorEtapa[(int)$e['id']] = motivoBloqueioExclusaoEtapa($e, $u['livros'], $u['movs'], $ativasAgoraTela, $podeGerenciarEtapasPapeis);
+    }
+}
+if ($podeGerenciarEtapasPapeis) {
     $rp = $conn->query('SELECT * FROM papeis ORDER BY nome ASC');
     while ($row = $rp->fetch_assoc()) $papeis[] = $row;
 }
@@ -846,13 +975,17 @@ require __DIR__ . '/includes/cabecalho.php';
 
 
 
-<?php if ($podeGerenciarEtapasPapeis): ?>
-        <!-- Seção 4 (IV-8): Etapas do fluxo (só Admin). -->
+<?php if ($podeGerenciarEtapasPapeis || $podeExcluirEtapa): ?>
+        <!-- Seção 4 (IV-8): Etapas do fluxo. Admin gerencia tudo; o Gerente só vê a lista e pode excluir etapa nunca usada (Passo 20.9). -->
         <section class="ws-secao" aria-labelledby="etapas-titulo">
           <div class="ws-secao__cabecalho">
             <div>
               <h2 id="etapas-titulo">Etapas do fluxo</h2>
-              <p>Só Administrador. Uma etapa com histórico nunca é excluída — apenas desativada. Livros que já estão numa etapa continuam nela até serem movidos manualmente; desativar ou reordenar não os afeta.</p>
+<?php if ($podeGerenciarEtapasPapeis): ?>
+              <p>Criar, editar, desativar e reordenar: só Administrador. Gerente e Administrador podem excluir uma etapa que nunca foi usada; uma etapa com histórico nunca é excluída — apenas desativada. Livros que já estão numa etapa continuam nela até serem movidos manualmente; desativar ou reordenar não os afeta.</p>
+<?php else: ?>
+              <p>Você pode excluir uma etapa que nunca foi usada: sem livros e sem histórico. Criar, editar, desativar e reordenar etapas é com o Administrador.</p>
+<?php endif; ?>
             </div>
           </div>
 <?php if (!$etapas): ?>
@@ -895,6 +1028,7 @@ require __DIR__ . '/includes/cabecalho.php';
                   <td class="ws-tabela__num" data-rotulo="Livros agora"><?= $qtdLivrosEtapa ?></td>
                   <td class="ws-tabela__acoes" data-rotulo="Ações">
                     <div class="ws-linha" style="flex-wrap:nowrap;gap:6px;justify-content:flex-end">
+<?php if ($podeGerenciarEtapasPapeis): ?>
 <?php foreach ([['up', $temVizinhoAcima, 'arrow-up', 'Mover para cima'], ['down', $temVizinhoAbaixo, 'arrow-down', 'Mover para baixo']] as [$dir, $existe, $icone, $rotuloMover]): ?>
 <?php if ($existe): ?>
                       <form method="post"<?= $qtdLivrosEtapa > 0 ? ' data-ws-confirmar="modal-mover-etapa" data-mover-nome="' . escaparHtml($et['nome']) . '" data-mover-qtd="' . $qtdLivrosEtapa . '"' : '' ?>>
@@ -923,6 +1057,30 @@ require __DIR__ . '/includes/cabecalho.php';
                         data-ativa="<?= (int)$et['ativa'] ?>"
                         data-qtd="<?= $qtdLivrosEtapa ?>"
                         aria-label="<?= escaparHtml('Editar etapa ' . $et['nome']) ?>" title="Editar etapa"><i data-lucide="pencil"></i></button>
+<?php endif; ?>
+<?php if ($podeExcluirEtapa):
+    $motivoExcluir = $motivoExclusaoPorEtapa[(int)$et['id']] ?? null;
+?>
+<?php if ($motivoExcluir === null): ?>
+                      <!-- Pode excluir: o envio abre o modal de confirmação (campo oculto "confirmacao" preenchido só pelo botão do modal) -->
+                      <form method="post" data-ws-confirmar="modal-excluir-etapa" data-excluir-nome="<?= escaparHtml($et['nome']) ?>" data-excluir-catalogacao="<?= $et['nome'] === NOME_ETAPA_CATALOGACAO_CONFIG ? '1' : '0' ?>">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="acao" value="excluir_etapa">
+                        <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
+                        <input type="hidden" name="confirmacao" value="">
+                        <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="submit" aria-label="<?= escaparHtml('Excluir etapa ' . $et['nome']) ?>" title="Excluir etapa"><i data-lucide="trash-2"></i></button>
+                      </form>
+<?php else: ?>
+                      <!-- Não pode excluir: o botão abre um modal que explica o motivo (e, para o Admin, oferece desativar) -->
+                      <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="button" data-ws-modal-abrir="modal-excluir-bloqueado"
+                        data-id="<?= (int)$et['id'] ?>"
+                        data-nome="<?= escaparHtml($et['nome']) ?>"
+                        data-motivo="<?= escaparHtml($motivoExcluir) ?>"
+                        data-ativa="<?= (int)$et['ativa'] ?>"
+                        data-pode-desativar="<?= $podeGerenciarEtapasPapeis && (int)$et['ativa'] === 1 && (int)$et['finaliza_livro'] !== 1 && !str_starts_with($motivoExcluir, 'Esta é a única') ? '1' : '0' ?>"
+                        aria-label="<?= escaparHtml('Excluir etapa ' . $et['nome'] . ' (não é possível)') ?>" title="Excluir etapa"><i data-lucide="trash-2"></i></button>
+<?php endif; ?>
+<?php endif; ?>
                     </div>
                   </td>
                 </tr>
@@ -932,6 +1090,7 @@ require __DIR__ . '/includes/cabecalho.php';
           </div>
 <?php endif; ?>
 
+<?php if ($podeGerenciarEtapasPapeis): ?>
           <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="nova-etapa-titulo" novalidate>
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="criar_etapa">
@@ -947,6 +1106,7 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php endif; ?>
             </div>
           </form>
+<?php endif; ?>
         </section>
 <?php endif; ?>
 
@@ -1230,6 +1390,85 @@ require __DIR__ . '/includes/cabecalho.php';
           document.getElementById('modal-mover-etapa-titulo').textContent = 'Mudar a ordem de ' + form.dataset.moverNome + '?';
           document.getElementById('modal-mover-etapa-texto').textContent = form.dataset.moverQtd + ' livro(s) estão nesta etapa agora. Mudar a ordem só afeta movimentações futuras, eles não são afetados. Continuar?';
         });
+      });
+      </script>
+<?php endif; ?>
+<?php if ($podeExcluirEtapa): ?>
+      <!-- Modal: excluir etapa que nunca foi usada (Passo 20.9; título e texto preenchidos pelo script abaixo) -->
+      <dialog class="ws-modal" id="modal-excluir-etapa" aria-labelledby="modal-excluir-etapa-titulo" aria-describedby="modal-excluir-etapa-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-excluir-etapa-titulo">Excluir esta etapa?</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo ws-pilha">
+            <p id="modal-excluir-etapa-texto"></p>
+            <div class="ws-alerta ws-alerta--limite" role="status" id="modal-excluir-etapa-aviso" hidden>
+              <i class="ws-alerta__icone" data-lucide="triangle-alert"></i>
+              <div class="ws-alerta__corpo">
+                <p>Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Sem ela, esse aviso deixa de existir.</p>
+              </div>
+            </div>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Manter a etapa</button>
+            <button class="ws-btn ws-btn--primario" type="button" data-ws-confirmar-ok>Excluir etapa</button>
+          </footer>
+        </div>
+      </dialog>
+
+      <!-- Modal: etapa que NÃO pode ser excluída (o motivo vem do servidor; o Admin pode ir para "desativar") -->
+      <dialog class="ws-modal" id="modal-excluir-bloqueado" aria-labelledby="modal-excluir-bloqueado-titulo" aria-describedby="modal-excluir-bloqueado-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-excluir-bloqueado-titulo">Esta etapa não pode ser excluída</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p id="modal-excluir-bloqueado-texto"></p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Fechar</button>
+            <button class="ws-btn ws-btn--primario" type="button" id="modal-excluir-desativar" hidden>Desativar em vez de excluir</button>
+          </footer>
+        </div>
+      </dialog>
+
+      <script>
+      // Excluir etapa: o botão da linha é um formulário; o envio abre o modal (waresys.js) e só o botão "Excluir etapa" do modal
+      // preenche o campo oculto "confirmacao". Sem ele o PHP não exclui.
+      document.querySelectorAll('form[data-ws-confirmar="modal-excluir-etapa"]').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          if (form.elements.confirmacao.value === '1') return;
+          document.getElementById('modal-excluir-etapa-titulo').textContent = 'Excluir a etapa ' + form.dataset.excluirNome + '?';
+          document.getElementById('modal-excluir-etapa-texto').textContent = 'A etapa ' + form.dataset.excluirNome + ' nunca foi usada: nenhum livro passou por ela. Excluir remove a etapa e reordena as demais. Esta ação não pode ser desfeita.';
+          document.getElementById('modal-excluir-etapa-aviso').hidden = form.dataset.excluirCatalogacao !== '1';
+        });
+      });
+      document.querySelectorAll('#modal-excluir-etapa [data-ws-confirmar-ok]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          const form = document.getElementById('modal-excluir-etapa')._wsFormulario;
+          if (form && form.elements.confirmacao) form.elements.confirmacao.value = '1';
+        });
+      });
+
+      // Etapa que não pode ser excluída: o modal mostra o motivo; o Admin (que tem o botão de editar na linha) pode
+      // seguir para desativar, que abre o "Editar etapa" já com "Etapa ativa" desmarcada (a confirmação de sempre vale).
+      const botaoDesativarEmVezDeExcluir = document.getElementById('modal-excluir-desativar');
+      document.querySelectorAll('[data-ws-modal-abrir="modal-excluir-bloqueado"]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          document.getElementById('modal-excluir-bloqueado-titulo').textContent = 'A etapa ' + botao.dataset.nome + ' não pode ser excluída';
+          document.getElementById('modal-excluir-bloqueado-texto').textContent = botao.dataset.motivo;
+          botaoDesativarEmVezDeExcluir.dataset.id = botao.dataset.id;
+          botaoDesativarEmVezDeExcluir.hidden = botao.dataset.podeDesativar !== '1';
+        });
+      });
+      botaoDesativarEmVezDeExcluir.addEventListener('click', function () {
+        const botaoEditar = document.querySelector('[data-ws-modal-abrir="modal-etapa"][data-id="' + botaoDesativarEmVezDeExcluir.dataset.id + '"]');
+        document.getElementById('modal-excluir-bloqueado').close();
+        if (!botaoEditar) return;
+        botaoEditar.click();
+        document.getElementById('ed_etapa_ativa').checked = false;
       });
       </script>
 <?php endif; ?>

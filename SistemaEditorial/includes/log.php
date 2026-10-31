@@ -43,6 +43,7 @@ const NOMES_ACOES_LOG = [
     'etapa.criar'                 => 'Criou etapa',
     'etapa.editar'                => 'Editou etapa',
     'etapa.desativar'             => 'Desativou etapa',
+    'etapa.excluir'               => 'Excluiu etapa',
     'papel.criar'                  => 'Criou papel',
     'papel.editar'                 => 'Editou papel',
     'papel.desativar'              => 'Desativou papel',
