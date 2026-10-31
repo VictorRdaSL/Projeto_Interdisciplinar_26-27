@@ -9,6 +9,7 @@ function normalizarIsbn(string $isbn): string
 
 /**
  * Mensagem de erro do ISBN digitado (com ou sem traços), ou null se estiver certo.
+ * Confere só o tamanho (13 números); prefixo e dígito verificador não são conferidos.
  * Campo em branco não é erro: o ISBN é opcional (quem exige é o chamador). Texto sem nenhum número
  * ("abc", "---") é erro, para não virar "sem ISBN" em silêncio.
  */
@@ -21,16 +22,8 @@ function erroIsbn(string $isbn): ?string
     if (strlen($digitos) !== 13) {
         return 'O ISBN precisa ter 13 números.';
     }
-    if (!str_starts_with($digitos, '978') && !str_starts_with($digitos, '979')) {
-        return 'O ISBN precisa começar com 978 ou 979.';
-    }
-    $soma = 0;
-    for ($i = 0; $i < 12; $i++) {
-        $soma += (int)$digitos[$i] * ($i % 2 === 0 ? 1 : 3);
-    }
-    if ((10 - ($soma % 10)) % 10 !== (int)$digitos[12]) {
-        return 'Dígito verificador não confere.';
-    }
+    // Nem o prefixo (978/979) nem o dígito verificador são conferidos: o ISBN é uma informação do livro e quem
+    // digita não pode ser barrado. Sem faixa conhecida na tabela oficial, formatarIsbn() mostra só os dígitos.
     return null;
 }
 
