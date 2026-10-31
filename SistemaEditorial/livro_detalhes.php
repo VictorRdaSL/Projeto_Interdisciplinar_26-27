@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: livro_detalhes.php?id=' . $livroId);
         exit;
     }
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: livro_detalhes.php?id=' . $livroId);
         exit;
@@ -650,13 +650,13 @@ require __DIR__ . '/includes/cabecalho.php';
 ?>
 <?php if ($a['modo'] === 'concluir'): ?>
                 <form method="post" class="ws-pilha ws-pilha--peq">
-                  <?= csrf_field() ?>
+                  <?= csrfCampo() ?>
                   <input type="hidden" name="acao" value="concluir">
                   <div><button class="ws-btn ws-btn--primario" type="submit"><i data-lucide="check"></i><?= escaparHtml($a['label']) ?></button></div>
                 </form>
 <?php else: ?>
                 <form method="post" class="ws-pilha ws-pilha--peq" novalidate<?= $modalAcao ? ' data-ws-confirmar="' . escaparHtml($modalAcao) . '"' : '' ?>>
-                  <?= csrf_field() ?>
+                  <?= csrfCampo() ?>
                   <input type="hidden" name="acao" value="avancar">
                   <input type="hidden" name="etapa_destino_id" value="<?= (int)$a['etapa_destino_id'] ?>">
 <?php if (isset($a['etapa_pulada_id'])): ?>
@@ -691,7 +691,7 @@ require __DIR__ . '/includes/cabecalho.php';
     if ($blocoMover++ > 0) echo '                <hr style="margin:0">' . "\n";
 ?>
                 <form method="post" class="ws-pilha ws-pilha--peq" novalidate<?= $excedenteRepetir ? ' data-ws-confirmar="modal-repetir"' : '' ?>>
-                  <?= csrf_field() ?>
+                  <?= csrfCampo() ?>
                   <input type="hidden" name="acao" value="repetir">
 <?php if ($excedenteRepetir): ?>
                   <input type="hidden" name="confirmacao" value="">
@@ -720,7 +720,7 @@ require __DIR__ . '/includes/cabecalho.php';
     if ($blocoMover++ > 0) echo '                <hr style="margin:0">' . "\n";
 ?>
                 <form method="post" class="ws-pilha ws-pilha--peq" id="form-voltar" data-ws-confirmar="modal-voltar" novalidate>
-                  <?= csrf_field() ?>
+                  <?= csrfCampo() ?>
                   <input type="hidden" name="acao" value="voltar">
                   <input type="hidden" name="confirmacao" value="">
                   <div class="ws-form__grade">
@@ -755,7 +755,7 @@ require __DIR__ . '/includes/cabecalho.php';
 
 <?php if ($blocoMover++ > 0) echo '                <hr style="margin:0">' . "\n"; ?>
                 <form method="post" class="ws-pilha ws-pilha--peq" novalidate>
-                  <?= csrf_field() ?>
+                  <?= csrfCampo() ?>
                   <input type="hidden" name="acao" value="passar_mesa">
                   <div class="ws-form__grade">
                     <div class="ws-campo<?= classeCampoErro($erroMov('passar_mesa', 'mesa')) ?>">
@@ -1011,7 +1011,7 @@ require __DIR__ . '/includes/cabecalho.php';
       <!-- Modal: iniciar resgate -->
       <dialog class="ws-modal" id="modal-resgate" aria-labelledby="modal-resgate-titulo">
         <form class="ws-modal__caixa" method="post">
-          <?= csrf_field() ?>
+          <?= csrfCampo() ?>
           <input type="hidden" name="acao" value="iniciar_resgate">
           <input type="hidden" name="confirmacao" value="">
           <header class="ws-modal__cabecalho">
@@ -1035,7 +1035,7 @@ require __DIR__ . '/includes/cabecalho.php';
       <!-- Modal: cancelar livro -->
       <dialog class="ws-modal" id="modal-cancelar" aria-labelledby="modal-cancelar-titulo">
         <form class="ws-modal__caixa" method="post">
-          <?= csrf_field() ?>
+          <?= csrfCampo() ?>
           <input type="hidden" name="acao" value="cancelar">
           <input type="hidden" name="confirmacao" value="">
           <header class="ws-modal__cabecalho">

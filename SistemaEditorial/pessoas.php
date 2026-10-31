@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!usuarioTemPermissao('pessoas.gerenciar')) {
         voltarPessoas('erro', 'Você não tem permissão para gerenciar pessoas.');
     }
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         voltarPessoas('erro', 'Sessão expirada. Tente novamente.');
     }
     $acao = $_POST['acao'] ?? '';
@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             voltarPessoas('sucesso', 'Pessoa atualizada com sucesso.');
         } elseif (!$errosPessoa) {
             // Cadastro novo só passa uma vez por exibição do formulário (duplo clique / reenvio).
-            if (!envio_unico_consumir($_POST['envio_id'] ?? null)) {
+            if (!envioUnicoConsumir($_POST['envio_id'] ?? null)) {
                 if (empty($_SESSION['flash'])) voltarPessoas('erro', MSG_ENVIO_DUPLICADO);
                 header('Location: pessoas.php');
                 exit;
@@ -246,8 +246,8 @@ require __DIR__ . '/includes/cabecalho.php';
       <!-- Modal: nova pessoa / editar pessoa (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-pessoa" aria-labelledby="modal-pessoa-titulo">
         <form class="ws-modal__caixa" method="post" novalidate>
-          <?= csrf_field() ?>
-          <?= envio_unico_field() ?>
+          <?= csrfCampo() ?>
+          <?= envioUnicoCampo() ?>
           <input type="hidden" name="acao" value="salvar_pessoa">
           <input type="hidden" name="pessoa_id" id="pessoa_id" value="<?= $formPessoa ? (int)$formPessoa['id'] : 0 ?>">
           <header class="ws-modal__cabecalho">
@@ -282,7 +282,7 @@ require __DIR__ . '/includes/cabecalho.php';
       <!-- Modal: excluir pessoa (o campo "confirmacao" só é preenchido pelo botão de confirmar) -->
       <dialog class="ws-modal" id="modal-excluir" aria-labelledby="modal-excluir-titulo">
         <form class="ws-modal__caixa" method="post">
-          <?= csrf_field() ?>
+          <?= csrfCampo() ?>
           <input type="hidden" name="acao" value="excluir_pessoa">
           <input type="hidden" name="pessoa_id" id="excluir_pessoa_id" value="0">
           <input type="hidden" name="confirmacao" value="">

@@ -14,7 +14,7 @@ require_once __DIR__ . '/includes/mesa.php';
 // Se um flash do primeiro envio ainda não foi mostrado, ele é preservado.
 function exigirEnvioUnico(): void
 {
-    if (envio_unico_consumir($_POST['envio_id'] ?? null)) {
+    if (envioUnicoConsumir($_POST['envio_id'] ?? null)) {
         return;
     }
     if (empty($_SESSION['flash'])) {
@@ -273,7 +273,7 @@ function nomePapelJaExiste(mysqli $conn, string $nome, int $ignorarId): bool
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_tema') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
         $novoTema = $_POST['tema'] ?? '';
@@ -292,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar
 }
 
 if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_dias_limite') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
         $diasPostStr = entradaTexto($_POST, 'dias_limite_livro_parado');
@@ -319,7 +319,7 @@ if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POS
 }
 
 if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_papel') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
         $usuarioId = (int)($_POST['usuario_id'] ?? 0);
@@ -372,7 +372,7 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
 }
 
 if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_usuario') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php');
         exit;
@@ -440,7 +440,7 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
     }
 }
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_etapa') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
@@ -474,7 +474,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 }
 
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_etapa') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
@@ -552,7 +552,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 }
 
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'mover_etapa') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
@@ -612,7 +612,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 // Excluir etapa (Passo 20.9): Gerente e Admin, só etapa que nunca foi usada. A confirmação vem do modal (campo oculto
 // "confirmacao"); sem ela nada é excluído, nem sem JavaScript. Tudo numa transação que trava a linha da etapa.
 if ($podeExcluirEtapa && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'excluir_etapa') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
@@ -659,7 +659,7 @@ if ($podeExcluirEtapa && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'
 }
 
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_papel') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
@@ -684,7 +684,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 }
 
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_papel') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
     }
@@ -833,7 +833,7 @@ require __DIR__ . '/includes/cabecalho.php';
             </div>
           </div>
           <form method="post" class="ws-card ws-card--superficie">
-            <?= csrf_field() ?>
+            <?= csrfCampo() ?>
             <input type="hidden" name="acao" value="alterar_tema">
             <div class="ws-btn-grupo" role="group" aria-label="Tema de exibição">
               <button type="submit" name="tema" value="claro" class="ws-btn ws-btn--secundario<?= $temaAtual === 'claro' ? ' is-pressionado' : '' ?>" aria-pressed="<?= $temaAtual === 'claro' ? 'true' : 'false' ?>"><i data-lucide="sun"></i>Tema claro</button>
@@ -852,7 +852,7 @@ require __DIR__ . '/includes/cabecalho.php';
             </div>
           </div>
           <form method="post" class="ws-form ws-card ws-card--superficie" novalidate>
-            <?= csrf_field() ?>
+            <?= csrfCampo() ?>
             <input type="hidden" name="acao" value="alterar_dias_limite">
             <div class="ws-campo<?= classeCampoErro($errosDias['dias_limite_livro_parado'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="dias_limite_livro_parado">Dias-limite padrão</label>
@@ -900,7 +900,7 @@ require __DIR__ . '/includes/cabecalho.php';
                   <td data-rotulo="Alterar papel">
 <?php if ($podeEditarEssaLinha): ?>
                     <form class="ws-linha" method="post" style="flex-wrap:nowrap;gap:8px">
-                      <?= csrf_field() ?>
+                      <?= csrfCampo() ?>
                       <input type="hidden" name="acao" value="alterar_papel">
                       <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
                       <select class="ws-select ws-select--peq" name="papel" aria-label="<?= escaparHtml('Papel de ' . $u['nome']) ?>" style="flex:1 1 110px;min-width:0;max-width:150px">
@@ -925,9 +925,9 @@ require __DIR__ . '/includes/cabecalho.php';
           </div>
 
           <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-usuario-titulo" novalidate>
-            <?= csrf_field() ?>
+            <?= csrfCampo() ?>
             <input type="hidden" name="acao" value="criar_usuario">
-            <?= envio_unico_field() ?>
+            <?= envioUnicoCampo() ?>
             <fieldset class="ws-grupo-campos">
               <legend><h3 class="ws-h2" id="novo-usuario-titulo">Novo usuário</h3></legend>
               <div class="ws-form__grade">
@@ -1032,7 +1032,7 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php foreach ([['up', $temVizinhoAcima, 'arrow-up', 'Mover para cima'], ['down', $temVizinhoAbaixo, 'arrow-down', 'Mover para baixo']] as [$dir, $existe, $icone, $rotuloMover]): ?>
 <?php if ($existe): ?>
                       <form method="post"<?= $qtdLivrosEtapa > 0 ? ' data-ws-confirmar="modal-mover-etapa" data-mover-nome="' . escaparHtml($et['nome']) . '" data-mover-qtd="' . $qtdLivrosEtapa . '"' : '' ?>>
-                        <?= csrf_field() ?>
+                        <?= csrfCampo() ?>
                         <input type="hidden" name="acao" value="mover_etapa">
                         <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
                         <input type="hidden" name="direcao" value="<?= $dir ?>">
@@ -1064,7 +1064,7 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($motivoExcluir === null): ?>
                       <!-- Pode excluir: o envio abre o modal de confirmação (campo oculto "confirmacao" preenchido só pelo botão do modal) -->
                       <form method="post" data-ws-confirmar="modal-excluir-etapa" data-excluir-nome="<?= escaparHtml($et['nome']) ?>" data-excluir-catalogacao="<?= $et['nome'] === NOME_ETAPA_CATALOGACAO_CONFIG ? '1' : '0' ?>">
-                        <?= csrf_field() ?>
+                        <?= csrfCampo() ?>
                         <input type="hidden" name="acao" value="excluir_etapa">
                         <input type="hidden" name="etapa_id" value="<?= (int)$et['id'] ?>">
                         <input type="hidden" name="confirmacao" value="">
@@ -1092,9 +1092,9 @@ require __DIR__ . '/includes/cabecalho.php';
 
 <?php if ($podeGerenciarEtapasPapeis): ?>
           <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="nova-etapa-titulo" novalidate>
-            <?= csrf_field() ?>
+            <?= csrfCampo() ?>
             <input type="hidden" name="acao" value="criar_etapa">
-            <?= envio_unico_field() ?>
+            <?= envioUnicoCampo() ?>
             <h3 class="ws-h2" id="nova-etapa-titulo">Nova etapa</h3>
             <?php camposFormEtapa('nova_etapa', false, $etapas ? (int)max(array_column($etapas, 'ordem')) + 1 : 1, $valoresEtapaNova ?? [], $errosEtapaNova); ?>
             <div class="ws-form__acoes">
@@ -1156,9 +1156,9 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php endif; ?>
 
           <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-papel-titulo" novalidate>
-            <?= csrf_field() ?>
+            <?= csrfCampo() ?>
             <input type="hidden" name="acao" value="criar_papel">
-            <?= envio_unico_field() ?>
+            <?= envioUnicoCampo() ?>
             <fieldset class="ws-grupo-campos">
               <legend><h3 class="ws-h2" id="novo-papel-titulo">Novo papel</h3></legend>
               <div class="ws-campo<?= classeCampoErro($errosPapelNovo['nome'] ?? null) ?>">
@@ -1271,7 +1271,7 @@ require __DIR__ . '/includes/cabecalho.php';
       <!-- Modal: editar etapa (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-etapa" aria-labelledby="modal-etapa-titulo">
         <form class="ws-modal__caixa" method="post" id="form-editar-etapa" data-ws-confirmar="modal-desativar-etapa" novalidate<?= $formEtapaEd ? ' data-ativa-original="' . (int)$formEtapaEd['ativaOriginal'] . '" data-qtd-livros="' . (int)$formEtapaEd['qtdLivros'] . '"' : '' ?>>
-          <?= csrf_field() ?>
+          <?= csrfCampo() ?>
           <input type="hidden" name="acao" value="editar_etapa">
           <input type="hidden" name="etapa_id" id="ed_etapa_id" value="<?= $formEtapaEd ? (int)$formEtapaEd['id'] : 0 ?>">
           <input type="hidden" name="confirmacao" value="">
@@ -1476,7 +1476,7 @@ require __DIR__ . '/includes/cabecalho.php';
       <!-- Modal: editar papel de autoria (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-papel" aria-labelledby="modal-papel-titulo">
         <form class="ws-modal__caixa" method="post" novalidate>
-          <?= csrf_field() ?>
+          <?= csrfCampo() ?>
           <input type="hidden" name="acao" value="editar_papel">
           <input type="hidden" name="papel_id" id="ed_papel_id" value="<?= $formPapelEd ? (int)$formPapelEd['id'] : 0 ?>">
           <header class="ws-modal__cabecalho">

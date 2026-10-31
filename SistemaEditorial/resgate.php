@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: resgate.php?id=' . $livroId);
         exit;
     }
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: resgate.php?id=' . $livroId);
         exit;
@@ -189,7 +189,7 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($podeConcluir): ?>
         <section class="ws-secao" aria-labelledby="concluir-titulo">
           <form class="ws-form ws-card ws-card--superficie" method="post" novalidate>
-            <?= csrf_field() ?>
+            <?= csrfCampo() ?>
 
             <fieldset class="ws-grupo-campos">
               <legend><h2 id="concluir-titulo">Concluir resgate</h2></legend>

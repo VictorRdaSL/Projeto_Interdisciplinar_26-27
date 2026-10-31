@@ -17,7 +17,7 @@ $errosLogin = []; // e-mail e senha vazios: mensagem junto de cada campo
 $email = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $erro = 'Sessão expirada. Recarregue a página e tente novamente.';
     } else {
         $email = entradaTexto($_POST, 'email');
@@ -82,7 +82,7 @@ $ws_base = BASE_URL;
 
     <section class="ws-login__area" aria-labelledby="login-titulo">
       <form class="ws-login__form" method="post" novalidate>
-        <?= csrf_field() ?>
+        <?= csrfCampo() ?>
         <div class="ws-pilha ws-pilha--peq">
           <h1 id="login-titulo">Entrar</h1>
           <p class="ws-texto-suave">Use o e-mail e a senha cadastrados pelo Gerente ou Administrador.</p>

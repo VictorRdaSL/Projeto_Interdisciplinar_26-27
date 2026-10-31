@@ -3,10 +3,7 @@
 // Uso (CLI): php tests/gerar_faixas_isbn.php caminho/RangeMessage.xml
 // O XML vem de https://www.isbn-international.org/export_rangemessage.xml e muda algumas vezes por ano;
 // quando atualizar, baixe de novo, rode este script e confira com tests/isbn_teste.php.
-if (PHP_SAPI !== 'cli') {
-    http_response_code(403);
-    exit;
-}
+require_once __DIR__ . '/_guarda.php'; // só linha de comando e só em desenvolvimento
 
 $origem = $argv[1] ?? '';
 if ($origem === '' || !is_file($origem)) {
