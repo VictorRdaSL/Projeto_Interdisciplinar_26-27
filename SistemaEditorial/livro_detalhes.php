@@ -5,6 +5,8 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/campos.php';
+require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/alertas.php';
 require_once __DIR__ . '/includes/movimentacoes.php';
 
@@ -30,6 +32,9 @@ function rodadaDoDestino(mysqli $conn, int $livroId, int $etapaId): ?array
     return ['etapa' => $etapa, 'rodada' => $rodada, 'excedente' => calcularExcedente($etapa, $rodada)];
 }
 
+$errosMov = [];   // [formulário][campo] => mensagem; formulário: 'avancar-<id da etapa>', 'repetir', 'voltar', 'passar_mesa'
+$postMov = null;   // o que foi escolhido no envio com erro, para os menus voltarem como estavam
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!usuarioTemPermissao('livros.gerenciar')) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não tem permissão para movimentar livros.'];
@@ -47,79 +52,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Preenchido (com 1) só pelo botão de confirmar do modal (script no fim desta página).
     $confirmado = entradaTexto($_POST, 'confirmacao') === '1';
 
-    try {
-        // Ações que pedem confirmação: resgate, cancelamento e qualquer movimentação que abra rodada excedente.
-        // Sem o campo de confirmação nada é gravado: volta para a página com o aviso.
-        $exigeConfirmacao = false;
-        if ($acaoPost === 'iniciar_resgate') {
-            $exigeConfirmacao = true;
-        } elseif ($acaoPost === 'cancelar') {
-            $exigeConfirmacao = usuarioTemPermissao('livros.cancelar'); // sem permissão, a mensagem de permissão vem primeiro
-        } elseif ($acaoPost === 'avancar' || $acaoPost === 'voltar') {
-            $destino = rodadaDoDestino($conn, $livroId, (int)($_POST['etapa_destino_id'] ?? 0));
-            $exigeConfirmacao = $destino !== null && $destino['excedente'];
-        } elseif ($acaoPost === 'repetir') {
-            $stmtEtapaAtual = $conn->prepare('SELECT etapa_atual_id FROM livros WHERE id = ?');
-            $stmtEtapaAtual->bind_param('i', $livroId);
-            $stmtEtapaAtual->execute();
-            $linhaEtapaAtual = $stmtEtapaAtual->get_result()->fetch_assoc();
-            $destino = $linhaEtapaAtual ? rodadaDoDestino($conn, $livroId, (int)$linhaEtapaAtual['etapa_atual_id']) : null;
-            $exigeConfirmacao = $destino !== null && $destino['excedente'];
+    // Campos obrigatórios vazios: a página volta com a mensagem junto do campo (nada é gravado).
+    $etapaDestinoPost = (int)($_POST['etapa_destino_id'] ?? 0);
+    $chaveFormMov = $acaoPost === 'avancar' ? 'avancar-' . $etapaDestinoPost : $acaoPost;
+    if ($acaoPost === 'voltar' && $etapaDestinoPost <= 0) {
+        $errosMov['voltar']['etapa'] = 'Escolha a etapa para a qual o livro volta.';
+    }
+    if ($acaoPost === 'passar_mesa' && (int)($_POST['novo_responsavel_id'] ?? 0) <= 0) {
+        $errosMov['passar_mesa']['mesa'] = 'Escolha o responsável que recebe o livro.';
+    }
+    if (in_array($acaoPost, ['avancar', 'repetir', 'voltar'], true) && (!isset($_POST['responsavel_id']) || $_POST['responsavel_id'] === '')) {
+        // Sem escolha o livro fica na mesa de hoje; isso só não vale quando a mesa de hoje não pode ser responsável (Administrador).
+        $stmtMesaAtual = $conn->prepare('SELECT responsavel_atual_id FROM livros WHERE id = ?');
+        $stmtMesaAtual->bind_param('i', $livroId);
+        $stmtMesaAtual->execute();
+        $linhaMesaAtual = $stmtMesaAtual->get_result()->fetch_assoc();
+        if ($linhaMesaAtual && erroResponsavelMesa($conn, (int)$linhaMesaAtual['responsavel_atual_id']) !== null) {
+            $errosMov[$chaveFormMov]['mesa'] = 'Escolha o responsável.';
         }
-        if ($exigeConfirmacao && !$confirmado) {
-            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Esta ação precisa de confirmação. Use o botão de confirmar na janela que se abre; nada foi gravado.'];
-            header('Location: livro_detalhes.php?id=' . $livroId);
-            exit;
-        }
-
-        $responsavelIdPost = isset($_POST['responsavel_id']) && $_POST['responsavel_id'] !== '' ? (int)$_POST['responsavel_id'] : null;
-
-        if ($acaoPost === 'avancar') {
-            $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
-            $etapaPuladaId = isset($_POST['etapa_pulada_id']) && $_POST['etapa_pulada_id'] !== '' ? (int)$_POST['etapa_pulada_id'] : null;
-            $resultado = avancarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $etapaPuladaId, $responsavelIdPost);
-            $mensagem = 'Livro avançado para ' . $resultado['etapa_nome'] . '.';
-        } elseif ($acaoPost === 'repetir') {
-            $resultado = repetirEtapa($conn, $livroId, $usuarioId, $responsavelIdPost);
-            $mensagem = 'Nova rodada aberta em ' . $resultado['etapa_nome'] . '.';
-        } elseif ($acaoPost === 'voltar') {
-            $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
-            $resultado = voltarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $responsavelIdPost);
-            $mensagem = 'Livro devolvido para ' . $resultado['etapa_nome'] . '.';
-        } elseif ($acaoPost === 'concluir') {
-            $resultado = concluirLivro($conn, $livroId, $usuarioId);
-            $mensagem = 'Livro concluído com sucesso.';
-        } elseif ($acaoPost === 'passar_mesa') {
-            $novoResponsavelId = (int)($_POST['novo_responsavel_id'] ?? 0);
-            $resultado = passarParaOutraMesa($conn, $livroId, $novoResponsavelId, $usuarioId);
-            $mensagem = 'Livro passado para a mesa de ' . nomeUsuario($conn, $novoResponsavelId) . '.';
-        } elseif ($acaoPost === 'iniciar_resgate') {
-            iniciarResgate($conn, $livroId, $usuarioId);
-            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate iniciado. O livro foi marcado como extraviado.'];
-            header('Location: resgate.php?id=' . $livroId);
-            exit;
-        } elseif ($acaoPost === 'cancelar') {
-            if (!usuarioTemPermissao('livros.cancelar')) {
-                throw new InvalidArgumentException('Você não tem permissão para cancelar livros.');
-            }
-            cancelarLivro($conn, $livroId, $usuarioId);
-            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Livro cancelado.'];
-            header('Location: livro_detalhes.php?id=' . $livroId);
-            exit;
-        } else {
-            throw new InvalidArgumentException('Ação inválida.');
-        }
-
-        if ($resultado['avisos']) {
-            $mensagem .= ' ' . implode(' ', $resultado['avisos']);
-        }
-        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => $mensagem];
-    } catch (Throwable $e) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => mensagemErroSegura($e, 'concluir a ação')];
+    }
+    if ($errosMov) {
+        $postMov = ['form' => $chaveFormMov, 'mesa' => ($acaoPost === 'passar_mesa' ? ($_POST['novo_responsavel_id'] ?? '') : ($_POST['responsavel_id'] ?? '')) !== '' ? (int)($acaoPost === 'passar_mesa' ? $_POST['novo_responsavel_id'] : $_POST['responsavel_id']) : null];
     }
 
-    header('Location: livro_detalhes.php?id=' . $livroId);
-    exit;
+    if (!$errosMov) {
+        try {
+            // Ações que pedem confirmação: resgate, cancelamento e qualquer movimentação que abra rodada excedente.
+            // Sem o campo de confirmação nada é gravado: volta para a página com o aviso.
+            $exigeConfirmacao = false;
+            if ($acaoPost === 'iniciar_resgate') {
+                $exigeConfirmacao = true;
+            } elseif ($acaoPost === 'cancelar') {
+                $exigeConfirmacao = usuarioTemPermissao('livros.cancelar'); // sem permissão, a mensagem de permissão vem primeiro
+            } elseif ($acaoPost === 'avancar' || $acaoPost === 'voltar') {
+                $destino = rodadaDoDestino($conn, $livroId, (int)($_POST['etapa_destino_id'] ?? 0));
+                $exigeConfirmacao = $destino !== null && $destino['excedente'];
+            } elseif ($acaoPost === 'repetir') {
+                $stmtEtapaAtual = $conn->prepare('SELECT etapa_atual_id FROM livros WHERE id = ?');
+                $stmtEtapaAtual->bind_param('i', $livroId);
+                $stmtEtapaAtual->execute();
+                $linhaEtapaAtual = $stmtEtapaAtual->get_result()->fetch_assoc();
+                $destino = $linhaEtapaAtual ? rodadaDoDestino($conn, $livroId, (int)$linhaEtapaAtual['etapa_atual_id']) : null;
+                $exigeConfirmacao = $destino !== null && $destino['excedente'];
+            }
+            if ($exigeConfirmacao && !$confirmado) {
+                $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Esta ação precisa de confirmação. Use o botão de confirmar na janela que se abre; nada foi gravado.'];
+                header('Location: livro_detalhes.php?id=' . $livroId);
+                exit;
+            }
+
+            $responsavelIdPost = isset($_POST['responsavel_id']) && $_POST['responsavel_id'] !== '' ? (int)$_POST['responsavel_id'] : null;
+
+            if ($acaoPost === 'avancar') {
+                $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
+                $etapaPuladaId = isset($_POST['etapa_pulada_id']) && $_POST['etapa_pulada_id'] !== '' ? (int)$_POST['etapa_pulada_id'] : null;
+                $resultado = avancarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $etapaPuladaId, $responsavelIdPost);
+                $mensagem = 'Livro avançado para ' . $resultado['etapa_nome'] . '.';
+            } elseif ($acaoPost === 'repetir') {
+                $resultado = repetirEtapa($conn, $livroId, $usuarioId, $responsavelIdPost);
+                $mensagem = 'Nova rodada aberta em ' . $resultado['etapa_nome'] . '.';
+            } elseif ($acaoPost === 'voltar') {
+                $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
+                $resultado = voltarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $responsavelIdPost);
+                $mensagem = 'Livro devolvido para ' . $resultado['etapa_nome'] . '.';
+            } elseif ($acaoPost === 'concluir') {
+                $resultado = concluirLivro($conn, $livroId, $usuarioId);
+                $mensagem = 'Livro concluído com sucesso.';
+            } elseif ($acaoPost === 'passar_mesa') {
+                $novoResponsavelId = (int)($_POST['novo_responsavel_id'] ?? 0);
+                $resultado = passarParaOutraMesa($conn, $livroId, $novoResponsavelId, $usuarioId);
+                $mensagem = 'Livro passado para a mesa de ' . nomeUsuario($conn, $novoResponsavelId) . '.';
+            } elseif ($acaoPost === 'iniciar_resgate') {
+                iniciarResgate($conn, $livroId, $usuarioId);
+                $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate iniciado. O livro foi marcado como extraviado.'];
+                header('Location: resgate.php?id=' . $livroId);
+                exit;
+            } elseif ($acaoPost === 'cancelar') {
+                if (!usuarioTemPermissao('livros.cancelar')) {
+                    throw new InvalidArgumentException('Você não tem permissão para cancelar livros.');
+                }
+                cancelarLivro($conn, $livroId, $usuarioId);
+                $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Livro cancelado.'];
+                header('Location: livro_detalhes.php?id=' . $livroId);
+                exit;
+            } else {
+                throw new InvalidArgumentException('Ação inválida.');
+            }
+
+            if ($resultado['avisos']) {
+                $mensagem .= ' ' . implode(' ', $resultado['avisos']);
+            }
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => $mensagem];
+        } catch (Throwable $e) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => mensagemErroSegura($e, 'concluir a ação')];
+        }
+
+        header('Location: livro_detalhes.php?id=' . $livroId);
+        exit;
+    }
 }
 
 $stmt = $conn->prepare('
@@ -177,6 +207,9 @@ $podeCancelar = usuarioTemPermissao('livros.cancelar');
 $usuariosDisponiveis = usuariosQuePodemSerMesa($conn);
 // Livro de antes da regra pode estar com um Administrador como mesa: nesse caso o formulário obriga a escolher.
 $mesaAtualValida = in_array((int)$livro['responsavel_atual_id'], array_map('intval', array_column($usuariosDisponiveis, 'id')), true);
+// Erro de campo dos formulários de movimentação e a mesa marcada em cada um (o que foi escolhido num envio com erro, senão a mesa de hoje).
+$erroMov = fn(string $form, string $campo): ?string => $errosMov[$form][$campo] ?? null;
+$mesaMarcada = fn(string $form): int => ($postMov !== null && $postMov['form'] === $form && $postMov['mesa'] !== null) ? (int)$postMov['mesa'] : (int)$livro['responsavel_atual_id'];
 
 const NOMES_STATUS_LIVRO_DET = [
     'em_andamento' => 'Em andamento',
@@ -556,7 +589,7 @@ require __DIR__ . '/includes/cabecalho.php';
                   <div><button class="ws-btn ws-btn--primario" type="submit"><i data-lucide="check"></i><?= escaparHtml($a['label']) ?></button></div>
                 </form>
 <?php else: ?>
-                <form method="post" class="ws-pilha ws-pilha--peq"<?= $modalAcao ? ' data-ws-confirmar="' . escaparHtml($modalAcao) . '"' : '' ?>>
+                <form method="post" class="ws-pilha ws-pilha--peq" novalidate<?= $modalAcao ? ' data-ws-confirmar="' . escaparHtml($modalAcao) . '"' : '' ?>>
                   <?= csrf_field() ?>
                   <input type="hidden" name="acao" value="avancar">
                   <input type="hidden" name="etapa_destino_id" value="<?= (int)$a['etapa_destino_id'] ?>">
@@ -567,16 +600,18 @@ require __DIR__ . '/includes/cabecalho.php';
                   <input type="hidden" name="confirmacao" value="">
 <?php endif; ?>
                   <div class="ws-form__grade">
-                    <div class="ws-campo">
+<?php $chaveAv = 'avancar-' . (int)$a['etapa_destino_id']; $erroMesaAv = $erroMov($chaveAv, 'mesa'); ?>
+                    <div class="ws-campo<?= classeCampoErro($erroMesaAv) ?>">
                       <label class="ws-campo__rotulo" for="mesa-avancar-<?= $i ?>">Mesa na nova etapa</label>
-                      <select class="ws-select" id="mesa-avancar-<?= $i ?>" name="responsavel_id"<?= $mesaAtualValida ? '' : ' required' ?>>
+                      <select class="ws-select" id="mesa-avancar-<?= $i ?>" name="responsavel_id"<?= $mesaAtualValida ? '' : ' required' ?><?= atributosCampo('mesa-avancar-' . $i, $erroMesaAv) ?>>
 <?php if (!$mesaAtualValida): ?>
                         <option value="">Escolha o responsável</option>
 <?php endif; ?>
 <?php foreach ($usuariosDisponiveis as $u): ?>
-                        <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
+                        <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === $mesaMarcada($chaveAv) ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
 <?php endforeach; ?>
                       </select>
+                      <?= htmlErroCampo('mesa-avancar-' . $i, $erroMesaAv) ?>
                     </div>
                   </div>
                   <div><button class="ws-btn <?= $i === 0 ? 'ws-btn--primario' : 'ws-btn--secundario' ?>" type="submit"><?= escaparHtml($a['label']) ?> <span class="ws-btn__seta" aria-hidden="true">→</span></button></div>
@@ -587,23 +622,24 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($podeRepetir):
     if ($blocoMover++ > 0) echo '                <hr style="margin:0">' . "\n";
 ?>
-                <form method="post" class="ws-pilha ws-pilha--peq"<?= $excedenteRepetir ? ' data-ws-confirmar="modal-repetir"' : '' ?>>
+                <form method="post" class="ws-pilha ws-pilha--peq" novalidate<?= $excedenteRepetir ? ' data-ws-confirmar="modal-repetir"' : '' ?>>
                   <?= csrf_field() ?>
                   <input type="hidden" name="acao" value="repetir">
 <?php if ($excedenteRepetir): ?>
                   <input type="hidden" name="confirmacao" value="">
 <?php endif; ?>
                   <div class="ws-form__grade">
-                    <div class="ws-campo">
+                    <div class="ws-campo<?= classeCampoErro($erroMov('repetir', 'mesa')) ?>">
                       <label class="ws-campo__rotulo" for="mesa-repetir">Mesa na nova rodada</label>
-                      <select class="ws-select" id="mesa-repetir" name="responsavel_id"<?= $mesaAtualValida ? '' : ' required' ?>>
+                      <select class="ws-select" id="mesa-repetir" name="responsavel_id"<?= $mesaAtualValida ? '' : ' required' ?><?= atributosCampo('mesa-repetir', $erroMov('repetir', 'mesa')) ?>>
 <?php if (!$mesaAtualValida): ?>
                         <option value="">Escolha o responsável</option>
 <?php endif; ?>
 <?php foreach ($usuariosDisponiveis as $u): ?>
-                        <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
+                        <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === $mesaMarcada('repetir') ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
 <?php endforeach; ?>
                       </select>
+                      <?= htmlErroCampo('mesa-repetir', $erroMov('repetir', 'mesa')) ?>
                     </div>
                     <div class="ws-campo" style="align-self:end">
                       <button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="rotate-ccw"></i>Repetir <?= escaparHtml($etapaAtual['nome']) ?></button>
@@ -615,30 +651,32 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($etapasParaVoltar):
     if ($blocoMover++ > 0) echo '                <hr style="margin:0">' . "\n";
 ?>
-                <form method="post" class="ws-pilha ws-pilha--peq" id="form-voltar" data-ws-confirmar="modal-voltar">
+                <form method="post" class="ws-pilha ws-pilha--peq" id="form-voltar" data-ws-confirmar="modal-voltar" novalidate>
                   <?= csrf_field() ?>
                   <input type="hidden" name="acao" value="voltar">
                   <input type="hidden" name="confirmacao" value="">
                   <div class="ws-form__grade">
-                    <div class="ws-campo">
+                    <div class="ws-campo<?= classeCampoErro($erroMov('voltar', 'etapa')) ?>">
                       <label class="ws-campo__rotulo" for="etapa-voltar">Voltar para</label>
-                      <select class="ws-select" id="etapa-voltar" name="etapa_destino_id" required>
+                      <select class="ws-select" id="etapa-voltar" name="etapa_destino_id" required<?= atributosCampo('etapa-voltar', $erroMov('voltar', 'etapa')) ?>>
                         <option value="">Escolha a etapa</option>
 <?php foreach ($etapasParaVoltar as $ev): ?>
                         <option value="<?= (int)$ev['id'] ?>"><?= escaparHtml($ev['nome']) ?></option>
 <?php endforeach; ?>
                       </select>
+                      <?= htmlErroCampo('etapa-voltar', $erroMov('voltar', 'etapa')) ?>
                     </div>
-                    <div class="ws-campo">
+                    <div class="ws-campo<?= classeCampoErro($erroMov('voltar', 'mesa')) ?>">
                       <label class="ws-campo__rotulo" for="mesa-voltar">Mesa</label>
-                      <select class="ws-select" id="mesa-voltar" name="responsavel_id"<?= $mesaAtualValida ? '' : ' required' ?>>
+                      <select class="ws-select" id="mesa-voltar" name="responsavel_id"<?= $mesaAtualValida ? '' : ' required' ?><?= atributosCampo('mesa-voltar', $erroMov('voltar', 'mesa')) ?>>
 <?php if (!$mesaAtualValida): ?>
                         <option value="">Escolha o responsável</option>
 <?php endif; ?>
 <?php foreach ($usuariosDisponiveis as $u): ?>
-                        <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
+                        <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === $mesaMarcada('voltar') ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
 <?php endforeach; ?>
                       </select>
+                      <?= htmlErroCampo('mesa-voltar', $erroMov('voltar', 'mesa')) ?>
                     </div>
                   </div>
                   <div><button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="undo-2"></i>Voltar etapa</button></div>
@@ -646,20 +684,21 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php endif; ?>
 
 <?php if ($blocoMover++ > 0) echo '                <hr style="margin:0">' . "\n"; ?>
-                <form method="post" class="ws-pilha ws-pilha--peq">
+                <form method="post" class="ws-pilha ws-pilha--peq" novalidate>
                   <?= csrf_field() ?>
                   <input type="hidden" name="acao" value="passar_mesa">
                   <div class="ws-form__grade">
-                    <div class="ws-campo">
+                    <div class="ws-campo<?= classeCampoErro($erroMov('passar_mesa', 'mesa')) ?>">
                       <label class="ws-campo__rotulo" for="mesa-passar">Passar para a mesa de</label>
-                      <select class="ws-select" id="mesa-passar" name="novo_responsavel_id" required>
-<?php if (!$mesaAtualValida): ?>
+                      <select class="ws-select" id="mesa-passar" name="novo_responsavel_id" required<?= atributosCampo('mesa-passar', $erroMov('passar_mesa', 'mesa')) ?>>
+<?php if (!$mesaAtualValida || $erroMov('passar_mesa', 'mesa') !== null): ?>
                         <option value="">Escolha o responsável</option>
 <?php endif; ?>
 <?php foreach ($usuariosDisponiveis as $u): ?>
-                        <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
+                        <option value="<?= (int)$u['id'] ?>"<?= $erroMov('passar_mesa', 'mesa') === null && (int)$u['id'] === (int)$livro['responsavel_atual_id'] ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
 <?php endforeach; ?>
                       </select>
+                      <?= htmlErroCampo('mesa-passar', $erroMov('passar_mesa', 'mesa')) ?>
                       <p class="ws-campo__ajuda">Continua em <?= escaparHtml($etapaAtual['nome']) ?><?= $rodadaAtualTexto !== '' ? ', na ' . escaparHtml($rodadaAtualTexto) : '' ?>. Não conta rodada nova.</p>
                     </div>
                     <div class="ws-campo" style="align-self:start;padding-top:22px">
