@@ -41,7 +41,7 @@ INSERT INTO configuracoes (chave, valor) VALUES
     ('dias_limite_livro_parado', '15');
 
 -- Administrador inicial.
--- SENHA PROVISÓRIA: admin123 (hash bcrypt gerado por password_hash do PHP).
--- Troque-a antes de publicar o sistema — ver README.txt.
+-- A senha é a combinada com o responsável pelo projeto (aqui só o hash bcrypt, gerado por password_hash do PHP).
+-- Para trocá-la, ver "Primeiro acesso" no README.md.
 INSERT INTO usuarios (nome, email, senha_hash, perfil, tema, criado_em) VALUES
-    ('Administrador', 'admin@waresys.com', '$2y$10$zkCwrMm5mDVcAtPFUIjJZO9erEr.KFexqJSML2JHf0U/ZSTb2eSKO', 'admin', 'claro', NOW());
+    ('Administrador', 'admin@waresys.com', '$2y$10$x6ZvZWwDzKcebLM7FLb65O931JaHgwX4Y8JgIhfcdTETgjYGiWoza', 'admin', 'claro', NOW());

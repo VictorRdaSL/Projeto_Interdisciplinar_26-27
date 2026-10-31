@@ -105,7 +105,7 @@ $justificativaExcluir = '';
 $acaoDoForm = entradaTexto($_POST, 'acao');
 if ($editando && $_SERVER['REQUEST_METHOD'] === 'POST' && $acaoDoForm === 'excluir_livro') {
     $voltarAoForm = 'livro_form.php?id=' . $livroId;
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: ' . $voltarAoForm); exit;
     }
@@ -151,11 +151,11 @@ if ($editando && ($_SERVER['REQUEST_METHOD'] !== 'POST' || $acaoDoForm === 'excl
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $acaoDoForm !== 'excluir_livro') {
-    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $erro ='Sessão expirada. Recarregue a página e tente novamente.';
     } else {
         // Cadastro novo só passa uma vez por exibição do formulário (duplo clique / reenvio).
-        if (!$editando && !envio_unico_consumir($_POST['envio_id'] ?? null)) {
+        if (!$editando && !envioUnicoConsumir($_POST['envio_id'] ?? null)) {
             if (empty($_SESSION['flash'])) {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_ENVIO_DUPLICADO];
             }
@@ -428,8 +428,8 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php endif; ?>
 
             <form class="ws-form ws-card ws-card--superficie" method="post" novalidate>
-              <?= csrf_field() ?>
-<?php if (!$editando) echo '              ' . envio_unico_field() . "\n"; ?>
+              <?= csrfCampo() ?>
+<?php if (!$editando) echo '              ' . envioUnicoCampo() . "\n"; ?>
 
               <fieldset class="ws-grupo-campos">
                 <legend><h2>Dados do livro</h2></legend>
@@ -607,7 +607,7 @@ require __DIR__ . '/includes/cabecalho.php';
       <!-- Excluir livro: confirmação com o código e o título; só o botão de confirmar preenche o campo oculto "confirmacao" -->
       <dialog class="ws-modal" id="modal-excluir-livro" aria-labelledby="modal-excluir-livro-titulo" aria-describedby="modal-excluir-livro-texto">
         <form class="ws-modal__caixa" method="post" novalidate>
-          <?= csrf_field() ?>
+          <?= csrfCampo() ?>
           <input type="hidden" name="acao" value="excluir_livro">
           <input type="hidden" name="confirmacao" value="">
           <header class="ws-modal__cabecalho">
