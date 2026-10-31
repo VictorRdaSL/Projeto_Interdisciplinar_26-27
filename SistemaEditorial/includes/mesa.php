@@ -8,6 +8,8 @@
  * passam por aqui.
  */
 
+require_once __DIR__ . '/permissoes.php';
+
 const PERFIS_QUE_PODEM_SER_MESA = ['gerente', 'usuario'];
 
 const MSG_ADMIN_NAO_E_MESA = 'O Administrador não faz parte do fluxo da editora e não pode ser responsável (mesa) de um livro. Escolha um Gerente ou um Usuário.';
@@ -53,4 +55,38 @@ function livrosSobResponsabilidade(mysqli $conn, int $usuarioId): array
     $stmt->bind_param('i', $usuarioId);
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+/**
+ * Regra "cada um mexe só nos livros da sua mesa": texto do motivo pelo qual $usuarioId NÃO pode movimentar (ou
+ * editar) o livro $livro (linha de `livros`); null se pode. Pode: quem é a mesa do livro e quem tem a permissão
+ * livros.movimentar_outras_mesas (Gerente e Administrador). O perfil vem do banco pelo id, não da sessão, para a
+ * regra valer também dentro das funções de movimentação (e nos scripts de teste). $verbo: "movimentá-lo" ou "alterá-lo".
+ */
+function erroMovimentarLivro(mysqli $conn, array $livro, int $usuarioId, string $verbo = 'movimentá-lo'): ?string
+{
+    $mesaId = (int)($livro['responsavel_atual_id'] ?? 0);
+    if ($mesaId === $usuarioId) {
+        return null;
+    }
+    $stmt = $conn->prepare('SELECT perfil FROM vw_usuarios_publico WHERE id = ?');
+    $stmt->bind_param('i', $usuarioId);
+    $stmt->execute();
+    $quemAge = $stmt->get_result()->fetch_assoc();
+    if ($quemAge && papelTemPermissao($quemAge['perfil'], 'livros.movimentar_outras_mesas')) {
+        return null;
+    }
+    $nomeMesa = null;
+    if ($mesaId > 0) {
+        $stmtNome = $conn->prepare('SELECT nome FROM vw_usuarios_publico WHERE id = ?');
+        $stmtNome->bind_param('i', $mesaId);
+        $stmtNome->execute();
+        $linhaNome = $stmtNome->get_result()->fetch_assoc();
+        $nomeMesa = $linhaNome['nome'] ?? null;
+    }
+    if ($nomeMesa === null) {
+        return 'Este livro está sem responsável (mesa). Só um Gerente ou um Administrador pode ' . $verbo . '.';
+    }
+    return 'Este livro está na mesa de ' . $nomeMesa . '. Só ' . $nomeMesa . ', um Gerente ou um Administrador pode ' . $verbo
+        . '. Peça a ' . $nomeMesa . ' que passe o livro para você.';
 }

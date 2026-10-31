@@ -208,6 +208,9 @@ while ($row = $rm->fetch_assoc()) $movimentacoes[] = $row;
 // O flash da sessão é lido, exibido e apagado pelo includes/rodape.php (toast).
 $podeGerenciar = usuarioTemPermissao('livros.gerenciar');
 $podeCancelar = usuarioTemPermissao('livros.cancelar');
+// Cada um mexe só nos livros da própria mesa; Gerente e Admin mexem em qualquer um (o backend confere de novo em cada ação).
+$motivoSemMesa = $podeGerenciar ? erroMovimentarLivro($conn, $livro, (int)$_SESSION['usuario_id']) : null;
+$podeMovimentar = $podeGerenciar && $motivoSemMesa === null;
 
 // Só Gerente e Usuário comum podem ser mesa (o Administrador não faz parte do fluxo): ver includes/mesa.php.
 $usuariosDisponiveis = usuariosQuePodemSerMesa($conn);
@@ -290,7 +293,7 @@ $excedenteRepetir = false;
 $etapasParaVoltar = [];
 $infoVoltar = [];
 
-if ($podeGerenciar && $livro['status'] === 'em_andamento' && $etapaAtual) {
+if ($podeMovimentar && $livro['status'] === 'em_andamento' && $etapaAtual) {
     $proxima = proximaEtapaAtiva($conn, (int)$etapaAtual['ordem']);
 
     if (!$proxima) {
@@ -493,7 +496,7 @@ require __DIR__ . '/includes/cabecalho.php';
           <h1 class="ws-topo__titulo"><?= escaparHtml($livro['titulo']) ?></h1>
           <p class="ws-topo__subtitulo"><?= escaparHtml($pessoasTopo !== '' ? $pessoasTopo : 'Sem pessoas vinculadas') ?></p>
         </div>
-<?php if ($podeGerenciar && $livro['status'] !== 'concluido'): /* livro concluído não é mais alterado (Passo 20.12) */ ?>
+<?php if ($podeMovimentar && $livro['status'] !== 'concluido'): /* livro concluído não é mais alterado (Passo 20.12); só a mesa, Gerente ou Admin editam */ ?>
         <div class="ws-topo__acoes">
           <a class="ws-btn ws-btn--secundario" href="livro_form.php?id=<?= $livroId ?>"><i data-lucide="pencil"></i>Editar livro</a>
         </div>
@@ -629,7 +632,20 @@ require __DIR__ . '/includes/cabecalho.php';
             </section>
 <?php endif; ?>
 
-<?php if ($podeGerenciar && $livro['status'] === 'em_andamento' && $etapaAtual): ?>
+<?php if ($podeGerenciar && !$podeMovimentar && $livro['status'] === 'em_andamento' && $etapaAtual): ?>
+            <section class="ws-secao" aria-labelledby="mover-titulo">
+              <h2 id="mover-titulo">Movimentar livro</h2>
+              <div class="ws-alerta ws-alerta--limite" role="status">
+                <i class="ws-alerta__icone" data-lucide="lock"></i>
+                <div class="ws-alerta__corpo">
+                  <p class="ws-alerta__titulo">Você não é a mesa deste livro.</p>
+                  <p><?= escaparHtml($motivoSemMesa) ?></p>
+                </div>
+              </div>
+            </section>
+<?php endif; ?>
+
+<?php if ($podeMovimentar && $livro['status'] === 'em_andamento' && $etapaAtual): ?>
             <section class="ws-secao" aria-labelledby="mover-titulo">
               <h2 id="mover-titulo">Movimentar livro</h2>
 <?php if (!$mesaAtualValida): ?>
@@ -783,7 +799,7 @@ require __DIR__ . '/includes/cabecalho.php';
             <section class="ws-secao" aria-labelledby="obs-titulo">
               <div class="ws-secao__cabecalho">
                 <h2 id="obs-titulo">Observações</h2>
-<?php if ($podeGerenciar && $livro['status'] !== 'concluido'): ?>
+<?php if ($podeMovimentar && $livro['status'] !== 'concluido'): ?>
                 <a class="ws-btn ws-btn--link" href="livro_form.php?id=<?= $livroId ?>">Editar</a>
 <?php endif; ?>
               </div>

@@ -50,6 +50,13 @@ if ($editando) {
         header('Location: livro_detalhes.php?id=' . $livroId);
         exit;
     }
+    // Cada um edita só os livros da própria mesa (Gerente e Admin editam qualquer um). Antes de qualquer POST (salvar e excluir).
+    $motivoSemMesa = erroMovimentarLivro($conn, $livroAtual, (int)$_SESSION['usuario_id'], 'alterá-lo');
+    if ($motivoSemMesa !== null) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $motivoSemMesa];
+        header('Location: livro_detalhes.php?id=' . $livroId);
+        exit;
+    }
 }
 
 $pessoasDisponiveis = [];
