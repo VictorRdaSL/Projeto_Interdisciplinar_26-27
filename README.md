@@ -54,7 +54,7 @@ O livro passa por 15 etapas, em ordem, com retorno possível:
 - **Opcionais:** Ilustração, Aprovação da capa e Revisão. Todas as outras são obrigatórias, e o sistema não deixa pular uma etapa obrigatória.
 - **Diagramação e Revisão vão e voltam entre si.** Esse trecho não é estritamente linear.
 - **O livro termina na etapa que finaliza** (Depósito legal). Livro **concluído** passa a mostrar "Concluído" no lugar da etapa e **não pode mais ser alterado**.
-- As etapas ficam no banco: o Administrador pode criar, renomear, reordenar e desativar etapas; uma etapa **nunca usada** pode ser excluída (Gerente ou Administrador), e uma etapa com histórico só é desativada.
+- As etapas ficam no banco: o Gerente e o Administrador podem criar, renomear, reordenar, ativar/desativar e editar etapas; uma etapa **nunca usada** pode ser excluída, e uma etapa com histórico só é desativada.
 
 ---
 
@@ -85,7 +85,8 @@ Há três perfis. Todos veem o painel, Livros, Minha mesa, Pessoas e os relatór
 | Criar usuários, mudar perfis e remover usuários (Gerente não concede, altera nem remove Administrador) | não | sim | sim |
 | Definir o limite de dias de "livro parado" | não | sim | sim |
 | Excluir etapa que nunca foi usada | não | sim | sim |
-| Criar, editar, desativar e reordenar etapas e papéis de autoria | não | não | sim |
+| Criar, editar, ativar/desativar e reordenar etapas | não | sim | sim |
+| Criar e editar papéis de autoria (Autor, Organizador, Ilustrador) | não | não | sim |
 
 **O Administrador não faz parte do fluxo da editora e não pode ser responsável (mesa) de um livro.** Ele continua podendo registrar ações. Por isso, numa instalação nova é preciso cadastrar um **Gerente ou Usuário** antes de criar o primeiro livro.
 
