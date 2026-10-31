@@ -43,6 +43,13 @@ if ($editando) {
         header('Location: livros.php');
         exit;
     }
+    // Livro concluído (já está na Biblioteca Nacional) não é mais alterado (Passo 20.12): nem abrir o formulário, nem
+    // salvar, nem excluir. Vale para qualquer perfil e antes de qualquer POST; cancelado e extraviado continuam editáveis.
+    if ($livroAtual['status'] === 'concluido') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Livro concluído não pode ser alterado.'];
+        header('Location: livro_detalhes.php?id=' . $livroId);
+        exit;
+    }
 }
 
 $pessoasDisponiveis = [];

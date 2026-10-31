@@ -4,11 +4,16 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/relatorios.php';
 require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/isbn.php';
+require_once __DIR__ . '/includes/formatacao.php';
 require_once __DIR__ . '/includes/relatorios_layout.php';
 
 exigirPermissaoRelatorios();
 
-$filtroEtapa = (int)($_GET['filtro_etapa'] ?? 0);
+// O filtro de etapa também tem "Concluído" e "Cancelado" (Passo 20.11): livro concluído ou cancelado não está em etapa
+// nenhuma, então aparece nessas duas opções e NÃO na etapa onde terminou. ('filtro_etapa' = id da etapa, ou concluido/cancelado.)
+$filtroEtapaBruto = entradaTexto($_GET, 'filtro_etapa');
+$filtroEtapaStatus = in_array($filtroEtapaBruto, ['concluido', 'cancelado'], true) ? $filtroEtapaBruto : '';
+$filtroEtapa = ($filtroEtapaStatus === '' && ctype_digit($filtroEtapaBruto)) ? (int)$filtroEtapaBruto : 0;
 $filtroStatus = entradaTexto($_GET, 'filtro_status');
 $filtroMesa = (int)($_GET['filtro_mesa'] ?? 0);
 if ($filtroStatus !== '' && !isset(ROTULOS_STATUS_LIVRO[$filtroStatus])) {
@@ -18,7 +23,8 @@ if ($filtroStatus !== '' && !isset(ROTULOS_STATUS_LIVRO[$filtroStatus])) {
 $condicoes = [];
 $parametros = [];
 $tipos = '';
-if ($filtroEtapa > 0) { $condicoes[] = 'v.etapa_id = ?'; $parametros[] = $filtroEtapa; $tipos .= 'i'; }
+if ($filtroEtapaStatus !== '') { $condicoes[] = 'v.status = ?'; $parametros[] = $filtroEtapaStatus; $tipos .= 's'; }
+elseif ($filtroEtapa > 0) { $condicoes[] = "v.etapa_id = ? AND v.status IN ('em_andamento', 'extraviado')"; $parametros[] = $filtroEtapa; $tipos .= 'i'; }
 if ($filtroStatus !== '') { $condicoes[] = 'v.status = ?'; $parametros[] = $filtroStatus; $tipos .= 's'; }
 if ($filtroMesa > 0) { $condicoes[] = 'v.mesa_id = ?'; $parametros[] = $filtroMesa; $tipos .= 'i'; }
 $whereSql = $condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '';
@@ -59,16 +65,16 @@ foreach ($livros as $l) {
         'pessoas' => $l['pessoas_papeis'] ?? '',
         'isbn' => formatarIsbn($l['isbn']),
         'copia' => (int)$l['tem_copia'] === 1 ? 'Sim' : 'Não',
-        'etapa' => $l['etapa_nome'],
+        'etapa' => textoEtapaAtual($l['status'], $l['etapa_nome']),
         'rodada' => $rodada,
-        'mesa' => $l['mesa_nome'] ?? '',
+        'mesa' => ($l['mesa_nome'] ?? '') === '' ? '' : textoMesaAtual($l['status'], $l['mesa_nome']), // última mesa, marcada "(concluído)"/"(cancelado)"
         'status' => rotuloStatusLivro($l['status']),
         'dias' => $dias,
         'observacoes' => $l['observacoes'] ?? '',
     ];
 }
 
-$filtrosAtivos = ['filtro_etapa' => $filtroEtapa, 'filtro_status' => $filtroStatus, 'filtro_mesa' => $filtroMesa];
+$filtrosAtivos = ['filtro_etapa' => $filtroEtapaStatus !== '' ? $filtroEtapaStatus : $filtroEtapa, 'filtro_status' => $filtroStatus, 'filtro_mesa' => $filtroMesa];
 
 if (($_GET['export'] ?? '') === 'csv') {
     exportarCsv(
@@ -86,7 +92,7 @@ relatorioAbrir('Relatório de livros', 'Relatórios');
 ?>
         <section class="ws-secao" aria-labelledby="filtros-titulo">
           <h2 class="ws-sr-only" id="filtros-titulo">Filtros</h2>
-          <p class="ws-texto-suave">Situação atual de cada livro. "Dias na etapa atual" conta desde que o livro entrou na etapa (trocas de mesa não zeram) e só existe para livros em andamento ou extraviados.</p>
+          <p class="ws-texto-suave">Situação atual de cada livro. "Dias na etapa atual" conta desde que o livro entrou na etapa (trocas de mesa não zeram) e só existe para livros em andamento ou extraviados. Livro concluído ou cancelado aparece como "Concluído" ou "Cancelado" na etapa, e é achado por essas duas opções do filtro (não pela etapa onde terminou); a Mesa dele é a última, marcada como "(concluído)" ou "(cancelado)".</p>
           <form class="ws-filtros" method="get">
             <div class="ws-campo">
               <label class="ws-campo__rotulo" for="filtro_etapa">Etapa</label>
@@ -95,6 +101,8 @@ relatorioAbrir('Relatório de livros', 'Relatórios');
 <?php foreach ($etapasFiltro as $e): ?>
                 <option value="<?= (int)$e['id'] ?>"<?= $filtroEtapa === (int)$e['id'] ? ' selected' : '' ?>><?= escaparHtml($e['nome']) ?></option>
 <?php endforeach; ?>
+                <option value="concluido"<?= $filtroEtapaStatus === 'concluido' ? ' selected' : '' ?>>Concluído</option>
+                <option value="cancelado"<?= $filtroEtapaStatus === 'cancelado' ? ' selected' : '' ?>>Cancelado</option>
               </select>
             </div>
             <div class="ws-campo">
@@ -157,7 +165,7 @@ relatorioAbrir('Relatório de livros', 'Relatórios');
                   <td data-rotulo="Pessoas e papéis"><?= escaparHtml($ln['pessoas'] ?: '—') ?></td>
                   <td data-rotulo="ISBN"><?php if ($ln['isbn'] !== ''): ?><span class="ws-tabela__codigo"><?= escaparHtml($ln['isbn']) ?></span><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
                   <td data-rotulo="Cópia"><?= escaparHtml($ln['copia']) ?></td>
-                  <td data-rotulo="Etapa atual"><?= escaparHtml($ln['etapa']) ?></td>
+                  <td data-rotulo="Etapa atual"><?= in_array($ln['status'], [ROTULOS_STATUS_LIVRO['concluido'], ROTULOS_STATUS_LIVRO['cancelado']], true) ? htmlStatusLivroRelatorio($ln['status']) : escaparHtml($ln['etapa']) ?></td>
                   <td data-rotulo="Rodada"><?= escaparHtml($rodadaTela ?: '—') ?><?= $cobrado ? ' ' . htmlChipCobrado() : '' ?></td>
                   <td data-rotulo="Mesa"><?= escaparHtml($ln['mesa'] ?: '—') ?></td>
                   <td data-rotulo="Status"><?= htmlStatusLivroRelatorio($ln['status']) ?></td>
