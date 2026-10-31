@@ -8,15 +8,16 @@ if (empty($_SESSION['usuario_id'])) {
 
 require_once __DIR__ . '/config/database.php';
 
-$stmt = $conn->prepare('SELECT nome, perfil, tema FROM vw_usuarios_publico WHERE id = ?');
+$stmt = $conn->prepare('SELECT nome, perfil, tema, ativo FROM vw_usuarios_publico WHERE id = ?');
 $stmt->bind_param('i', $_SESSION['usuario_id']);
 $stmt->execute();
 $usuarioAtual = $stmt->get_result()->fetch_assoc();
 
-if (!$usuarioAtual) {
+if (!$usuarioAtual || (int)$usuarioAtual['ativo'] !== 1) {
+    // Usuário excluído ou removido (sem acesso) com a sessão ainda aberta: cai na próxima página.
     $_SESSION = [];
     session_destroy();
-    header('Location: login.php');
+    header('Location: login.php' . ($usuarioAtual ? '?motivo=sem_acesso' : ''));
     exit;
 }
 

@@ -12,6 +12,8 @@ if (!empty($_SESSION['usuario_id'])) {
     exit;
 }
 
+const MSG_SEM_ACESSO = 'Esta conta não tem mais acesso ao sistema. Fale com um Gerente ou Administrador.';
+
 $erro = '';
 $errosLogin = []; // e-mail e senha vazios: mensagem junto de cada campo
 $email = '';
@@ -28,12 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($errosLogin) {
             // nada a conferir no banco: os campos voltam marcados
         } else {
-            $stmt = $conn->prepare('SELECT id, nome, senha_hash, perfil, tema FROM usuarios WHERE email = ?');
+            $stmt = $conn->prepare('SELECT id, nome, senha_hash, perfil, tema, ativo FROM usuarios WHERE email = ?');
             $stmt->bind_param('s', $email);
             $stmt->execute();
             $usuario = $stmt->get_result()->fetch_assoc();
 
-            if ($usuario && password_verify($senha, $usuario['senha_hash'])) {
+            if ($usuario && password_verify($senha, $usuario['senha_hash']) && (int)$usuario['ativo'] !== 1) {
+                // Só depois de acertar a senha: a mensagem não revela quais e-mails existem.
+                $erro = MSG_SEM_ACESSO;
+            } elseif ($usuario && password_verify($senha, $usuario['senha_hash'])) {
                 session_regenerate_id(true);
                 $_SESSION['usuario_id'] = $usuario['id'];
                 $_SESSION['usuario_nome'] = $usuario['nome'];
@@ -43,9 +48,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
 
-            $erro = 'E-mail ou senha inválidos.';
+            if ($erro === '') {
+                $erro = 'E-mail ou senha inválidos.';
+            }
         }
     }
+} elseif (($_GET['motivo'] ?? '') === 'sem_acesso') {
+    $erro = MSG_SEM_ACESSO; // veio de auth_check.php: a conta foi removida com a sessão aberta
 }
 // Tela de entrada: sem sessão não há tema do usuário, então ela abre sempre no tema claro.
 // Caminhos de CSS, JS e links pela BASE_URL; fonte e ícones locais (design system).

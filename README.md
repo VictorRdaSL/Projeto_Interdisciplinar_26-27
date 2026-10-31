@@ -82,7 +82,7 @@ Há três perfis. Todos veem o painel, Livros, Minha mesa, Pessoas e os relatór
 | Cancelar livro | não | sim | sim |
 | Excluir livro cadastrado por engano | não | sim | sim |
 | Ver o log de alterações | não | sim | sim |
-| Criar usuários e mudar perfis (Gerente não concede nem altera Administrador) | não | sim | sim |
+| Criar usuários, mudar perfis e remover usuários (Gerente não concede, altera nem remove Administrador) | não | sim | sim |
 | Definir o limite de dias de "livro parado" | não | sim | sim |
 | Excluir etapa que nunca foi usada | não | sim | sim |
 | Criar, editar, desativar e reordenar etapas e papéis de autoria | não | não | sim |

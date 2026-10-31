@@ -30,6 +30,7 @@ SELECT
     u.email,
     u.perfil,
     u.tema,
+    u.ativo,
     u.criado_em
 FROM usuarios u;
 
