@@ -442,6 +442,80 @@ checar('livrosSobResponsabilidade lista os livros em andamento do usuário (livr
 checar('livrosSobResponsabilidade não lista livros cancelados (livro 3)', !in_array((string)$livro3, array_map('strval', $titulosSob), true));
 cancelarLivro($conn, $livro4, $usuarioId);
 checar('Depois de cancelado, o livro 4 deixa de contar como "sob responsabilidade"', !in_array((string)$livro4, array_map('strval', array_column(livrosSobResponsabilidade($conn, $mesaId), 'id')), true));
+echo "\n=== (j) Observação nas movimentações (Passo 20.8) ===\n";
+$livro6 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 6 (observações)', $mesaId, $usuarioId, []);
+$livrosDeTeste[] = $livro6;
+$obsDaUltima = fn(int $livroId): ?string => ultimaMovimentacao($conn, $livroId)['observacao'];
+$totalMov = fn(int $livroId): int => (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livroId")->fetch_assoc()['c'];
+checar('Livro recém-criado: a movimentação inicial não tem observação (NULL)', $obsDaUltima($livro6) === null);
+
+avancarEtapa($conn, $livro6, $idContrato, $usuarioId, null, $mesaId, "Contrato enviado.\nAguardando assinatura.");
+checar('Avançar grava a observação, com a quebra de linha', $obsDaUltima($livro6) === "Contrato enviado.\nAguardando assinatura.");
+avancarEtapa($conn, $livro6, $idEnvioMaterial, $usuarioId);
+checar('Avançar sem observação grava NULL', $obsDaUltima($livro6) === null);
+avancarEtapa($conn, $livro6, $idCapa, $usuarioId, null, null, "   \n  ");
+checar('Observação só com espaços e quebras vira NULL', $obsDaUltima($livro6) === null);
+avancarEtapa($conn, $livro6, $idAprovacaoCapa, $usuarioId, $idIlustracao, null, "Sem ilustração.\r\nSeguir direto.");
+checar('Pular etapa opcional: a observação vai na linha do avanço (\\r\\n vira \\n)', $obsDaUltima($livro6) === "Sem ilustração.\nSeguir direto." && ultimaMovimentacao($conn, $livro6)['tipo'] === 'avanco');
+$obsPulo = $conn->query("SELECT observacao FROM movimentacoes WHERE livro_id=$livro6 AND tipo='pulo_opcional'")->fetch_assoc()['observacao'];
+checar('...e a linha do pulo_opcional fica sem observação', $obsPulo === null);
+avancarEtapa($conn, $livro6, $idDiagramacao, $usuarioId);
+
+repetirEtapa($conn, $livro6, $usuarioId, null, 'Autora pediu nova prova.');
+checar('Repetir grava a observação', $obsDaUltima($livro6) === 'Autora pediu nova prova.' && ultimaMovimentacao($conn, $livro6)['tipo'] === 'repeticao');
+avancarEtapa($conn, $livro6, $idRevisao, $usuarioId);
+voltarEtapa($conn, $livro6, $idDiagramacao, $usuarioId, null, 'Voltou por mudança de capa.');
+checar('Voltar grava a observação', $obsDaUltima($livro6) === 'Voltou por mudança de capa.' && ultimaMovimentacao($conn, $livro6)['tipo'] === 'retrocesso');
+
+// Troca de mesa (stored procedure com o 5º parâmetro).
+passarParaOutraMesa($conn, $livro6, $mesaId, $usuarioId, "Cuidado com as notas de rodapé.\nVer pasta compartilhada.");
+checar('Passar para outra mesa (procedure) grava a observação', $obsDaUltima($livro6) === "Cuidado com as notas de rodapé.\nVer pasta compartilhada." && ultimaMovimentacao($conn, $livro6)['tipo'] === 'troca_responsavel');
+passarParaOutraMesa($conn, $livro6, $mesaId, $usuarioId);
+checar('Passar para outra mesa sem observação grava NULL', $obsDaUltima($livro6) === null);
+passarParaOutraMesa($conn, $livro6, $mesaId, $usuarioId, '');
+checar('Passar para outra mesa com texto vazio grava NULL', $obsDaUltima($livro6) === null);
+
+// Limite: exatamente 1.000 caracteres grava inteiro (acentuados, 4 bytes no pior caso); 1.001 é recusado sem gravar nada.
+$mil = str_repeat('é', LIMITE_OBSERVACAO_MOVIMENTACAO);
+repetirEtapa($conn, $livro6, $usuarioId, null, $mil);
+checar('1.000 caracteres: gravado inteiro', mb_strlen($obsDaUltima($livro6), 'UTF-8') === 1000 && $obsDaUltima($livro6) === $mil);
+$movAntes = $totalMov($livro6);
+$etapaAntes = etapaAtualDoLivro($conn, $livro6)['etapa_nome'];
+$mil1 = $mil . 'x';
+foreach ([
+    'avançar' => fn() => avancarEtapa($conn, $livro6, $idRevisao, $usuarioId, null, null, $mil1),
+    'repetir' => fn() => repetirEtapa($conn, $livro6, $usuarioId, null, $mil1),
+    'voltar' => fn() => voltarEtapa($conn, $livro6, $idOrcamento, $usuarioId, null, $mil1),
+    'passar para outra mesa' => fn() => passarParaOutraMesa($conn, $livro6, $mesaId, $usuarioId, $mil1),
+] as $acao => $executar) {
+    try {
+        $executar();
+        checar("1.001 caracteres em \"$acao\" foi REJEITADO", false);
+    } catch (InvalidArgumentException $e) {
+        checar("1.001 caracteres em \"$acao\" rejeitado: " . $e->getMessage(), str_contains($e->getMessage(), '1000'));
+    }
+}
+checar('...e nada foi gravado (mesma contagem de movimentações, mesma etapa, uma só aberta)', $totalMov($livro6) === $movAntes
+    && etapaAtualDoLivro($conn, $livro6)['etapa_nome'] === $etapaAntes
+    && (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro6 AND data_saida IS NULL")->fetch_assoc()['c'] === 1);
+
+// Resgate: concluir grava a observação na linha do tipo 'resgate'.
+iniciarResgate($conn, $livro6, $usuarioId);
+concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta do diretor', $usuarioId, 'Achado na gaveta; conferir o arquivo final.');
+checar('Concluir resgate grava a observação na movimentação de resgate', $obsDaUltima($livro6) === 'Achado na gaveta; conferir o arquivo final.' && ultimaMovimentacao($conn, $livro6)['tipo'] === 'resgate');
+try {
+    iniciarResgate($conn, $livro6, $usuarioId);
+    concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta', $usuarioId, $mil1);
+    checar('Concluir resgate com 1.001 caracteres foi REJEITADO', false);
+} catch (InvalidArgumentException $e) {
+    checar('Concluir resgate com 1.001 caracteres rejeitado e o livro segue extraviado', (string)$conn->query("SELECT status FROM livros WHERE id=$livro6")->fetch_assoc()['status'] === 'extraviado');
+    concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta', $usuarioId);
+}
+checar('Resgate concluído sem observação grava NULL', $obsDaUltima($livro6) === null);
+
+$comObs = (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id <> $livro6 AND observacao IS NOT NULL AND livro_id IN (" . implode(',', array_diff($livrosDeTeste, [$livro6])) . ")")->fetch_assoc()['c'];
+checar('Os outros livros de teste (cenários anteriores) não ganharam observação', $comObs === 0);
+
 echo "\n=== Validações negativas (regras que devem ser rejeitadas) ===\n";
 try {
     avancarEtapa($conn, $livro2, $idCatalogacao, $usuarioId, $idDepositoLegal);

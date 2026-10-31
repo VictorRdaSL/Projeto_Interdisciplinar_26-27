@@ -69,13 +69,24 @@ function fecharMovimentacaoAtual(mysqli $conn, int $livroId, string $agora): arr
     return $mov;
 }
 
-function abrirMovimentacao(mysqli $conn, int $livroId, int $etapaId, int $responsavelId, int $registradoPorId, string $tipo, int $rodada, bool $excedente, string $agora, ?string $dataSaidaImediata = null): int
+// $observacao: recado opcional para quem recebe o livro (Passo 20.8). Já deve vir de observacaoParaGravar().
+function abrirMovimentacao(mysqli $conn, int $livroId, int $etapaId, int $responsavelId, int $registradoPorId, string $tipo, int $rodada, bool $excedente, string $agora, ?string $dataSaidaImediata = null, ?string $observacao = null): int
 {
-    $stmt = $conn->prepare('INSERT INTO movimentacoes (livro_id, etapa_id, responsavel_id, registrado_por_id, tipo, rodada, excedente, data_entrada, data_saida) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    $stmt = $conn->prepare('INSERT INTO movimentacoes (livro_id, etapa_id, responsavel_id, registrado_por_id, tipo, rodada, excedente, data_entrada, data_saida, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $excedenteInt = $excedente ? 1 : 0;
-    $stmt->bind_param('iiiisiiss', $livroId, $etapaId, $responsavelId, $registradoPorId, $tipo, $rodada, $excedenteInt, $agora, $dataSaidaImediata);
+    $stmt->bind_param('iiiisiisss', $livroId, $etapaId, $responsavelId, $registradoPorId, $tipo, $rodada, $excedenteInt, $agora, $dataSaidaImediata, $observacao);
     $stmt->execute();
     return $conn->insert_id;
+}
+
+// Texto da observação pronto para gravar (vazio vira null). Passou do limite: recusa antes de qualquer gravação,
+// porque este MariaDB não é estrito e cortaria o texto em silêncio.
+function observacaoParaGravar(?string $observacao): ?string
+{
+    if (($erro = erroObservacaoMovimentacao($observacao)) !== null) {
+        throw new InvalidArgumentException($erro);
+    }
+    return textoObservacaoMovimentacao($observacao);
 }
 
 function avisoIsbnVazioAoSairDaCatalogacao(string $nomeEtapaFechada, ?string $isbn): ?string
@@ -110,8 +121,9 @@ function resolverResponsavel(mysqli $conn, array $livro, ?int $novoResponsavelId
     return $novoResponsavelId;
 }
 
-function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $etapaPuladaId = null, ?int $novoResponsavelId = null): array
+function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $etapaPuladaId = null, ?int $novoResponsavelId = null, ?string $observacao = null): array
 {
+    $observacao = observacaoParaGravar($observacao);
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
@@ -174,7 +186,8 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
 
         $rodada = calcularRodada($conn, $livroId, (int)$etapaDestino['id']);
         $excedente = calcularExcedente($etapaDestino, $rodada);
-        $novaMovId = abrirMovimentacao($conn, $livroId, (int)$etapaDestino['id'], $responsavelId, $registradoPorId, 'avanco', $rodada, $excedente, $agora);
+        // Se pulou uma etapa opcional, o recado vai na linha do avanço (onde o livro entra), não na do pulo.
+        $novaMovId = abrirMovimentacao($conn, $livroId, (int)$etapaDestino['id'], $responsavelId, $registradoPorId, 'avanco', $rodada, $excedente, $agora, null, $observacao);
 
         $etapaDestinoId2 = (int)$etapaDestino['id'];
         $stmtL = $conn->prepare('UPDATE livros SET etapa_atual_id = ?, responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
@@ -201,8 +214,9 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
     ];
 }
 
-function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $novoResponsavelId = null): array
+function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $novoResponsavelId = null, ?string $observacao = null): array
 {
+    $observacao = observacaoParaGravar($observacao);
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
@@ -225,7 +239,7 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $no
         $etapaAtual = buscarEtapa($conn, $etapaAtualId);
         $rodada = calcularRodada($conn, $livroId, $etapaAtualId);
         $excedente = calcularExcedente($etapaAtual, $rodada);
-        $novaMovId = abrirMovimentacao($conn, $livroId, $etapaAtualId, $responsavelId, $registradoPorId, 'repeticao', $rodada, $excedente, $agora);
+        $novaMovId = abrirMovimentacao($conn, $livroId, $etapaAtualId, $responsavelId, $registradoPorId, 'repeticao', $rodada, $excedente, $agora, null, $observacao);
 
         $stmtL = $conn->prepare('UPDATE livros SET responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
         $stmtL->bind_param('isi', $responsavelId, $agora, $livroId);
@@ -250,8 +264,9 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $no
     ];
 }
 
-function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $novoResponsavelId = null): array
+function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $registradoPorId, ?int $novoResponsavelId = null, ?string $observacao = null): array
 {
+    $observacao = observacaoParaGravar($observacao);
     $agora = date('Y-m-d H:i:s');
     $avisos = [];
 
@@ -277,7 +292,7 @@ function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regis
 
         $rodada = calcularRodada($conn, $livroId, (int)$etapaDestino['id']);
         $excedente = calcularExcedente($etapaDestino, $rodada);
-        $novaMovId = abrirMovimentacao($conn, $livroId, (int)$etapaDestino['id'], $responsavelId, $registradoPorId, 'retrocesso', $rodada, $excedente, $agora);
+        $novaMovId = abrirMovimentacao($conn, $livroId, (int)$etapaDestino['id'], $responsavelId, $registradoPorId, 'retrocesso', $rodada, $excedente, $agora, null, $observacao);
 
         $etapaDestinoId2 = (int)$etapaDestino['id'];
         $stmtL = $conn->prepare('UPDATE livros SET etapa_atual_id = ?, responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?');
@@ -378,12 +393,14 @@ function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 // atualizar a mesa e gravar o log) vive na stored procedure sp_trocar_mesa (database/procedures.sql),
 // numa única transação. Esta função só chama a procedure e devolve o mesmo formato de antes.
 // Não chame dentro de uma transação aberta: a procedure faz COMMIT implícito dela.
-function passarParaOutraMesa(mysqli $conn, int $livroId, int $novoResponsavelId, int $registradoPorId): array
+function passarParaOutraMesa(mysqli $conn, int $livroId, int $novoResponsavelId, int $registradoPorId, ?string $observacao = null): array
 {
+    // O limite de 1.000 caracteres é conferido aqui: a procedure cortaria o texto em silêncio.
+    $observacao = observacaoParaGravar($observacao);
     // A procedure só confere se o usuário existe; a regra "Admin não pode ser mesa" fica aqui, no PHP.
     validarResponsavelMesa($conn, $novoResponsavelId);
     $agora = date('Y-m-d H:i:s');
-    $linhas = chamarProcedure($conn, 'CALL sp_trocar_mesa(?, ?, ?, ?)', 'iiis', [$livroId, $novoResponsavelId, $registradoPorId, $agora]);
+    $linhas = chamarProcedure($conn, 'CALL sp_trocar_mesa(?, ?, ?, ?, ?)', 'iiiss', [$livroId, $novoResponsavelId, $registradoPorId, $agora, $observacao]);
     $r = $linhas[0];
 
     return [
@@ -459,8 +476,9 @@ function iniciarResgate(mysqli $conn, int $livroId, int $registradoPorId): array
     ];
 }
 
-function concluirResgate(mysqli $conn, int $livroId, int $novaEtapaId, int $novoResponsavelId, string $localEncontrado, int $registradoPorId): array
+function concluirResgate(mysqli $conn, int $livroId, int $novaEtapaId, int $novoResponsavelId, string $localEncontrado, int $registradoPorId, ?string $observacao = null): array
 {
+    $observacao = observacaoParaGravar($observacao);
     $localEncontrado = trim($localEncontrado);
     if ($localEncontrado === '') {
         throw new InvalidArgumentException('Informe onde o livro foi encontrado.');
@@ -514,7 +532,7 @@ function concluirResgate(mysqli $conn, int $livroId, int $novaEtapaId, int $novo
         // visitada, não há "rodada atual" para manter — usa 1 como base.
         $rodada = max(contarEntradasAnteriores($conn, $livroId, $novaEtapaId), 1);
         $excedente = calcularExcedente($novaEtapa, $rodada);
-        abrirMovimentacao($conn, $livroId, $novaEtapaId, $novoResponsavelId, $registradoPorId, 'resgate', $rodada, $excedente, $agora);
+        abrirMovimentacao($conn, $livroId, $novaEtapaId, $novoResponsavelId, $registradoPorId, 'resgate', $rodada, $excedente, $agora, null, $observacao);
 
         $stmtL = $conn->prepare("UPDATE livros SET status = 'em_andamento', etapa_atual_id = ?, responsavel_atual_id = ?, atualizado_em = ? WHERE id = ?");
         $stmtL->bind_param('iisi', $novaEtapaId, $novoResponsavelId, $agora, $livroId);

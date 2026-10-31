@@ -72,8 +72,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errosMov[$chaveFormMov]['mesa'] = 'Escolha o responsável.';
         }
     }
+    // Recado opcional para quem recebe o livro (só nas ações que abrem uma movimentação nova).
+    $observacaoPost = entradaTexto($_POST, 'observacao');
+    if (in_array($acaoPost, ['avancar', 'repetir', 'voltar', 'passar_mesa'], true) && ($erroObs = erroObservacaoMovimentacao($observacaoPost)) !== null) {
+        $errosMov[$chaveFormMov]['obs'] = $erroObs;
+    }
     if ($errosMov) {
-        $postMov = ['form' => $chaveFormMov, 'mesa' => ($acaoPost === 'passar_mesa' ? ($_POST['novo_responsavel_id'] ?? '') : ($_POST['responsavel_id'] ?? '')) !== '' ? (int)($acaoPost === 'passar_mesa' ? $_POST['novo_responsavel_id'] : $_POST['responsavel_id']) : null];
+        $postMov = ['form' => $chaveFormMov, 'obs' => $observacaoPost, 'mesa' => ($acaoPost === 'passar_mesa' ? ($_POST['novo_responsavel_id'] ?? '') : ($_POST['responsavel_id'] ?? '')) !== '' ? (int)($acaoPost === 'passar_mesa' ? $_POST['novo_responsavel_id'] : $_POST['responsavel_id']) : null];
     }
 
     if (!$errosMov) {
@@ -107,21 +112,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($acaoPost === 'avancar') {
                 $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
                 $etapaPuladaId = isset($_POST['etapa_pulada_id']) && $_POST['etapa_pulada_id'] !== '' ? (int)$_POST['etapa_pulada_id'] : null;
-                $resultado = avancarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $etapaPuladaId, $responsavelIdPost);
+                $resultado = avancarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $etapaPuladaId, $responsavelIdPost, $observacaoPost);
                 $mensagem = 'Livro avançado para ' . $resultado['etapa_nome'] . '.';
             } elseif ($acaoPost === 'repetir') {
-                $resultado = repetirEtapa($conn, $livroId, $usuarioId, $responsavelIdPost);
+                $resultado = repetirEtapa($conn, $livroId, $usuarioId, $responsavelIdPost, $observacaoPost);
                 $mensagem = 'Nova rodada aberta em ' . $resultado['etapa_nome'] . '.';
             } elseif ($acaoPost === 'voltar') {
                 $etapaDestinoId = (int)($_POST['etapa_destino_id'] ?? 0);
-                $resultado = voltarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $responsavelIdPost);
+                $resultado = voltarEtapa($conn, $livroId, $etapaDestinoId, $usuarioId, $responsavelIdPost, $observacaoPost);
                 $mensagem = 'Livro devolvido para ' . $resultado['etapa_nome'] . '.';
             } elseif ($acaoPost === 'concluir') {
                 $resultado = concluirLivro($conn, $livroId, $usuarioId);
                 $mensagem = 'Livro concluído com sucesso.';
             } elseif ($acaoPost === 'passar_mesa') {
                 $novoResponsavelId = (int)($_POST['novo_responsavel_id'] ?? 0);
-                $resultado = passarParaOutraMesa($conn, $livroId, $novoResponsavelId, $usuarioId);
+                $resultado = passarParaOutraMesa($conn, $livroId, $novoResponsavelId, $usuarioId, $observacaoPost);
                 $mensagem = 'Livro passado para a mesa de ' . nomeUsuario($conn, $novoResponsavelId) . '.';
             } elseif ($acaoPost === 'iniciar_resgate') {
                 iniciarResgate($conn, $livroId, $usuarioId);
@@ -210,6 +215,18 @@ $usuariosDisponiveis = usuariosQuePodemSerMesa($conn);
 $mesaAtualValida = in_array((int)$livro['responsavel_atual_id'], array_map('intval', array_column($usuariosDisponiveis, 'id')), true);
 // Erro de campo dos formulários de movimentação e a mesa marcada em cada um (o que foi escolhido num envio com erro, senão a mesa de hoje).
 $erroMov = fn(string $form, string $campo): ?string => $errosMov[$form][$campo] ?? null;
+// Texto que o usuário digitou na observação do formulário $form, quando o envio dele voltou com erro.
+$obsDigitada = fn(string $form): string => ($postMov !== null && $postMov['form'] === $form) ? (string)$postMov['obs'] : '';
+// Campo "Observação (opcional)" dos formulários que abrem uma movimentação nova. $idCampo: id do textarea; $form: chave do formulário em $errosMov.
+$htmlCampoObservacao = function (string $idCampo, string $form) use ($erroMov, $obsDigitada): string {
+    $erro = $erroMov($form, 'obs');
+    return '<div class="ws-campo' . classeCampoErro($erro) . '">'
+        . '<label class="ws-campo__rotulo" for="' . escaparHtml($idCampo) . '">Observação <span class="ws-campo__opcional">(opcional)</span></label>'
+        . '<textarea class="ws-textarea" id="' . escaparHtml($idCampo) . '" name="observacao" rows="2" maxlength="' . LIMITE_OBSERVACAO_MOVIMENTACAO . '" placeholder="Recado para quem recebe o livro."' . atributosCampo($idCampo, $erro, $idCampo . '-ajuda') . '>' . escaparHtml($obsDigitada($form)) . '</textarea>'
+        . htmlErroCampo($idCampo, $erro)
+        . '<p class="ws-campo__ajuda" id="' . escaparHtml($idCampo) . '-ajuda">Fica no histórico do livro. Até ' . number_format(LIMITE_OBSERVACAO_MOVIMENTACAO, 0, ',', '.') . ' caracteres.</p>'
+        . '</div>';
+};
 $mesaMarcada = fn(string $form): int => ($postMov !== null && $postMov['form'] === $form && $postMov['mesa'] !== null) ? (int)$postMov['mesa'] : (int)$livro['responsavel_atual_id'];
 
 const NOMES_STATUS_LIVRO_DET = [
@@ -485,6 +502,17 @@ require __DIR__ . '/includes/cabecalho.php';
         </div>
 <?php endif; ?>
 <?php endif; ?>
+<?php if ($livro['status'] === 'em_andamento' && $movAtual && $movAtual['data_saida'] === null && $movAtual['observacao'] !== null && $movAtual['observacao'] !== ''): ?>
+        <!-- Recado de quem passou o livro para esta etapa/mesa (observação da movimentação aberta); o histórico completo fica na linha do tempo -->
+        <div class="ws-alerta" role="status">
+          <i class="ws-alerta__icone" data-lucide="message-square"></i>
+          <div class="ws-alerta__corpo">
+            <p class="ws-alerta__titulo">Observação de <?= escaparHtml($movAtual['registrado_por_nome'] ?: '—') ?></p>
+            <p><?= nl2br(escaparHtml($movAtual['observacao'])) ?></p>
+            <p class="ws-texto-suave">Registrada em <?= escaparHtml(formatarDataHora($movAtual['data_entrada'])) ?>, ao passar o livro para <?= escaparHtml($etapaAtual['nome']) ?>.</p>
+          </div>
+        </div>
+<?php endif; ?>
 
         <div class="ws-grade">
           <!-- Coluna principal -->
@@ -615,6 +643,8 @@ require __DIR__ . '/includes/cabecalho.php';
                       <?= htmlErroCampo('mesa-avancar-' . $i, $erroMesaAv) ?>
                     </div>
                   </div>
+                  <?= $htmlCampoObservacao('obs-avancar-' . $i, $chaveAv) ?>
+
                   <div><button class="ws-btn <?= $i === 0 ? 'ws-btn--primario' : 'ws-btn--secundario' ?>" type="submit"><?= escaparHtml($a['label']) ?> <span class="ws-btn__seta" aria-hidden="true">→</span></button></div>
                 </form>
 <?php endif; ?>
@@ -642,10 +672,10 @@ require __DIR__ . '/includes/cabecalho.php';
                       </select>
                       <?= htmlErroCampo('mesa-repetir', $erroMov('repetir', 'mesa')) ?>
                     </div>
-                    <div class="ws-campo" style="align-self:end">
-                      <button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="rotate-ccw"></i>Repetir <?= escaparHtml($etapaAtual['nome']) ?></button>
-                    </div>
                   </div>
+                  <?= $htmlCampoObservacao('obs-repetir', 'repetir') ?>
+
+                  <div><button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="rotate-ccw"></i>Repetir <?= escaparHtml($etapaAtual['nome']) ?></button></div>
                 </form>
 <?php endif; ?>
 
@@ -680,6 +710,8 @@ require __DIR__ . '/includes/cabecalho.php';
                       <?= htmlErroCampo('mesa-voltar', $erroMov('voltar', 'mesa')) ?>
                     </div>
                   </div>
+                  <?= $htmlCampoObservacao('obs-voltar', 'voltar') ?>
+
                   <div><button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="undo-2"></i>Voltar etapa</button></div>
                 </form>
 <?php endif; ?>
@@ -702,10 +734,10 @@ require __DIR__ . '/includes/cabecalho.php';
                       <?= htmlErroCampo('mesa-passar', $erroMov('passar_mesa', 'mesa')) ?>
                       <p class="ws-campo__ajuda">Continua em <?= escaparHtml($etapaAtual['nome']) ?><?= $rodadaAtualTexto !== '' ? ', na ' . escaparHtml($rodadaAtualTexto) : '' ?>. Não conta rodada nova.</p>
                     </div>
-                    <div class="ws-campo" style="align-self:start;padding-top:22px">
-                      <button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="arrow-left-right"></i>Passar livro</button>
-                    </div>
                   </div>
+                  <?= $htmlCampoObservacao('obs-passar', 'passar_mesa') ?>
+
+                  <div><button class="ws-btn ws-btn--secundario" type="submit"><i data-lucide="arrow-left-right"></i>Passar livro</button></div>
                 </form>
               </div>
             </section>
@@ -774,6 +806,9 @@ require __DIR__ . '/includes/cabecalho.php';
                     <p class="ws-evento__meta"><?= escaparHtml(implode(' · ', $partesMeta)) ?></p>
 <?php if ($tipo !== 'pulo_opcional'): ?>
                     <p class="ws-evento__meta">Tempo na etapa: <?= escaparHtml(formatarDuracaoEtapa($m['data_entrada'], $m['data_saida'])) ?><?= $m['data_saida'] !== null ? ' · Saída ' . escaparHtml(formatarDataHora($m['data_saida'])) : '' ?></p>
+<?php endif; ?>
+<?php if ($m['observacao'] !== null && $m['observacao'] !== ''): ?>
+                    <p class="ws-evento__nota"><span class="ws-evento__nota-rotulo">Observação</span><?= nl2br(escaparHtml($m['observacao'])) ?></p>
 <?php endif; ?>
 <?php if ((int)$m['excedente'] === 1): ?>
                     <p><span class="ws-status ws-status--cobrado">Cobrado</span></p>
