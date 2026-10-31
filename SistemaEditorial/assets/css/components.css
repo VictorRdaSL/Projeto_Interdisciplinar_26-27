@@ -1986,7 +1986,9 @@ a.ws-kpi:hover {
 }
 
 .ws-login__frase {
-  max-width: 12ch;
+  /* "Processos editoriais" cabe numa linha na metade do painel: o corpo acompanha a largura */
+  max-width: none;
+  font-size: clamp(28px, calc((50vw - 96px) / 11), var(--ws-fs-display));
 }
 
 .ws-login__texto {
@@ -2026,8 +2028,7 @@ a.ws-kpi:hover {
   }
 
   .ws-login__frase {
-    max-width: none;
-    font-size: var(--ws-fs-h1);
+    font-size: min(var(--ws-fs-h1), calc((100vw - 32px) / 11));
     letter-spacing: var(--ws-ls-h1);
   }
 
