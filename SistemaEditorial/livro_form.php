@@ -8,6 +8,8 @@ require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/movimentacoes.php';
+require_once __DIR__ . '/includes/campos.php';
 
 function buscarNomePorId(array $lista, int $id): string
 {
@@ -86,7 +88,54 @@ $contribuicoesForm = [];
 // O que o formulário mostra nas linhas Pessoa/Papel. Depois de um envio inclui também linhas pela metade, para o usuário vê-las e corrigir.
 $contribuicoesExibir = null;
 
-if ($editando && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+// ---- Excluir livro (Passo 20.10) ------------------------------------------------------------------------------
+// Só Gerente e Admin (livros.excluir) e só livro cadastrado por engano (ver motivoBloqueioExclusaoLivro()). O Usuário
+// comum vê o botão, mas o modal só avisa que precisa de um Gerente ou Administrador; o backend recusa de qualquer jeito.
+// A confirmação vem do modal (campo oculto "confirmacao"): sem ela nada é excluído, nem sem JavaScript.
+$podeExcluirLivro = usuarioTemPermissao('livros.excluir');
+$errosExcluir = [];
+$justificativaExcluir = '';
+$acaoDoForm = entradaTexto($_POST, 'acao');
+if ($editando && $_SERVER['REQUEST_METHOD'] === 'POST' && $acaoDoForm === 'excluir_livro') {
+    $voltarAoForm = 'livro_form.php?id=' . $livroId;
+    if (!csrf_validar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: ' . $voltarAoForm); exit;
+    }
+    if (!$podeExcluirLivro) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não tem permissão para excluir livros. Só Gerente e Administrador excluem.'];
+        header('Location: ' . $voltarAoForm); exit;
+    }
+    if (entradaTexto($_POST, 'confirmacao') !== '1') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Esta ação precisa de confirmação. Use o botão de confirmar na janela que se abre; nada foi gravado.'];
+        header('Location: ' . $voltarAoForm); exit;
+    }
+
+    $justificativaExcluir = entradaTexto($_POST, 'justificativa');
+    if ($livroAtual['status'] === 'cancelado' && $justificativaExcluir === '') {
+        $errosExcluir['justificativa'] = 'Informe a justificativa da exclusão.';
+    } elseif (($erroJust = erroTamanho($justificativaExcluir, LIMITE_JUSTIFICATIVA_EXCLUSAO, 'A justificativa')) !== null) {
+        $errosExcluir['justificativa'] = $erroJust;
+    }
+
+    if (!$errosExcluir) {
+        try {
+            $resultadoExclusao = excluirLivro($conn, $livroId, (int)$_SESSION['usuario_id'], $justificativaExcluir);
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Livro ' . $resultadoExclusao['codigo'] . ' "' . $resultadoExclusao['titulo'] . '" excluído.'];
+            header('Location: livros.php'); exit;
+        } catch (Throwable $e) {
+            // 1451 = uma ação simultânea passou a usar o livro entre a conferência e o DELETE; a FK RESTRICT segurou.
+            $mensagem = ($e instanceof mysqli_sql_exception && $e->getCode() === 1451)
+                ? 'Este livro passou a ter histórico e não foi excluído.'
+                : mensagemErroSegura($e, 'excluir o livro');
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => $mensagem];
+            header('Location: ' . ($e instanceof InvalidArgumentException && $e->getMessage() === 'Livro não encontrado.' ? 'livros.php' : $voltarAoForm)); exit;
+        }
+    }
+    // Erro de campo (justificativa): a página volta com o modal aberto e a mensagem junto do campo (nada foi excluído).
+}
+
+if ($editando && ($_SERVER['REQUEST_METHOD'] !== 'POST' || $acaoDoForm === 'excluir_livro')) {
     $stmtC = $conn->prepare('SELECT pessoa_id, papel_id FROM contribuicoes WHERE livro_id = ?');
     $stmtC->bind_param('i', $livroId);
     $stmtC->execute();
@@ -94,9 +143,9 @@ if ($editando && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     while ($row = $rc->fetch_assoc()) $contribuicoesForm[] = $row;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $acaoDoForm !== 'excluir_livro') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
-        $erro = 'Sessão expirada. Recarregue a página e tente novamente.';
+        $erro ='Sessão expirada. Recarregue a página e tente novamente.';
     } else {
         // Cadastro novo só passa uma vez por exibição do formulário (duplo clique / reenvio).
         if (!$editando && !envio_unico_consumir($_POST['envio_id'] ?? null)) {
@@ -320,6 +369,18 @@ $primeiraEtapa = $conn->query('SELECT nome FROM etapas WHERE ativa = 1 ORDER BY 
 $nomePrimeiraEtapa = $primeiraEtapa['nome'] ?? null;
 $etapasComLimite = $conn->query('SELECT nome, rodadas_incluidas FROM etapas WHERE ativa = 1 AND rodadas_incluidas IS NOT NULL ORDER BY ordem')->fetch_all(MYSQLI_ASSOC);
 
+// Excluir livro (Passo 20.10): o que o botão da coluna lateral abre — 'sem_permissao' (Usuário comum), 'bloqueado' (já
+// tem histórico: mostra o motivo) ou 'pode' (confirmação com justificativa).
+$modoExcluirLivro = null;
+$motivoExcluirLivro = null;
+$usoLivro = null;
+if ($editando) {
+    $usoLivro = usoDoLivro($conn, $livroId);
+    $motivoExcluirLivro = motivoBloqueioExclusaoLivro($livroAtual, $usoLivro['movs'], $usoLivro['resgates']);
+    $modoExcluirLivro = !$podeExcluirLivro ? 'sem_permissao' : ($motivoExcluirLivro !== null ? 'bloqueado' : 'pode');
+}
+$justificativaObrigatoria = $editando && $livroAtual['status'] === 'cancelado';
+
 $tituloPagina = $editando ? 'Editar livro' : 'Novo livro';
 $paginaAtual = 'livros';
 require __DIR__ . '/includes/cabecalho.php';
@@ -470,6 +531,12 @@ require __DIR__ . '/includes/cabecalho.php';
               <p class="ws-card__texto">Editar aqui não move o livro no fluxo. Para avançar, voltar ou passar para outra mesa, use Movimentar livro.</p>
               <a class="ws-btn ws-btn--link" href="livro_detalhes.php?id=<?= $livroId ?>">Ver o livro <span class="ws-btn__seta" aria-hidden="true">→</span></a>
             </section>
+            <section class="ws-card" aria-labelledby="excluir-livro-titulo">
+              <p class="ws-eyebrow">Excluir livro</p>
+              <h2 class="ws-card__titulo" id="excluir-livro-titulo">Cadastrado por engano?</h2>
+              <p class="ws-card__texto">Só dá para excluir um livro que ainda não andou no fluxo, ou que foi cancelado logo depois do cadastro. Livro com histórico é cancelado, não excluído.</p>
+              <div><button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-abrir="modal-excluir-livro"><i data-lucide="trash-2"></i>Excluir livro</button></div>
+            </section>
 <?php else: ?>
 <?php if ($nomePrimeiraEtapa !== null): ?>
             <section class="ws-card">
@@ -491,6 +558,81 @@ require __DIR__ . '/includes/cabecalho.php';
           </aside>
         </div>
       </div>
+
+<?php if ($editando && $modoExcluirLivro === 'sem_permissao'): ?>
+      <!-- Excluir livro: quem não tem permissão só recebe o aviso (o backend recusa de qualquer jeito) -->
+      <dialog class="ws-modal" id="modal-excluir-livro" aria-labelledby="modal-excluir-livro-titulo" aria-describedby="modal-excluir-livro-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-excluir-livro-titulo">Você não pode excluir este livro</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p id="modal-excluir-livro-texto">Só Gerente e Administrador excluem livros. Peça a um Gerente ou Administrador para excluir, ou entre com o acesso de Gerente ou Administrador.</p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--primario" type="button" data-ws-modal-fechar>Entendi</button>
+          </footer>
+        </div>
+      </dialog>
+<?php elseif ($editando && $modoExcluirLivro === 'bloqueado'): ?>
+      <!-- Excluir livro: livro com histórico não é excluído; o cancelamento fica na página do livro -->
+      <dialog class="ws-modal" id="modal-excluir-livro" aria-labelledby="modal-excluir-livro-titulo" aria-describedby="modal-excluir-livro-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-excluir-livro-titulo">Este livro não pode ser excluído</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p id="modal-excluir-livro-texto"><?= escaparHtml($motivoExcluirLivro) ?></p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Fechar</button>
+<?php if ($livroAtual['status'] === 'em_andamento'): ?>
+            <a class="ws-btn ws-btn--primario" href="livro_detalhes.php?id=<?= $livroId ?>">Ir para o livro, para cancelar</a>
+<?php else: ?>
+            <a class="ws-btn ws-btn--primario" href="livro_detalhes.php?id=<?= $livroId ?>">Ir para o livro</a>
+<?php endif; ?>
+          </footer>
+        </div>
+      </dialog>
+<?php elseif ($editando): ?>
+      <!-- Excluir livro: confirmação com o código e o título; só o botão de confirmar preenche o campo oculto "confirmacao" -->
+      <dialog class="ws-modal" id="modal-excluir-livro" aria-labelledby="modal-excluir-livro-titulo" aria-describedby="modal-excluir-livro-texto">
+        <form class="ws-modal__caixa" method="post" novalidate>
+          <?= csrf_field() ?>
+          <input type="hidden" name="acao" value="excluir_livro">
+          <input type="hidden" name="confirmacao" value="">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-excluir-livro-titulo">Excluir o livro <?= escaparHtml(codigoLivro($livroId)) ?> — <?= escaparHtml($livroAtual['titulo']) ?>?</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo ws-pilha">
+            <p id="modal-excluir-livro-texto">Esta ação apaga o livro e a movimentação inicial<?= $usoLivro['contribuicoes'] > 0 ? ' e o vínculo com ' . escaparHtml(qtdTexto($usoLivro['contribuicoes'], 'pessoa', 'pessoas')) . ' (as pessoas continuam cadastradas)' : '' ?>. Não pode ser desfeita.<?= $justificativaObrigatoria ? ' Este livro foi cancelado logo depois do cadastro.' : '' ?></p>
+            <div class="ws-campo<?= classeCampoErro($errosExcluir['justificativa'] ?? null) ?>">
+              <label class="ws-campo__rotulo" for="justificativa-excluir">Justificativa<?= $justificativaObrigatoria ? '' : ' <span class="ws-campo__opcional">(opcional)</span>' ?></label>
+              <input class="ws-input" type="text" id="justificativa-excluir" name="justificativa" value="<?= escaparHtml($justificativaExcluir) ?>" maxlength="<?= LIMITE_JUSTIFICATIVA_EXCLUSAO ?>"<?= $justificativaObrigatoria ? ' required' : '' ?> autofocus<?= atributosCampo('justificativa-excluir', $errosExcluir['justificativa'] ?? null, 'justificativa-excluir-ajuda') ?>>
+              <?= htmlErroCampo('justificativa-excluir', $errosExcluir['justificativa'] ?? null) ?>
+              <p class="ws-campo__ajuda" id="justificativa-excluir-ajuda">Fica no log de alterações, com o código, o ISBN e o título. Até <?= LIMITE_JUSTIFICATIVA_EXCLUSAO ?> caracteres.</p>
+            </div>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Manter o livro</button>
+            <button class="ws-btn ws-btn--primario" type="submit" data-confirmar-exclusao>Excluir livro</button>
+          </footer>
+        </form>
+      </dialog>
+      <script>
+      // Só o botão "Excluir livro" do modal preenche o campo oculto "confirmacao"; sem ele o PHP não exclui.
+      document.querySelector('#modal-excluir-livro [data-confirmar-exclusao]').addEventListener('click', function () {
+        document.querySelector('#modal-excluir-livro form').elements.confirmacao.value = '1';
+      });
+<?php if ($errosExcluir): ?>
+      // O envio voltou com erro de campo: reabre o modal com o que foi digitado e a mensagem junto do campo.
+      document.addEventListener('DOMContentLoaded', function () { window.WareSys.abrirModal('modal-excluir-livro'); });
+<?php endif; ?>
+      </script>
+<?php endif; ?>
 
       <script src="envio_unico.js"></script>
       <script>
