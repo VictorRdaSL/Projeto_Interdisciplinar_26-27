@@ -448,7 +448,7 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($temErroCampo('isbn')): ?>
                     <p class="ws-campo__erro" id="isbn-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
 <?php endif; ?>
-                    <p class="ws-campo__ajuda" id="isbn-ajuda">Digite só os 13 números, começando por 978 ou 979. Pode ficar vazio até a Catalogação.</p>
+                    <p class="ws-campo__ajuda" id="isbn-ajuda">Digite só os 13 números. Pode ficar vazio até a Catalogação.</p>
                   </div>
 
                   <div class="ws-campo">

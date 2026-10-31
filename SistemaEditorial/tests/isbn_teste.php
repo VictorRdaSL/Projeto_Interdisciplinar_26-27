@@ -39,10 +39,13 @@ conferir('válido com traços', erroIsbn(substr($ok, 0, 3) . '-' . substr($ok, 3
 conferir('12 dígitos', erroIsbn(substr($ok, 0, 12)), 'O ISBN precisa ter 13 números.');
 conferir('14 dígitos', erroIsbn($ok . '0'), 'O ISBN precisa ter 13 números.');
 conferir('ISBN-10 com X', erroIsbn('855201234X'), 'O ISBN precisa ter 13 números.');
-conferir('prefixo 977', erroIsbn(comVerificador('977857522123')), 'O ISBN precisa começar com 978 ou 979.');
-conferir('prefixo 123 (antes passava)', erroIsbn(comVerificador('123456789012')), 'O ISBN precisa começar com 978 ou 979.');
+conferir('prefixo 977 é aceito (prefixo não é conferido)', erroIsbn(comVerificador('977857522123')), null);
+conferir('prefixo 123 é aceito', erroIsbn('1234567890123'), null);
+conferir('1111111111111 é aceito', erroIsbn('1111111111111'), null);
+conferir('prefixo 123 sem faixa: só os dígitos na exibição', formatarIsbn('1234567890123'), '1234567890123');
 $errado = substr($ok, 0, 12) . (((int)$ok[12] + 1) % 10);
-conferir('dígito verificador errado', erroIsbn($errado), 'Dígito verificador não confere.');
+conferir('dígito verificador errado é aceito (não é conferido)', erroIsbn($errado), null);
+conferir('dígito verificador errado ganha traços na exibição', formatarIsbn($errado), formatarIsbn(normalizarIsbn($errado)));
 conferir('979 válido', erroIsbn(comVerificador('979109999999')), null);
 conferir('isbnValido vazio', isbnValido(''), false);
 conferir('isbnValido ok', isbnValido($ok), true);
@@ -62,7 +65,7 @@ conferir('Japão 978-4 (grupo de 1 dígito, editora curta)', formatarIsbn('97841
 conferir('nulo', formatarIsbn(null), '');
 conferir('vazio', formatarIsbn(''), '');
 conferir('inválido volta como veio', formatarIsbn('123'), '123');
-conferir('dígito errado volta como veio', formatarIsbn($errado), $errado);
+conferir('dígito errado também ganha traços', formatarIsbn($errado), '978-85-7522-123-' . $errado[12]);
 // 979 sem faixa distribuída: faixa 979-0 não existe na tabela
 conferir('979 sem faixa devolve os 13 dígitos', formatarIsbn(comVerificador('979000000000')), comVerificador('979000000000'));
 // faixa de editora ainda não distribuída (tamanho 0): 978-85, editora 9990000+
