@@ -18,7 +18,7 @@ const MSG_ADMIN_NAO_E_MESA = 'O Administrador não faz parte do fluxo da editora
 function usuariosQuePodemSerMesa(mysqli $conn): array
 {
     $marcas = implode(', ', array_fill(0, count(PERFIS_QUE_PODEM_SER_MESA), '?'));
-    $stmt = $conn->prepare("SELECT id, nome FROM vw_usuarios_publico WHERE perfil IN ($marcas) ORDER BY nome");
+    $stmt = $conn->prepare("SELECT id, nome FROM vw_usuarios_publico WHERE ativo = 1 AND perfil IN ($marcas) ORDER BY nome");
     $perfis = PERFIS_QUE_PODEM_SER_MESA;
     $stmt->bind_param(str_repeat('s', count($perfis)), ...$perfis);
     $stmt->execute();
@@ -36,7 +36,12 @@ function erroResponsavelMesa(mysqli $conn, int $usuarioId): ?string
     $stmt = $conn->prepare('SELECT perfil FROM vw_usuarios_publico WHERE id = ?');
     $stmt->bind_param('i', $usuarioId);
     $stmt->execute();
-    return $stmt->get_result()->fetch_assoc() ? MSG_ADMIN_NAO_E_MESA : 'Usuário responsável inválido.';
+    $linha = $stmt->get_result()->fetch_assoc();
+    if (!$linha) {
+        return 'Usuário responsável inválido.';
+    }
+    // Perfil que poderia ser mesa, mas fora da lista: é um usuário removido (sem acesso).
+    return in_array($linha['perfil'], PERFIS_QUE_PODEM_SER_MESA, true) ? 'Este usuário foi removido e não pode ser responsável por livros.' : MSG_ADMIN_NAO_E_MESA;
 }
 
 /** Lança InvalidArgumentException (mensagem para a tela) se o usuário não puder ser mesa. */
@@ -49,9 +54,10 @@ function validarResponsavelMesa(mysqli $conn, int $usuarioId): void
 }
 
 /** Livros que estão hoje sob a responsabilidade do usuário (em andamento ou extraviados): [['id', 'titulo'], ...]. */
-function livrosSobResponsabilidade(mysqli $conn, int $usuarioId): array
+function livrosSobResponsabilidade(mysqli $conn, int $usuarioId, bool $travar = false): array
 {
-    $stmt = $conn->prepare("SELECT id, titulo FROM livros WHERE responsavel_atual_id = ? AND status IN ('em_andamento', 'extraviado') ORDER BY titulo");
+    // $travar (só dentro de uma transação): FOR UPDATE nas linhas dos livros, para a conferência valer até o commit.
+    $stmt = $conn->prepare("SELECT id, titulo FROM livros WHERE responsavel_atual_id = ? AND status IN ('em_andamento', 'extraviado') ORDER BY titulo" . ($travar ? ' FOR UPDATE' : ''));
     $stmt->bind_param('i', $usuarioId);
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
