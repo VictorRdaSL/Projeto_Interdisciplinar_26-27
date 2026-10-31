@@ -64,6 +64,8 @@ $permissaoPorAcao = [
     'alterar_dias_limite' => $podeConfigurarDiasLimite,
     'alterar_papel' => $podeGerenciarUsuarios,
     'criar_usuario' => $podeGerenciarUsuarios,
+    'remover_usuario' => $podeGerenciarUsuarios,
+    'reativar_usuario' => $podeGerenciarUsuarios,
     'criar_etapa' => $podeGerenciarEtapasPapeis,
     'editar_etapa' => $podeGerenciarEtapasPapeis,
     'mover_etapa' => $podeGerenciarEtapasPapeis,
@@ -182,6 +184,46 @@ function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0, array $v =
 // Ações que pedem confirmação (desativar etapa com livros, mudar a ordem de etapa com livros) só gravam com o campo
 // oculto "confirmacao", que apenas o botão de confirmar do modal preenche (IV-8).
 const MSG_PRECISA_CONFIRMAR = 'Esta ação precisa de confirmação. Use o botão de confirmar na janela que se abre; nada foi gravado.';
+
+// Quantos registros apontam para o usuário: livros em qualquer status (mesa), movimentações (mesa e quem registrou), resgates
+// e log como autor da ação. Zero = nunca usou o sistema e pode ser APAGADO; senão a linha fica (as FKs são RESTRICT) para o
+// nome continuar nos históricos, e a remoção só tira o acesso (usuarios.ativo = 0).
+function usoDoUsuario(mysqli $conn, int $usuarioId): int
+{
+    $stmt = $conn->prepare('SELECT (SELECT COUNT(*) FROM livros WHERE responsavel_atual_id = ?)
+        + (SELECT COUNT(*) FROM movimentacoes WHERE responsavel_id = ? OR registrado_por_id = ?)
+        + (SELECT COUNT(*) FROM resgates WHERE registrado_por_id = ?)
+        + (SELECT COUNT(*) FROM log_alteracoes WHERE usuario_id = ?)');
+    $stmt->bind_param('iiiii', $usuarioId, $usuarioId, $usuarioId, $usuarioId, $usuarioId);
+    $stmt->execute();
+    return (int)$stmt->get_result()->fetch_row()[0];
+}
+
+// Motivo pelo qual $alvo (id, nome, perfil, ativo) NÃO pode ser removido por quem está agindo; null se pode.
+// $travar: dentro da transação do POST, trava os livros do usuário para a conferência valer até o commit.
+function motivoBloqueioRemocaoUsuario(mysqli $conn, array $alvo, int $atorId, bool $atorAdmin, bool $travar = false): ?string
+{
+    if ((int)$alvo['ativo'] !== 1) {
+        return 'Este usuário já foi removido.';
+    }
+    if ((int)$alvo['id'] === $atorId) {
+        return 'Você não pode remover a si mesmo.';
+    }
+    if ($alvo['perfil'] === 'admin' && !$atorAdmin) {
+        return 'Somente um Administrador pode remover um Administrador.';
+    }
+    if ($alvo['perfil'] === 'admin' && (int)$conn->query("SELECT COUNT(*) FROM vw_usuarios_publico WHERE perfil = 'admin' AND ativo = 1")->fetch_row()[0] <= 1) {
+        return 'Não é possível remover o último administrador do sistema.';
+    }
+    $livros = livrosSobResponsabilidade($conn, (int)$alvo['id'], $travar);
+    if ($livros) {
+        $titulos = array_map(fn($l) => '"' . mb_strimwidth($l['titulo'], 0, 60, '…', 'UTF-8') . '"', array_slice($livros, 0, 8));
+        $resto = count($livros) - count($titulos);
+        return $alvo['nome'] . ' ainda é responsável (mesa) por ' . count($livros) . ' livro(s). Passe-os para outra mesa antes de remover: '
+            . implode(', ', $titulos) . ($resto > 0 ? " e mais $resto." : '.');
+    }
+    return null;
+}
 
 // Livros que ficariam "presos" na etapa: concluídos e cancelados não contam; extraviados contam (ainda estão fisicamente ali).
 function livrosNaEtapa(mysqli $conn, int $etapaId): int
@@ -334,14 +376,16 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
         } elseif (!$agindoComoAdmin && $novoPapel === 'admin') {
             $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem conceder o papel de Administrador.'];
         } else {
-            $totalAdmins = (int)$conn->query("SELECT COUNT(*) total FROM vw_usuarios_publico WHERE perfil = 'admin'")->fetch_assoc()['total'];
-            $stmtAtual = $conn->prepare('SELECT perfil FROM vw_usuarios_publico WHERE id = ?');
+            $totalAdmins = (int)$conn->query("SELECT COUNT(*) total FROM vw_usuarios_publico WHERE perfil = 'admin' AND ativo = 1")->fetch_assoc()['total'];
+            $stmtAtual = $conn->prepare('SELECT perfil, ativo FROM vw_usuarios_publico WHERE id = ?');
             $stmtAtual->bind_param('i', $usuarioId);
             $stmtAtual->execute();
             $usuarioAtualLinha = $stmtAtual->get_result()->fetch_assoc();
 
             if (!$usuarioAtualLinha) {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Usuário não encontrado.'];
+            } elseif ((int)$usuarioAtualLinha['ativo'] !== 1) {
+                $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Este usuário foi removido. Reative-o antes de alterar o papel.'];
             } elseif (!$agindoComoAdmin && $usuarioAtualLinha['perfil'] === 'admin') {
                 $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem alterar o papel de um Administrador.'];
             } elseif ($usuarioAtualLinha['perfil'] === 'admin' && $novoPapel !== 'admin' && $totalAdmins <= 1) {
@@ -398,11 +442,13 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
     } elseif ($erroTam = erroTamanho($novoEmail, LIMITE_EMAIL, 'O e-mail')) {
         $errosUsuario['email'] = $erroTam;
     } else {
-        $stmtExiste = $conn->prepare('SELECT id FROM vw_usuarios_publico WHERE email = ?');
+        $stmtExiste = $conn->prepare('SELECT ativo FROM vw_usuarios_publico WHERE email = ?');
         $stmtExiste->bind_param('s', $novoEmail);
         $stmtExiste->execute();
-        if ($stmtExiste->get_result()->fetch_assoc()) {
-            $errosUsuario['email'] = 'Já existe um usuário com esse e-mail.';
+        if ($linhaExiste = $stmtExiste->get_result()->fetch_assoc()) {
+            $errosUsuario['email'] = (int)$linhaExiste['ativo'] === 1
+                ? 'Já existe um usuário com esse e-mail.'
+                : 'Este e-mail pertence a um usuário removido. Reative-o em "Removidos (sem acesso)".';
         }
     }
     if ($novaSenha === '') {
@@ -609,6 +655,99 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
     exit;
 }
 
+// Remover usuário: Gerente e Admin. Quem nunca usou o sistema é apagado de vez; quem já aparece em algum histórico perde o
+// acesso (ativo = 0) e a linha fica, para o nome continuar na linha do tempo, nos relatórios e no log. A confirmação vem do
+// modal (campo oculto "confirmacao"). Tudo numa transação que trava a linha do usuário (e os livros dele).
+if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'remover_usuario') {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $usuarioRemoverId = (int)($_POST['usuario_id'] ?? 0);
+    if (entradaTexto($_POST, 'confirmacao') !== '1') {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_PRECISA_CONFIRMAR];
+        header('Location: configuracoes.php'); exit;
+    }
+
+    $conn->begin_transaction();
+    try {
+        $stmtU = $conn->prepare('SELECT id, nome, email, perfil, ativo FROM usuarios WHERE id = ? FOR UPDATE');
+        $stmtU->bind_param('i', $usuarioRemoverId);
+        $stmtU->execute();
+        $alvoRemover = $stmtU->get_result()->fetch_assoc();
+        if (!$alvoRemover) {
+            throw new InvalidArgumentException('Usuário não encontrado.');
+        }
+        $motivo = motivoBloqueioRemocaoUsuario($conn, $alvoRemover, (int)$_SESSION['usuario_id'], $agindoComoAdmin, true);
+        if ($motivo !== null) {
+            throw new InvalidArgumentException($motivo);
+        }
+
+        $descricaoUsuario = $alvoRemover['nome'] . ' <' . $alvoRemover['email'] . '> — ' . nomePapel($alvoRemover['perfil']);
+        if (usoDoUsuario($conn, $usuarioRemoverId) === 0) {
+            $stmtD = $conn->prepare('DELETE FROM usuarios WHERE id = ?');
+            $stmtD->bind_param('i', $usuarioRemoverId);
+            $stmtD->execute();
+            registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.excluir', 'usuario', $usuarioRemoverId, truncarParaLog($descricaoUsuario), '(excluído; nunca usou o sistema)');
+            $mensagemRemover = 'Usuário "' . $alvoRemover['nome'] . '" excluído.';
+        } else {
+            $stmtA = $conn->prepare('UPDATE usuarios SET ativo = 0 WHERE id = ?');
+            $stmtA->bind_param('i', $usuarioRemoverId);
+            $stmtA->execute();
+            registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.remover', 'usuario', $usuarioRemoverId, truncarParaLog($descricaoUsuario), '(removido; sem acesso ao sistema)');
+            $mensagemRemover = 'Usuário "' . $alvoRemover['nome'] . '" removido: não entra mais no sistema, e o nome continua nos históricos.';
+        }
+
+        $conn->commit();
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => $mensagemRemover];
+    } catch (Throwable $e) {
+        $conn->rollback();
+        // 1451 = uma ação simultânea passou a apontar para o usuário entre a conferência e o DELETE; a FK RESTRICT segurou.
+        $mensagem = ($e instanceof mysqli_sql_exception && $e->getCode() === 1451)
+            ? 'Este usuário passou a ter registros no sistema e não foi excluído. Tente remover de novo.'
+            : mensagemErroSegura($e, 'remover o usuário');
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => $mensagem];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
+// Reativar usuário removido (sem acesso): devolve o acesso. Gerente não mexe em Administrador (como no papel de acesso).
+if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'reativar_usuario') {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $usuarioReativarId = (int)($_POST['usuario_id'] ?? 0);
+    $conn->begin_transaction();
+    try {
+        $stmtU = $conn->prepare('SELECT id, nome, email, perfil, ativo FROM usuarios WHERE id = ? FOR UPDATE');
+        $stmtU->bind_param('i', $usuarioReativarId);
+        $stmtU->execute();
+        $alvoReativar = $stmtU->get_result()->fetch_assoc();
+        if (!$alvoReativar) {
+            throw new InvalidArgumentException('Usuário não encontrado.');
+        }
+        if ((int)$alvoReativar['ativo'] === 1) {
+            throw new InvalidArgumentException('Este usuário já está ativo.');
+        }
+        if ($alvoReativar['perfil'] === 'admin' && !$agindoComoAdmin) {
+            throw new InvalidArgumentException('Somente um Administrador pode reativar um Administrador.');
+        }
+        $stmtA = $conn->prepare('UPDATE usuarios SET ativo = 1 WHERE id = ?');
+        $stmtA->bind_param('i', $usuarioReativarId);
+        $stmtA->execute();
+        registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.reativar', 'usuario', $usuarioReativarId, '(removido; sem acesso)', truncarParaLog($alvoReativar['nome'] . ' <' . $alvoReativar['email'] . '> — reativado'));
+        $conn->commit();
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Usuário "' . $alvoReativar['nome'] . '" reativado: o acesso foi devolvido.'];
+    } catch (Throwable $e) {
+        $conn->rollback();
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => mensagemErroSegura($e, 'reativar o usuário')];
+    }
+    header('Location: configuracoes.php');
+    exit;
+}
+
 // Excluir etapa (Passo 20.9): Gerente e Admin, só etapa que nunca foi usada. A confirmação vem do modal (campo oculto
 // "confirmacao"); sem ela nada é excluído, nem sem JavaScript. Tudo numa transação que trava a linha da etapa.
 if ($podeExcluirEtapa && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'excluir_etapa') {
@@ -727,8 +866,20 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 }
 
 $usuarios = [];
-$r = $conn->query('SELECT id, nome, email, perfil, criado_em FROM vw_usuarios_publico ORDER BY nome');
+$r = $conn->query('SELECT id, nome, email, perfil, ativo, criado_em FROM vw_usuarios_publico ORDER BY nome');
 while ($row = $r->fetch_assoc()) $usuarios[] = $row;
+// Usuário removido (ativo = 0) não entra mais e sai da lista principal; fica numa seção própria, com o botão de reativar.
+$usuariosAtivos = array_values(array_filter($usuarios, fn($u) => (int)$u['ativo'] === 1));
+$usuariosRemovidos = array_values(array_filter($usuarios, fn($u) => (int)$u['ativo'] !== 1));
+$infoRemocao = []; // [id] => ['motivo' => texto do bloqueio ou null, 'usado' => já aparece em algum histórico?]
+if ($podeGerenciarUsuarios) {
+    foreach ($usuariosAtivos as $uRem) {
+        $infoRemocao[(int)$uRem['id']] = [
+            'motivo' => motivoBloqueioRemocaoUsuario($conn, $uRem, (int)$_SESSION['usuario_id'], $agindoComoAdmin),
+            'usado' => usoDoUsuario($conn, (int)$uRem['id']) > 0,
+        ];
+    }
+}
 
 $diasLimiteAtual = buscarDiasLimiteGlobal($conn);
 
@@ -885,10 +1036,11 @@ require __DIR__ . '/includes/cabecalho.php';
                   <th scope="col">Papel atual</th>
                   <th scope="col">Cadastrado em</th>
                   <th scope="col">Alterar papel</th>
+                  <th scope="col">Remover</th>
                 </tr>
               </thead>
               <tbody>
-<?php foreach ($usuarios as $u):
+<?php foreach ($usuariosAtivos as $u):
     $ehEuMesmo = (int)$u['id'] === (int)$_SESSION['usuario_id'];
     $podeEditarEssaLinha = $agindoComoAdmin || (!$ehEuMesmo && $u['perfil'] !== 'admin');
 ?>
@@ -918,11 +1070,70 @@ require __DIR__ . '/includes/cabecalho.php';
                     <span class="ws-tabela__suave">Só um Administrador altera</span>
 <?php endif; ?>
                   </td>
+                  <td data-rotulo="Remover">
+<?php $remocao = $infoRemocao[(int)$u['id']] ?? ['motivo' => null, 'usado' => false]; ?>
+<?php if ($remocao['motivo'] === null): ?>
+                    <!-- Pode remover: o envio abre o modal de confirmação (campo oculto "confirmacao" preenchido só pelo botão do modal) -->
+                    <form method="post" data-ws-confirmar="modal-remover-usuario" data-remover-nome="<?= escaparHtml($u['nome']) ?>" data-remover-usado="<?= $remocao['usado'] ? '1' : '0' ?>">
+                      <?= csrfCampo() ?>
+                      <input type="hidden" name="acao" value="remover_usuario">
+                      <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
+                      <input type="hidden" name="confirmacao" value="">
+                      <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="submit" aria-label="<?= escaparHtml('Remover usuário ' . $u['nome']) ?>" title="Remover usuário"><i data-lucide="user-x"></i></button>
+                    </form>
+<?php else: ?>
+                    <!-- Não pode remover: o botão abre um modal que explica o motivo -->
+                    <button class="ws-btn ws-btn--secundario ws-btn--icone ws-btn--peq" type="button" data-ws-modal-abrir="modal-remover-bloqueado"
+                      data-nome="<?= escaparHtml($u['nome']) ?>" data-motivo="<?= escaparHtml($remocao['motivo']) ?>"
+                      aria-label="<?= escaparHtml('Remover usuário ' . $u['nome'] . ' (não é possível)') ?>" title="Remover usuário"><i data-lucide="user-x"></i></button>
+<?php endif; ?>
+                  </td>
                 </tr>
 <?php endforeach; ?>
               </tbody>
             </table>
           </div>
+
+<?php if ($usuariosRemovidos): ?>
+          <!-- Removidos (sem acesso): já aparecem em algum histórico, então a conta fica, mas não entra e não é mesa -->
+          <details class="ws-card ws-card--superficie">
+            <summary><strong>Removidos (sem acesso)</strong> <span class="ws-texto-suave">· <?= count($usuariosRemovidos) ?></span></summary>
+            <p class="ws-texto-suave">Estas contas não entram mais no sistema e não podem ser mesa, mas o nome continua nos históricos. Reativar devolve o acesso.</p>
+            <div class="ws-tabela-wrap" tabindex="0" role="region" aria-label="Usuários removidos">
+              <table class="ws-tabela ws-tabela--empilhar">
+                <thead>
+                  <tr>
+                    <th scope="col">Nome</th>
+                    <th scope="col">E-mail</th>
+                    <th scope="col">Papel</th>
+                    <th scope="col">Reativar</th>
+                  </tr>
+                </thead>
+                <tbody>
+<?php foreach ($usuariosRemovidos as $u): ?>
+                  <tr>
+                    <td data-rotulo="Nome"><span class="ws-usuario"><span class="ws-usuario__iniciais" aria-hidden="true"><?= escaparHtml(iniciaisDoNome($u['nome'])) ?></span><strong><?= escaparHtml($u['nome']) ?></strong></span></td>
+                    <td data-rotulo="E-mail"><?= escaparHtml($u['email']) ?></td>
+                    <td data-rotulo="Papel"><span class="ws-tag ws-tag--neutra"><?= escaparHtml(nomePapel($u['perfil'])) ?></span></td>
+                    <td data-rotulo="Reativar">
+<?php if ($agindoComoAdmin || $u['perfil'] !== 'admin'): ?>
+                      <form method="post">
+                        <?= csrfCampo() ?>
+                        <input type="hidden" name="acao" value="reativar_usuario">
+                        <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
+                        <button class="ws-btn ws-btn--secundario ws-btn--peq" type="submit"><i data-lucide="user-check"></i>Reativar</button>
+                      </form>
+<?php else: ?>
+                      <span class="ws-tabela__suave">Só um Administrador reativa</span>
+<?php endif; ?>
+                    </td>
+                  </tr>
+<?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          </details>
+<?php endif; ?>
 
           <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-usuario-titulo" novalidate>
             <?= csrfCampo() ?>
@@ -1389,6 +1600,67 @@ require __DIR__ . '/includes/cabecalho.php';
           if (form.elements.confirmacao.value === '1') return;
           document.getElementById('modal-mover-etapa-titulo').textContent = 'Mudar a ordem de ' + form.dataset.moverNome + '?';
           document.getElementById('modal-mover-etapa-texto').textContent = form.dataset.moverQtd + ' livro(s) estão nesta etapa agora. Mudar a ordem só afeta movimentações futuras, eles não são afetados. Continuar?';
+        });
+      });
+      </script>
+<?php endif; ?>
+<?php if ($podeGerenciarUsuarios): ?>
+      <!-- Modal: remover usuário (título e texto preenchidos pelo script abaixo, conforme o usuário já tenha ou não histórico) -->
+      <dialog class="ws-modal" id="modal-remover-usuario" aria-labelledby="modal-remover-usuario-titulo" aria-describedby="modal-remover-usuario-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-remover-usuario-titulo">Remover este usuário?</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo ws-pilha">
+            <p id="modal-remover-usuario-texto"></p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Manter o usuário</button>
+            <button class="ws-btn ws-btn--primario" type="button" data-ws-confirmar-ok>Remover usuário</button>
+          </footer>
+        </div>
+      </dialog>
+
+      <!-- Modal: usuário que NÃO pode ser removido (o motivo vem do servidor) -->
+      <dialog class="ws-modal" id="modal-remover-bloqueado" aria-labelledby="modal-remover-bloqueado-titulo" aria-describedby="modal-remover-bloqueado-texto">
+        <div class="ws-modal__caixa">
+          <header class="ws-modal__cabecalho">
+            <h2 id="modal-remover-bloqueado-titulo">Este usuário não pode ser removido</h2>
+            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
+          </header>
+          <div class="ws-modal__corpo">
+            <p id="modal-remover-bloqueado-texto"></p>
+          </div>
+          <footer class="ws-modal__rodape">
+            <button class="ws-btn ws-btn--primario" type="button" data-ws-modal-fechar>Fechar</button>
+          </footer>
+        </div>
+      </dialog>
+
+      <script>
+      // Remover usuário: o botão da linha é um formulário; o envio abre o modal (waresys.js) e só o botão "Remover usuário" do
+      // modal preenche o campo oculto "confirmacao". Sem ele o PHP não remove, nem sem JavaScript.
+      document.querySelectorAll('form[data-ws-confirmar="modal-remover-usuario"]').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          if (form.elements.confirmacao.value === '1') return;
+          const nome = form.dataset.removerNome;
+          document.getElementById('modal-remover-usuario-titulo').textContent = 'Remover ' + nome + '?';
+          document.getElementById('modal-remover-usuario-texto').textContent = form.dataset.removerUsado === '1'
+            ? nome + ' já aparece nos históricos do sistema. O nome continua na linha do tempo, nos relatórios e no log, mas a conta deixa de entrar e não pode mais ser responsável por livros. Você pode reativá-la depois em "Removidos (sem acesso)".'
+            : nome + ' nunca usou o sistema: nenhum livro, movimentação ou registro está ligado a esta conta. Remover exclui a conta de vez. Esta ação não pode ser desfeita.';
+        });
+      });
+      document.querySelectorAll('#modal-remover-usuario [data-ws-confirmar-ok]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          const form = document.getElementById('modal-remover-usuario')._wsFormulario;
+          if (form && form.elements.confirmacao) form.elements.confirmacao.value = '1';
+        });
+      });
+      document.querySelectorAll('[data-ws-modal-abrir="modal-remover-bloqueado"]').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          document.getElementById('modal-remover-bloqueado-titulo').textContent = botao.dataset.nome + ' não pode ser removido';
+          document.getElementById('modal-remover-bloqueado-texto').textContent = botao.dataset.motivo;
         });
       });
       </script>

@@ -18,7 +18,9 @@ USE waresys;
 -- ------------------------------------------------------------
 
 -- Usuários do sistema. `perfil` = nível de acesso (admin | gerente | usuario);
--- não confundir com `papeis` (papel de uma pessoa num livro).
+-- não confundir com `papeis` (papel de uma pessoa num livro). `ativo` = 0: usuário removido
+-- (já aparece em algum histórico, então a linha fica para o nome continuar nos registros, mas
+-- ele não entra mais no sistema nem pode ser mesa); quem nunca usou o sistema é apagado de vez.
 CREATE TABLE usuarios (
     id          INT NOT NULL AUTO_INCREMENT,
     nome        VARCHAR(120) NOT NULL,
@@ -26,6 +28,7 @@ CREATE TABLE usuarios (
     senha_hash  VARCHAR(255) NOT NULL,
     perfil      VARCHAR(20)  NOT NULL DEFAULT 'usuario',
     tema        VARCHAR(10)  NOT NULL DEFAULT 'claro',
+    ativo       TINYINT(1)   NOT NULL DEFAULT 1,
     criado_em   DATETIME     NOT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uk_usuario_email (email)
