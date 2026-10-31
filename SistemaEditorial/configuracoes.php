@@ -26,7 +26,8 @@ function exigirEnvioUnico(): void
 
 $podeGerenciarUsuarios = usuarioTemPermissao('config.usuarios');
 $podeConfigurarDiasLimite = usuarioTemPermissao('config.dias_limite');
-$podeGerenciarEtapasPapeis = usuarioTemPermissao('config.etapas_papeis');
+$podeGerenciarEtapas = usuarioTemPermissao('config.etapas');        // criar, editar, desativar e reordenar etapas: Gerente e Admin
+$podeGerenciarPapeis = usuarioTemPermissao('config.papeis');        // papéis de autoria: só Admin
 $podeExcluirEtapa = usuarioTemPermissao('config.excluir_etapa'); // Gerente e Admin (Passo 20.9)
 $podeVerLog = usuarioTemPermissao('log.ver');
 
@@ -66,12 +67,12 @@ $permissaoPorAcao = [
     'criar_usuario' => $podeGerenciarUsuarios,
     'remover_usuario' => $podeGerenciarUsuarios,
     'reativar_usuario' => $podeGerenciarUsuarios,
-    'criar_etapa' => $podeGerenciarEtapasPapeis,
-    'editar_etapa' => $podeGerenciarEtapasPapeis,
-    'mover_etapa' => $podeGerenciarEtapasPapeis,
+    'criar_etapa' => $podeGerenciarEtapas,
+    'editar_etapa' => $podeGerenciarEtapas,
+    'mover_etapa' => $podeGerenciarEtapas,
     'excluir_etapa' => $podeExcluirEtapa,
-    'criar_papel' => $podeGerenciarEtapasPapeis,
-    'editar_papel' => $podeGerenciarEtapasPapeis,
+    'criar_papel' => $podeGerenciarPapeis,
+    'editar_papel' => $podeGerenciarPapeis,
 ];
 $acaoRecebida = entradaTexto($_POST, 'acao');
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($permissaoPorAcao[$acaoRecebida]) && !$permissaoPorAcao[$acaoRecebida]) {
@@ -266,7 +267,7 @@ function motivoBloqueioExclusaoEtapa(array $etapa, int $livros, int $movs, int $
         if ((int)$etapa['ativa'] !== 1) {
             return $texto . ' Ela já está desativada: etapa com histórico não é excluída.';
         }
-        return $texto . ($podeDesativar ? ' Desative em vez de excluir.' : ' Peça a um Administrador para desativá-la, se for o caso.');
+        return $texto . ($podeDesativar ? ' Desative em vez de excluir.' : ' Peça a um Administrador ou Gerente para desativá-la, se for o caso.');
     }
     return null;
 }
@@ -485,7 +486,7 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
         exit;
     }
 }
-if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_etapa') {
+if ($podeGerenciarEtapas && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_etapa') {
     if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
@@ -519,7 +520,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
     }
 }
 
-if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_etapa') {
+if ($podeGerenciarEtapas && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_etapa') {
     if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
@@ -597,7 +598,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
     }
 }
 
-if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'mover_etapa') {
+if ($podeGerenciarEtapas && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'mover_etapa') {
     if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
@@ -772,7 +773,7 @@ if ($podeExcluirEtapa && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'
         }
         $uso = usoDaEtapa($conn, $etapaId);
         $ativasAgora = (int)$conn->query('SELECT COUNT(*) FROM etapas WHERE ativa = 1')->fetch_row()[0];
-        $motivo = motivoBloqueioExclusaoEtapa($etapaExcluir, $uso['livros'], $uso['movs'], $ativasAgora, $podeGerenciarEtapasPapeis);
+        $motivo = motivoBloqueioExclusaoEtapa($etapaExcluir, $uso['livros'], $uso['movs'], $ativasAgora, $podeGerenciarEtapas);
         if ($motivo !== null) {
             throw new InvalidArgumentException($motivo);
         }
@@ -797,7 +798,7 @@ if ($podeExcluirEtapa && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'
     exit;
 }
 
-if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_papel') {
+if ($podeGerenciarPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_papel') {
     if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
@@ -822,7 +823,7 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
     }
 }
 
-if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_papel') {
+if ($podeGerenciarPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_papel') {
     if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
         header('Location: configuracoes.php'); exit;
@@ -888,7 +889,7 @@ $papeis = [];
 $contagemPorEtapa = [];
 $usoPorEtapa = [];          // [id da etapa] => ['livros' => N, 'movs' => N], para saber quais podem ser excluídas
 $motivoExclusaoPorEtapa = []; // [id da etapa] => texto do motivo, ou null se pode excluir
-if ($podeGerenciarEtapasPapeis || $podeExcluirEtapa) {
+if ($podeGerenciarEtapas || $podeExcluirEtapa) {
     $re = $conn->query('SELECT * FROM etapas ORDER BY ordem ASC, id ASC');
     while ($row = $re->fetch_assoc()) $etapas[] = $row;
 
@@ -906,10 +907,10 @@ if ($podeGerenciarEtapasPapeis || $podeExcluirEtapa) {
     $ativasAgoraTela = count(array_filter($etapas, fn($e) => (int)$e['ativa'] === 1));
     foreach ($etapas as $e) {
         $u = $usoPorEtapa[(int)$e['id']];
-        $motivoExclusaoPorEtapa[(int)$e['id']] = motivoBloqueioExclusaoEtapa($e, $u['livros'], $u['movs'], $ativasAgoraTela, $podeGerenciarEtapasPapeis);
+        $motivoExclusaoPorEtapa[(int)$e['id']] = motivoBloqueioExclusaoEtapa($e, $u['livros'], $u['movs'], $ativasAgoraTela, $podeGerenciarEtapas);
     }
 }
-if ($podeGerenciarEtapasPapeis) {
+if ($podeGerenciarPapeis) {
     $rp = $conn->query('SELECT * FROM papeis ORDER BY nome ASC');
     while ($row = $rp->fetch_assoc()) $papeis[] = $row;
 }
@@ -1186,16 +1187,16 @@ require __DIR__ . '/includes/cabecalho.php';
 
 
 
-<?php if ($podeGerenciarEtapasPapeis || $podeExcluirEtapa): ?>
-        <!-- Seção 4 (IV-8): Etapas do fluxo. Admin gerencia tudo; o Gerente só vê a lista e pode excluir etapa nunca usada (Passo 20.9). -->
+<?php if ($podeGerenciarEtapas || $podeExcluirEtapa): ?>
+        <!-- Seção 4 (IV-8): Etapas do fluxo. Gerente e Admin criam, editam, desativam, reordenam e excluem (etapa nunca usada, Passo 20.9). -->
         <section class="ws-secao" aria-labelledby="etapas-titulo">
           <div class="ws-secao__cabecalho">
             <div>
               <h2 id="etapas-titulo">Etapas do fluxo</h2>
-<?php if ($podeGerenciarEtapasPapeis): ?>
-              <p>Criar, editar, desativar e reordenar: só Administrador. Gerente e Administrador podem excluir uma etapa que nunca foi usada; uma etapa com histórico nunca é excluída — apenas desativada. Livros que já estão numa etapa continuam nela até serem movidos manualmente; desativar ou reordenar não os afeta.</p>
+<?php if ($podeGerenciarEtapas): ?>
+              <p>Gerente e Administrador criam, editam, desativam e reordenam etapas, e podem excluir uma etapa que nunca foi usada; uma etapa com histórico nunca é excluída — apenas desativada. Livros que já estão numa etapa continuam nela até serem movidos manualmente; desativar ou reordenar não os afeta.</p>
 <?php else: ?>
-              <p>Você pode excluir uma etapa que nunca foi usada: sem livros e sem histórico. Criar, editar, desativar e reordenar etapas é com o Administrador.</p>
+              <p>Você pode excluir uma etapa que nunca foi usada: sem livros e sem histórico.</p>
 <?php endif; ?>
             </div>
           </div>
@@ -1239,7 +1240,7 @@ require __DIR__ . '/includes/cabecalho.php';
                   <td class="ws-tabela__num" data-rotulo="Livros agora"><?= $qtdLivrosEtapa ?></td>
                   <td class="ws-tabela__acoes" data-rotulo="Ações">
                     <div class="ws-linha" style="flex-wrap:nowrap;gap:6px;justify-content:flex-end">
-<?php if ($podeGerenciarEtapasPapeis): ?>
+<?php if ($podeGerenciarEtapas): ?>
 <?php foreach ([['up', $temVizinhoAcima, 'arrow-up', 'Mover para cima'], ['down', $temVizinhoAbaixo, 'arrow-down', 'Mover para baixo']] as [$dir, $existe, $icone, $rotuloMover]): ?>
 <?php if ($existe): ?>
                       <form method="post"<?= $qtdLivrosEtapa > 0 ? ' data-ws-confirmar="modal-mover-etapa" data-mover-nome="' . escaparHtml($et['nome']) . '" data-mover-qtd="' . $qtdLivrosEtapa . '"' : '' ?>>
@@ -1288,7 +1289,7 @@ require __DIR__ . '/includes/cabecalho.php';
                         data-nome="<?= escaparHtml($et['nome']) ?>"
                         data-motivo="<?= escaparHtml($motivoExcluir) ?>"
                         data-ativa="<?= (int)$et['ativa'] ?>"
-                        data-pode-desativar="<?= $podeGerenciarEtapasPapeis && (int)$et['ativa'] === 1 && (int)$et['finaliza_livro'] !== 1 && !str_starts_with($motivoExcluir, 'Esta é a única') ? '1' : '0' ?>"
+                        data-pode-desativar="<?= $podeGerenciarEtapas && (int)$et['ativa'] === 1 && (int)$et['finaliza_livro'] !== 1 && !str_starts_with($motivoExcluir, 'Esta é a única') ? '1' : '0' ?>"
                         aria-label="<?= escaparHtml('Excluir etapa ' . $et['nome'] . ' (não é possível)') ?>" title="Excluir etapa"><i data-lucide="trash-2"></i></button>
 <?php endif; ?>
 <?php endif; ?>
@@ -1301,7 +1302,7 @@ require __DIR__ . '/includes/cabecalho.php';
           </div>
 <?php endif; ?>
 
-<?php if ($podeGerenciarEtapasPapeis): ?>
+<?php if ($podeGerenciarEtapas): ?>
           <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="nova-etapa-titulo" novalidate>
             <?= csrfCampo() ?>
             <input type="hidden" name="acao" value="criar_etapa">
@@ -1321,8 +1322,8 @@ require __DIR__ . '/includes/cabecalho.php';
         </section>
 <?php endif; ?>
 
-<?php if ($podeGerenciarEtapasPapeis): ?>
-        <!-- Seção 5 (IV-8): Papéis de autoria (só Admin). Papel de autoria = papel de uma pessoa num livro (papeis). -->
+<?php if ($podeGerenciarPapeis): ?>
+        <!-- Seção 5 (IV-8): Papéis de autoria (só Admin: config.papeis). Papel de autoria = papel de uma pessoa num livro (papeis). -->
         <section class="ws-secao" aria-labelledby="papeis-titulo">
           <div class="ws-secao__cabecalho">
             <div>
@@ -1478,7 +1479,7 @@ require __DIR__ . '/includes/cabecalho.php';
       </div>
 
 <script src="envio_unico.js"></script>
-<?php if ($podeGerenciarEtapasPapeis): ?>
+<?php if ($podeGerenciarEtapas): ?>
       <!-- Modal: editar etapa (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-etapa" aria-labelledby="modal-etapa-titulo">
         <form class="ws-modal__caixa" method="post" id="form-editar-etapa" data-ws-confirmar="modal-desativar-etapa" novalidate<?= $formEtapaEd ? ' data-ativa-original="' . (int)$formEtapaEd['ativaOriginal'] . '" data-qtd-livros="' . (int)$formEtapaEd['qtdLivros'] . '"' : '' ?>>
@@ -1689,7 +1690,7 @@ require __DIR__ . '/includes/cabecalho.php';
         </div>
       </dialog>
 
-      <!-- Modal: etapa que NÃO pode ser excluída (o motivo vem do servidor; o Admin pode ir para "desativar") -->
+      <!-- Modal: etapa que NÃO pode ser excluída (o motivo vem do servidor; quem pode editar etapas vai para "desativar") -->
       <dialog class="ws-modal" id="modal-excluir-bloqueado" aria-labelledby="modal-excluir-bloqueado-titulo" aria-describedby="modal-excluir-bloqueado-texto">
         <div class="ws-modal__caixa">
           <header class="ws-modal__cabecalho">
@@ -1724,7 +1725,7 @@ require __DIR__ . '/includes/cabecalho.php';
         });
       });
 
-      // Etapa que não pode ser excluída: o modal mostra o motivo; o Admin (que tem o botão de editar na linha) pode
+      // Etapa que não pode ser excluída: o modal mostra o motivo; quem pode editar etapas (tem o botão de editar na linha) pode
       // seguir para desativar, que abre o "Editar etapa" já com "Etapa ativa" desmarcada (a confirmação de sempre vale).
       const botaoDesativarEmVezDeExcluir = document.getElementById('modal-excluir-desativar');
       document.querySelectorAll('[data-ws-modal-abrir="modal-excluir-bloqueado"]').forEach(function (botao) {
@@ -1744,7 +1745,7 @@ require __DIR__ . '/includes/cabecalho.php';
       });
       </script>
 <?php endif; ?>
-<?php if ($podeGerenciarEtapasPapeis): ?>
+<?php if ($podeGerenciarPapeis): ?>
       <!-- Modal: editar papel de autoria (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-papel" aria-labelledby="modal-papel-titulo">
         <form class="ws-modal__caixa" method="post" novalidate>
