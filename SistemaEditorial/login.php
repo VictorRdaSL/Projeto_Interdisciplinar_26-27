@@ -4,6 +4,7 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/campos.php';
 require_once __DIR__ . '/includes/tema.php';
 
 if (!empty($_SESSION['usuario_id'])) {
@@ -12,6 +13,7 @@ if (!empty($_SESSION['usuario_id'])) {
 }
 
 $erro = '';
+$errosLogin = []; // e-mail e senha vazios: mensagem junto de cada campo
 $email = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,8 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = entradaTexto($_POST, 'email');
         $senha = entradaBruta($_POST, 'senha');
 
-        if ($email === '' || $senha === '') {
-            $erro = 'Informe e-mail e senha.';
+        if ($email === '') $errosLogin['email'] = 'Informe o e-mail.';
+        if ($senha === '') $errosLogin['senha'] = 'Informe a senha.';
+        if ($errosLogin) {
+            // nada a conferir no banco: os campos voltam marcados
         } else {
             $stmt = $conn->prepare('SELECT id, nome, senha_hash, perfil, tema FROM usuarios WHERE email = ?');
             $stmt->bind_param('s', $email);
@@ -91,13 +95,15 @@ $ws_base = BASE_URL;
         </div>
         <?php endif; ?>
 
-        <div class="ws-campo">
+        <div class="ws-campo<?= classeCampoErro($errosLogin['email'] ?? null) ?>">
           <label class="ws-campo__rotulo" for="email">E-mail</label>
-          <input class="ws-input" id="email" name="email" type="email" value="<?= escaparHtml($email) ?>" autocomplete="username" required>
+          <input class="ws-input" id="email" name="email" type="email" value="<?= escaparHtml($email) ?>" autocomplete="username" required<?= atributosCampo('email', $errosLogin['email'] ?? null) ?>>
+          <?= htmlErroCampo('email', $errosLogin['email'] ?? null) ?>
         </div>
-        <div class="ws-campo">
+        <div class="ws-campo<?= classeCampoErro($errosLogin['senha'] ?? null) ?>">
           <label class="ws-campo__rotulo" for="senha">Senha</label>
-          <input class="ws-input" id="senha" name="senha" type="password" autocomplete="current-password" required>
+          <input class="ws-input" id="senha" name="senha" type="password" autocomplete="current-password" required<?= atributosCampo('senha', $errosLogin['senha'] ?? null) ?>>
+          <?= htmlErroCampo('senha', $errosLogin['senha'] ?? null) ?>
         </div>
         <button class="ws-btn ws-btn--primario ws-btn--bloco" type="submit">Entrar <span class="ws-btn__seta" aria-hidden="true">→</span></button>
         <p class="ws-login__rodape">Sem acesso? Peça a um Gerente ou Administrador para criar sua conta em Configurações.</p>

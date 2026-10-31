@@ -5,6 +5,8 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/movimentacoes.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/campos.php';
+require_once __DIR__ . '/includes/validacao.php';
 
 $livroId = idDaUrl($_GET, 'id');
 if ($livroId <= 0) {
@@ -12,6 +14,9 @@ if ($livroId <= 0) {
     header('Location: livros.php');
     exit;
 }
+
+$errosResgate = [];
+$valoresResgate = null; // preenchido quando o envio volta com erro de campo
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!usuarioTemPermissao('livros.gerenciar')) {
@@ -30,17 +35,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $novoResponsavelId = (int)($_POST['responsavel_id'] ?? 0);
     $localEncontrado = entradaTexto($_POST, 'local_encontrado');
 
-    try {
-        $resultado = concluirResgate($conn, $livroId, $novaEtapaId, $novoResponsavelId, $localEncontrado, $usuarioId);
-        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate concluído. Livro de volta em andamento, na etapa ' . $resultado['etapa_nome'] . '.'];
-        header('Location: livro_detalhes.php?id=' . $livroId);
-        exit;
-    } catch (Throwable $e) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => mensagemErroSegura($e, 'concluir o resgate')];
+    // Campos obrigatórios conferidos aqui, para a mensagem aparecer junto do campo (a página volta com o que foi preenchido).
+    $idsEtapasAtivas = [];
+    $reEtapas = $conn->query('SELECT id FROM etapas WHERE ativa = 1');
+    while ($rowE = $reEtapas->fetch_assoc()) $idsEtapasAtivas[] = (int)$rowE['id'];
+    $idsMesaValidos = array_map('intval', array_column(usuariosQuePodemSerMesa($conn), 'id'));
+
+    if ($localEncontrado === '') {
+        $errosResgate['local_encontrado'] = 'Informe onde o livro foi encontrado.';
+    } elseif ($erroTam = erroTamanho($localEncontrado, LIMITE_LOCAL_ENCONTRADO, 'O local')) {
+        $errosResgate['local_encontrado'] = $erroTam;
+    }
+    if ($novaEtapaId <= 0) {
+        $errosResgate['etapa_id'] = 'Escolha a etapa em que o livro está.';
+    } elseif (!in_array($novaEtapaId, $idsEtapasAtivas, true)) {
+        $errosResgate['etapa_id'] = 'Escolha uma etapa ativa da lista.';
+    }
+    if ($novoResponsavelId <= 0) {
+        $errosResgate['responsavel_id'] = 'Escolha com quem o livro está agora.';
+    } elseif (!in_array($novoResponsavelId, $idsMesaValidos, true)) {
+        $errosResgate['responsavel_id'] = 'Escolha um Gerente ou um Usuário como responsável.';
     }
 
-    header('Location: resgate.php?id=' . $livroId);
-    exit;
+    if ($errosResgate) {
+        $valoresResgate = ['local_encontrado' => $localEncontrado, 'etapa_id' => $novaEtapaId, 'responsavel_id' => $novoResponsavelId];
+    } else {
+        try {
+            $resultado = concluirResgate($conn, $livroId, $novaEtapaId, $novoResponsavelId, $localEncontrado, $usuarioId);
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate concluído. Livro de volta em andamento, na etapa ' . $resultado['etapa_nome'] . '.'];
+            header('Location: livro_detalhes.php?id=' . $livroId);
+            exit;
+        } catch (Throwable $e) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => mensagemErroSegura($e, 'concluir o resgate')];
+        }
+
+        header('Location: resgate.php?id=' . $livroId);
+        exit;
+    }
 }
 
 $stmt = $conn->prepare('SELECT * FROM livros WHERE id = ?');
@@ -101,6 +132,9 @@ $etapaSugeridaId = $movReferencia ? (int)$movReferencia['etapa_id'] : 0;
 $mesaSugeridaId = $movReferencia ? (int)$movReferencia['responsavel_id'] : 0;
 $etapaSugeridaValida = in_array($etapaSugeridaId, array_map('intval', array_column($etapasDisponiveis, 'id')), true);
 $mesaSugeridaValida = in_array($mesaSugeridaId, array_map('intval', array_column($usuariosDisponiveis, 'id')), true);
+// Depois de um envio com erro, os menus mostram o que foi escolhido; senão, a sugestão.
+$etapaSelecionadaId = $valoresResgate !== null ? (int)$valoresResgate['etapa_id'] : ($etapaSugeridaValida ? $etapaSugeridaId : 0);
+$mesaSelecionadaId = $valoresResgate !== null ? (int)$valoresResgate['responsavel_id'] : ($mesaSugeridaValida ? $mesaSugeridaId : 0);
 
 $tituloPagina = 'Resgate · ' . $livro['titulo'];
 $paginaAtual = 'livros';
@@ -149,7 +183,7 @@ require __DIR__ . '/includes/cabecalho.php';
 
 <?php if ($podeConcluir): ?>
         <section class="ws-secao" aria-labelledby="concluir-titulo">
-          <form class="ws-form ws-card ws-card--superficie" method="post">
+          <form class="ws-form ws-card ws-card--superficie" method="post" novalidate>
             <?= csrf_field() ?>
 
             <fieldset class="ws-grupo-campos">
@@ -164,38 +198,41 @@ require __DIR__ . '/includes/cabecalho.php';
               </div>
 <?php endif; ?>
               <div class="ws-form__grade">
-                <div class="ws-campo ws-campo--inteiro">
+                <div class="ws-campo ws-campo--inteiro<?= classeCampoErro($errosResgate['local_encontrado'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="local_encontrado">Onde o livro foi encontrado</label>
-                  <input class="ws-input" type="text" id="local_encontrado" name="local_encontrado" maxlength="<?= LIMITE_LOCAL_ENCONTRADO ?>" required aria-describedby="local-ajuda">
+                  <input class="ws-input" type="text" id="local_encontrado" name="local_encontrado" value="<?= escaparHtml($valoresResgate['local_encontrado'] ?? '') ?>" maxlength="<?= LIMITE_LOCAL_ENCONTRADO ?>" required<?= atributosCampo('local_encontrado', $errosResgate['local_encontrado'] ?? null, 'local-ajuda') ?>>
+                  <?= htmlErroCampo('local_encontrado', $errosResgate['local_encontrado'] ?? null) ?>
                   <p class="ws-campo__ajuda" id="local-ajuda">Texto livre. Fica registrado no resgate.</p>
                 </div>
 
-                <div class="ws-campo">
+                <div class="ws-campo<?= classeCampoErro($errosResgate['etapa_id'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="etapa_id">Etapa em que ele realmente está</label>
-                  <select class="ws-select" id="etapa_id" name="etapa_id" required<?= $etapaSugeridaValida ? ' aria-describedby="etapa-ajuda"' : '' ?>>
-<?php if (!$etapaSugeridaValida): ?>
+                  <select class="ws-select" id="etapa_id" name="etapa_id" required<?= atributosCampo('etapa_id', $errosResgate['etapa_id'] ?? null, $etapaSugeridaValida && $valoresResgate === null ? 'etapa-ajuda' : '') ?>>
+<?php if ($etapaSelecionadaId <= 0): ?>
                     <option value="">Escolha a etapa</option>
 <?php endif; ?>
 <?php foreach ($etapasDisponiveis as $e): ?>
-                    <option value="<?= (int)$e['id'] ?>"<?= $etapaSugeridaValida && (int)$e['id'] === $etapaSugeridaId ? ' selected' : '' ?>><?= escaparHtml($e['nome']) ?></option>
+                    <option value="<?= (int)$e['id'] ?>"<?= (int)$e['id'] === $etapaSelecionadaId ? ' selected' : '' ?>><?= escaparHtml($e['nome']) ?></option>
 <?php endforeach; ?>
                   </select>
-<?php if ($etapaSugeridaValida): ?>
+                  <?= htmlErroCampo('etapa_id', $errosResgate['etapa_id'] ?? null) ?>
+<?php if ($etapaSugeridaValida && $valoresResgate === null): ?>
                   <p class="ws-campo__ajuda" id="etapa-ajuda">Já vem marcada a última etapa conhecida.</p>
 <?php endif; ?>
                 </div>
 
-                <div class="ws-campo">
+                <div class="ws-campo<?= classeCampoErro($errosResgate['responsavel_id'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="responsavel_id">Com quem está agora</label>
-                  <select class="ws-select" id="responsavel_id" name="responsavel_id" required<?= $mesaSugeridaValida ? ' aria-describedby="mesa-ajuda"' : '' ?>>
-<?php if (!$mesaSugeridaValida): ?>
+                  <select class="ws-select" id="responsavel_id" name="responsavel_id" required<?= atributosCampo('responsavel_id', $errosResgate['responsavel_id'] ?? null, $mesaSugeridaValida && $valoresResgate === null ? 'mesa-ajuda' : '') ?>>
+<?php if ($mesaSelecionadaId <= 0): ?>
                     <option value=""><?= $usuariosDisponiveis ? 'Escolha o responsável' : 'Nenhum Gerente ou Usuário cadastrado' ?></option>
 <?php endif; ?>
 <?php foreach ($usuariosDisponiveis as $u): ?>
-                    <option value="<?= (int)$u['id'] ?>"<?= $mesaSugeridaValida && (int)$u['id'] === $mesaSugeridaId ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
+                    <option value="<?= (int)$u['id'] ?>"<?= (int)$u['id'] === $mesaSelecionadaId ? ' selected' : '' ?>><?= escaparHtml($u['nome']) ?></option>
 <?php endforeach; ?>
                   </select>
-<?php if ($mesaSugeridaValida): ?>
+                  <?= htmlErroCampo('responsavel_id', $errosResgate['responsavel_id'] ?? null) ?>
+<?php if ($mesaSugeridaValida && $valoresResgate === null): ?>
                   <p class="ws-campo__ajuda" id="mesa-ajuda">Já vem marcada a última mesa conhecida.</p>
 <?php endif; ?>
                 </div>

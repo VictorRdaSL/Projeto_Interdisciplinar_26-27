@@ -83,6 +83,8 @@ $temCopia = $editando ? (int)$livroAtual['tem_copia'] : 0;
 $observacoes = $editando ? ($livroAtual['observacoes'] ?? '') : '';
 $responsavelSelecionado = $editando ? (int)$livroAtual['responsavel_atual_id'] : (int)$_SESSION['usuario_id'];
 $contribuicoesForm = [];
+// O que o formulário mostra nas linhas Pessoa/Papel. Depois de um envio inclui também linhas pela metade, para o usuário vê-las e corrigir.
+$contribuicoesExibir = null;
 
 if ($editando && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     $stmtC = $conn->prepare('SELECT pessoa_id, papel_id FROM contribuicoes WHERE livro_id = ?');
@@ -123,11 +125,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $contribuicaoInvalida = false;
         $papelInativoNovo = null;
+        $linhaIncompleta = false;
+        $contribuicoesExibir = [];
         foreach ($contribuicoesPost as $linha) {
             if (!is_array($linha)) continue;
             $pessoaId = (int)($linha['pessoa_id'] ?? 0);
             $papelId = (int)($linha['papel_id'] ?? 0);
-            if ($pessoaId <= 0 || $papelId <= 0) continue;
+            if ($pessoaId <= 0 || $papelId <= 0) {
+                // Linha com só a pessoa ou só o papel: antes era descartada em silêncio; agora é erro no campo.
+                if ($pessoaId > 0 || $papelId > 0) {
+                    $linhaIncompleta = true;
+                    $contribuicoesExibir[] = ['pessoa_id' => $pessoaId > 0 ? $pessoaId : null, 'papel_id' => $papelId > 0 ? $papelId : null];
+                }
+                continue;
+            }
+            $contribuicoesExibir[] = ['pessoa_id' => $pessoaId, 'papel_id' => $papelId];
             if (!in_array($pessoaId, $idsPessoas, true) || !in_array($papelId, $idsPapeis, true)) {
                 $contribuicaoInvalida = true;
                 continue;
@@ -167,6 +179,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $erroCampo = 'pessoas';
         } elseif ($contribuicaoInvalida) {
             $erro = 'Há uma pessoa ou um papel inválido nas pessoas vinculadas. Escolha apenas itens da lista.';
+            $erroCampo = 'pessoas';
+        } elseif ($linhaIncompleta) {
+            $erro = 'Escolha a pessoa e o papel dela, ou remova a linha.';
+            $erroCampo = 'pessoas';
+        } elseif (!$contribuicoesForm) {
+            $erro = 'Informe ao menos uma pessoa e o papel dela.';
             $erroCampo = 'pessoas';
         } else {
             if ($isbnNormalizado !== '') {
@@ -405,7 +423,7 @@ require __DIR__ . '/includes/cabecalho.php';
 
               <fieldset class="ws-grupo-campos" id="pessoas-vinculadas"<?= $temErroCampo('pessoas') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['pessoas-erro' => $temErroCampo('pessoas'), 'pessoas-ajuda' => true]) ?>>
                 <legend><h2>Pessoas vinculadas</h2></legend>
-                <p class="ws-texto-suave" id="pessoas-ajuda" style="margin-top:-8px">Autores, organizadores e ilustradores. Não são usuários do sistema.</p>
+                <p class="ws-texto-suave" id="pessoas-ajuda" style="margin-top:-8px">Autores, organizadores e ilustradores. Não são usuários do sistema. Informe ao menos uma pessoa e o papel dela.</p>
 <?php if ($temErroCampo('pessoas')): ?>
                 <p class="ws-campo__erro" id="pessoas-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
 <?php endif; ?>
@@ -478,7 +496,7 @@ require __DIR__ . '/includes/cabecalho.php';
       <script>
       const PESSOAS = <?= json_encode($pessoasDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
       const PAPEIS = <?= json_encode($papeisDisponiveis, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-      const CONTRIBUICOES_INICIAIS = <?= json_encode($contribuicoesForm, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+      const CONTRIBUICOES_INICIAIS = <?= json_encode($contribuicoesExibir ?? $contribuicoesForm, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
       let contribIndex = 0;
 
@@ -510,6 +528,7 @@ require __DIR__ . '/includes/cabecalho.php';
         select.className = 'ws-select' + (classeExtra ? ' ' + classeExtra : '');
         select.id = id;
         select.name = nome;
+        select.required = true;
         campo.appendChild(label);
         campo.appendChild(select);
         return { campo, select };
@@ -538,7 +557,11 @@ require __DIR__ . '/includes/cabecalho.php';
         }
         atualizarRotuloRemover();
         pessoa.select.addEventListener('change', atualizarRotuloRemover);
-        btnRemover.onclick = function(){ linha.remove(); };
+        // Pessoa e papel são obrigatórios: ao remover a última linha, entra uma nova em branco.
+        btnRemover.onclick = function(){
+          linha.remove();
+          if (document.querySelectorAll('#lista-contribuicoes .ws-linha-campos').length === 0) adicionarLinhaContribuicao();
+        };
 
         linha.appendChild(pessoa.campo);
         linha.appendChild(papel.campo);
