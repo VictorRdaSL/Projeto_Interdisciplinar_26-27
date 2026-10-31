@@ -71,11 +71,13 @@ Cada vez que o livro **entra** em Diagramação ou Revisão, conta uma **rodada*
 
 ## 👥 Perfis de acesso
 
-Há três perfis. Todos veem o painel, Livros, Minha mesa, Pessoas e os relatórios, e todos podem cadastrar livros e pessoas e movimentar livros.
+Há três perfis. Todos veem o painel, Livros, Minha mesa, Pessoas e os relatórios, e todos podem cadastrar livros e pessoas. **Cada Usuário só movimenta e edita os livros da própria mesa**: para outra pessoa avançar um livro, quem está com ele o passa para ela (vale na hora). Gerente e Administrador movimentam e editam livros de qualquer mesa.
 
 | Ação | Usuário | Gerente | Administrador |
 |---|:-:|:-:|:-:|
-| Cadastrar e editar livros e pessoas, mover livros, resgate | sim | sim | sim |
+| Cadastrar livros e pessoas, editar pessoas, iniciar e concluir resgate | sim | sim | sim |
+| Movimentar e editar livros da própria mesa (inclusive passar para outra mesa) | sim | sim | sim |
+| Movimentar e editar livros de outra mesa | não | sim | sim |
 | Ver relatórios e exportar CSV | sim | sim | sim |
 | Cancelar livro | não | sim | sim |
 | Excluir livro cadastrado por engano | não | sim | sim |

@@ -11,8 +11,10 @@ const PERMISSOES_POR_PAPEL = [
     // o Gerente não ganha mais nada nas etapas (criar, editar, desativar e reordenar continuam só do Admin).
     // livros.excluir (Passo 20.10): excluir livro cadastrado por engano. Mesmos perfis do cancelamento (Gerente e Admin);
     // o Usuário comum vê o botão na edição do livro, mas só recebe o aviso de que precisa de um Gerente ou Administrador.
-    'admin'   => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver', 'livros.cancelar', 'livros.excluir', 'config.usuarios', 'config.dias_limite', 'config.etapas_papeis', 'config.excluir_etapa', 'log.ver'],
-    'gerente' => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver', 'livros.cancelar', 'livros.excluir', 'config.usuarios', 'config.dias_limite', 'config.excluir_etapa', 'log.ver'],
+    // livros.movimentar_outras_mesas: movimentar ou editar um livro cuja mesa é de outra pessoa. O Usuário comum só mexe
+    // nos livros da própria mesa (para outro avançar, quem está com o livro precisa passá-lo); Gerente e Admin mexem em qualquer um.
+    'admin'   => ['livros.gerenciar', 'livros.movimentar_outras_mesas', 'pessoas.gerenciar', 'relatorios.ver', 'livros.cancelar', 'livros.excluir', 'config.usuarios', 'config.dias_limite', 'config.etapas_papeis', 'config.excluir_etapa', 'log.ver'],
+    'gerente' => ['livros.gerenciar', 'livros.movimentar_outras_mesas', 'pessoas.gerenciar', 'relatorios.ver', 'livros.cancelar', 'livros.excluir', 'config.usuarios', 'config.dias_limite', 'config.excluir_etapa', 'log.ver'],
     'usuario' => ['livros.gerenciar', 'pessoas.gerenciar', 'relatorios.ver'],
 ];
 
@@ -33,8 +35,13 @@ function nomePapel(string $papel): string
     return NOMES_PAPEIS[$papel] ?? 'Usuário';
 }
 
+/** Permissão de um papel qualquer (não só o da sessão): serve para conferir quem está agindo pelo id, fora de uma tela. */
+function papelTemPermissao(string $papel, string $permissao): bool
+{
+    return in_array($permissao, PERMISSOES_POR_PAPEL[$papel] ?? [], true);
+}
+
 function usuarioTemPermissao(string $permissao): bool
 {
-    $papel = papelAtual();
-    return in_array($permissao, PERMISSOES_POR_PAPEL[$papel] ?? [], true);
+    return papelTemPermissao(papelAtual(), $permissao);
 }

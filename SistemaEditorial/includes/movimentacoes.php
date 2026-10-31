@@ -26,7 +26,7 @@ require_once __DIR__ . '/isbn.php';
 const NOME_ETAPA_CATALOGACAO = 'Catalogação — ISBN e ficha catalográfica';
 
 // Exige transação já aberta pelo chamador: o FOR UPDATE só segura a trava até o commit/rollback.
-function buscarLivroParaMovimentar(mysqli $conn, int $livroId): array
+function buscarLivroParaMovimentar(mysqli $conn, int $livroId, int $agindoId): array
 {
     // Trava só a linha do livro (o JOIN com etapas, abaixo, não trava a etapa). O SELECT seguinte
     // é a primeira leitura sem trava da transação, então já enxerga o que a ação anterior gravou.
@@ -51,6 +51,12 @@ function buscarLivroParaMovimentar(mysqli $conn, int $livroId): array
     }
     if ($livro['status'] !== 'em_andamento') {
         throw new InvalidArgumentException('Este livro não está em andamento — não é possível movimentá-lo.');
+    }
+    // Cada um mexe só nos livros da própria mesa (Gerente e Admin mexem em qualquer um). Conferido aqui, com o livro
+    // já travado, para valer em toda movimentação e não depender de a tela esconder os botões.
+    $erroMesa = erroMovimentarLivro($conn, $livro, $agindoId);
+    if ($erroMesa !== null) {
+        throw new InvalidArgumentException($erroMesa);
     }
     return $livro;
 }
@@ -131,7 +137,7 @@ function avancarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regi
 
     $conn->begin_transaction();
     try {
-        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $livro = buscarLivroParaMovimentar($conn, $livroId, $registradoPorId);
         $etapaOrigemOrdem = (int)$livro['etapa_atual_ordem'];
         $etapaOrigemNome = $livro['etapa_atual_nome'];
 
@@ -224,7 +230,7 @@ function repetirEtapa(mysqli $conn, int $livroId, int $registradoPorId, ?int $no
 
     $conn->begin_transaction();
     try {
-        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $livro = buscarLivroParaMovimentar($conn, $livroId, $registradoPorId);
         if ((int)$livro['etapa_atual_repetivel'] !== 1) {
             throw new InvalidArgumentException('Esta etapa não é repetível.');
         }
@@ -274,7 +280,7 @@ function voltarEtapa(mysqli $conn, int $livroId, int $etapaDestinoId, int $regis
 
     $conn->begin_transaction();
     try {
-        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $livro = buscarLivroParaMovimentar($conn, $livroId, $registradoPorId);
         $etapaOrigemNome = $livro['etapa_atual_nome'];
         $etapaOrigemOrdem = (int)$livro['etapa_atual_ordem'];
 
@@ -327,7 +333,7 @@ function concluirLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 
     $conn->begin_transaction();
     try {
-        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $livro = buscarLivroParaMovimentar($conn, $livroId, $registradoPorId);
         if ((int)$livro['etapa_atual_finaliza'] !== 1) {
             throw new InvalidArgumentException('A etapa atual não finaliza o livro.');
         }
@@ -455,7 +461,7 @@ function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 
     $conn->begin_transaction();
     try {
-        $livro = buscarLivroParaMovimentar($conn, $livroId);
+        $livro = buscarLivroParaMovimentar($conn, $livroId, $registradoPorId);
         $etapaAtualNome = $livro['etapa_atual_nome'];
 
         $movFechada = fecharMovimentacaoAtual($conn, $livroId, $agora);
@@ -485,6 +491,15 @@ function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array
 // Não chame dentro de uma transação aberta: a procedure faz COMMIT implícito dela.
 function passarParaOutraMesa(mysqli $conn, int $livroId, int $novoResponsavelId, int $registradoPorId, ?string $observacao = null): array
 {
+    // A procedure não conhece a regra de mesa (fica no PHP, como "Admin não é mesa"): só a mesa de hoje, um Gerente ou um
+    // Administrador passa o livro adiante. Livro que não existe segue para a procedure, que recusa.
+    $stmtMesa = $conn->prepare('SELECT responsavel_atual_id FROM livros WHERE id = ?');
+    $stmtMesa->bind_param('i', $livroId);
+    $stmtMesa->execute();
+    $livroDaMesa = $stmtMesa->get_result()->fetch_assoc();
+    if ($livroDaMesa && ($erroMesa = erroMovimentarLivro($conn, $livroDaMesa, $registradoPorId)) !== null) {
+        throw new InvalidArgumentException($erroMesa);
+    }
     // O limite de 1.000 caracteres é conferido aqui: a procedure cortaria o texto em silêncio.
     $observacao = observacaoParaGravar($observacao);
     // A procedure só confere se o usuário existe; a regra "Admin não pode ser mesa" fica aqui, no PHP.
