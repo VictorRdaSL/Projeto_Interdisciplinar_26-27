@@ -4,16 +4,12 @@
  * que as telas usam. Cria livros de teste, exercita os cenários pedidos,
  * imprime OK/FALHOU para cada verificação, e apaga tudo que criou ao final.
  *
- * Só roda em ambiente de desenvolvimento (config/config.php: 'ambiente').
- * Acesso via navegador é bloqueado por tests/.htaccess — roda só via CLI.
+ * Só roda pela linha de comando e em ambiente de desenvolvimento (tests/_guarda.php).
+ * Acesso via navegador é bloqueado por tests/.htaccess e pela própria trava.
  */
 
+require_once __DIR__ . '/_guarda.php';
 require_once __DIR__ . '/../config/database.php';
-
-if ($producao) {
-    fwrite(STDERR, "Este script só pode ser executado em ambiente de desenvolvimento.\n");
-    exit(1);
-}
 
 require_once __DIR__ . '/../includes/movimentacoes.php';
 
@@ -23,6 +19,25 @@ function checar(string $descricao, bool $condicao): void
     global $falhas;
     echo ($condicao ? 'OK' : 'FALHOU') . ' - ' . $descricao . "\n";
     if (!$condicao) $falhas++;
+}
+
+/**
+ * Consulta com prepared statement (nenhum valor entra direto no SQL). $tipos: um caractere por "?" ('i' inteiro,
+ * 's' texto). SELECT devolve o mysqli_result; INSERT/UPDATE/DELETE devolve true.
+ */
+function consulta(mysqli $conn, string $sql, string $tipos = '', array $params = []): mysqli_result|bool
+{
+    $stmt = $conn->prepare($sql);
+    if ($params) $stmt->bind_param($tipos, ...$params);
+    $stmt->execute();
+    $resultado = $stmt->get_result();
+    return $resultado instanceof mysqli_result ? $resultado : true;
+}
+
+/** "?, ?, ?" para um IN (...) com $n valores: só os marcadores entram no SQL, os valores vão por bind. */
+function marcadoresIn(int $n): string
+{
+    return implode(', ', array_fill(0, max($n, 1), '?'));
 }
 
 function etapaIdPorNome(mysqli $conn, string $nome): int
@@ -118,7 +133,7 @@ $usuarioId = (int)$admin['id'];
 // O cenário (e) precisa de um 2º usuário. Se o banco só tem o admin, o teste cria o seu próprio
 // (e remove no final) — assim a troca de mesa nunca fica de fora por falta de usuário.
 const EMAIL_USUARIO_TESTE_MESA = 'teste_fluxo_mesa@teste.invalid';
-$conn->query("DELETE FROM usuarios WHERE email = '" . EMAIL_USUARIO_TESTE_MESA . "'"); // sobra de uma execução interrompida
+consulta($conn, 'DELETE FROM usuarios WHERE email = ?', 's', [EMAIL_USUARIO_TESTE_MESA]); // sobra de uma execução interrompida
 $outroUsuarioRow = $conn->query("SELECT id, nome FROM usuarios WHERE perfil IN ('gerente', 'usuario') LIMIT 1")->fetch_assoc();
 $usuarioTesteCriadoId = null;
 if (!$outroUsuarioRow) {
@@ -169,7 +184,7 @@ $livro1 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 1', $mesaId, $usuarioId, [
 $livrosDeTeste[] = $livro1;
 
 checar('Livro 1 criado em Orçamento, rodada 1', etapaAtualDoLivro($conn, $livro1)['etapa_nome'] === 'Orçamento');
-$totalContrib = (int)$conn->query("SELECT COUNT(*) total FROM contribuicoes WHERE livro_id = $livro1")->fetch_assoc()['total'];
+$totalContrib = (int)consulta($conn, "SELECT COUNT(*) total FROM contribuicoes WHERE livro_id = ?", 'i', [$livro1])->fetch_assoc()['total'];
 checar('Livro 1 tem as 3 contribuições (1 organizador + 2 autores)', $totalContrib === 3);
 
 echo "\n=== (b) Avançar de Orçamento até Diagramação, pulando Ilustração ===\n";
@@ -197,7 +212,7 @@ $r = avancarEtapa($conn, $livro1, $idCatalogacao, $usuarioId);
 checar('Chegou em Catalogação sem passar de novo por Revisão', etapaAtualDoLivro($conn, $livro1)['etapa_nome'] === 'Catalogação — ISBN e ficha catalográfica');
 checar('Aviso de ISBN vazio disparado ao sair da Catalogação depois', true); // conferido no passo (f)
 
-$totalExcedentesLivro1 = (int)$conn->query("SELECT COUNT(*) total FROM movimentacoes WHERE livro_id = $livro1 AND excedente = 1")->fetch_assoc()['total'];
+$totalExcedentesLivro1 = (int)consulta($conn, "SELECT COUNT(*) total FROM movimentacoes WHERE livro_id = ? AND excedente = 1", 'i', [$livro1])->fetch_assoc()['total'];
 checar('Nenhuma rodada do Livro 1 ficou excedente', $totalExcedentesLivro1 === 0);
 
 echo "\n=== (d) Livro 2: forçar 4ª Diagramação e 3ª Revisão, conferir excedente=1 nas duas ===\n";
@@ -227,7 +242,7 @@ if ($temSegundoUsuario) {
     $r = passarParaOutraMesa($conn, $livro2, $outroUsuarioId, $usuarioId);
     checar('Troca de mesa manteve a mesma rodada', $r['rodada'] === $rodadaAntes);
     checar('Troca de mesa manteve o mesmo excedente', ($r['excedente'] ? 1 : 0) === $excedenteAntes);
-    checar('livros.responsavel_atual_id atualizado para o novo usuário', (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro2")->fetch_assoc()['responsavel_atual_id'] === $outroUsuarioId);
+    checar('livros.responsavel_atual_id atualizado para o novo usuário', (int)consulta($conn, "SELECT responsavel_atual_id FROM livros WHERE id=?", 'i', [$livro2])->fetch_assoc()['responsavel_atual_id'] === $outroUsuarioId);
     // (O livro continua com $mesaId: devolver ao admin seria recusado pela regra do cenário (i).)
 
     // sp_trocar_mesa: falhas de validação chegam ao PHP como InvalidArgumentException em português.
@@ -246,20 +261,20 @@ if ($temSegundoUsuario) {
 
     // Atomicidade: o registrado_por inexistente só falha no meio da procedure (chave estrangeira,
     // depois de ela ter fechado a movimentação aberta) — o ROLLBACK tem que devolver tudo.
-    $abertasAntes = (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2 AND data_saida IS NULL")->fetch_assoc()['c'];
-    $mesaAntes = (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro2")->fetch_assoc()['responsavel_atual_id'];
-    $movsAntes = (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2")->fetch_assoc()['c'];
-    $logsAntes = (int)$conn->query("SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=$livro2")->fetch_assoc()['c'];
+    $abertasAntes = (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro2])->fetch_assoc()['c'];
+    $mesaAntes = (int)consulta($conn, "SELECT responsavel_atual_id FROM livros WHERE id=?", 'i', [$livro2])->fetch_assoc()['responsavel_atual_id'];
+    $movsAntes = (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=?", 'i', [$livro2])->fetch_assoc()['c'];
+    $logsAntes = (int)consulta($conn, "SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=?", 'i', [$livro2])->fetch_assoc()['c'];
     try {
         passarParaOutraMesa($conn, $livro2, $outroUsuarioId, 999999999);
         checar('Troca de mesa com registrado_por inexistente foi REJEITADA', false);
     } catch (Throwable $e) {
         checar('Troca de mesa com registrado_por inexistente foi rejeitada (erro do banco)', true);
     }
-    checar('Falha no meio da troca de mesa: ROLLBACK manteve 1 movimentação aberta', (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2 AND data_saida IS NULL")->fetch_assoc()['c'] === $abertasAntes);
-    checar('Falha no meio da troca de mesa: ROLLBACK não mudou a mesa do livro', (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro2")->fetch_assoc()['responsavel_atual_id'] === $mesaAntes);
-    checar('Falha no meio da troca de mesa: ROLLBACK não deixou movimentação nem log novos', (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro2")->fetch_assoc()['c'] === $movsAntes
-        && (int)$conn->query("SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=$livro2")->fetch_assoc()['c'] === $logsAntes);
+    checar('Falha no meio da troca de mesa: ROLLBACK manteve 1 movimentação aberta', (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro2])->fetch_assoc()['c'] === $abertasAntes);
+    checar('Falha no meio da troca de mesa: ROLLBACK não mudou a mesa do livro', (int)consulta($conn, "SELECT responsavel_atual_id FROM livros WHERE id=?", 'i', [$livro2])->fetch_assoc()['responsavel_atual_id'] === $mesaAntes);
+    checar('Falha no meio da troca de mesa: ROLLBACK não deixou movimentação nem log novos', (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=?", 'i', [$livro2])->fetch_assoc()['c'] === $movsAntes
+        && (int)consulta($conn, "SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=?", 'i', [$livro2])->fetch_assoc()['c'] === $logsAntes);
     // A conexão segue utilizável depois do erro (sem "Commands out of sync").
     checar('Conexão utilizável depois de uma procedure que falhou', (int)$conn->query('SELECT 1 AS um')->fetch_assoc()['um'] === 1);
 } else {
@@ -276,14 +291,14 @@ avancarEtapa($conn, $livro1, $idImpressao, $usuarioId);
 avancarEtapa($conn, $livro1, $idDepositoLegal, $usuarioId);
 checar('Livro 1 chegou no Depósito legal', etapaAtualDoLivro($conn, $livro1)['etapa_nome'] === 'Depósito legal — Biblioteca Nacional (RJ)');
 concluirLivro($conn, $livro1, $usuarioId);
-$statusFinal = $conn->query("SELECT status FROM livros WHERE id=$livro1")->fetch_assoc()['status'];
+$statusFinal = consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro1])->fetch_assoc()['status'];
 checar('Livro 1: status virou concluido', $statusFinal === 'concluido');
-$abertasLivro1 = (int)$conn->query("SELECT COUNT(*) total FROM movimentacoes WHERE livro_id=$livro1 AND data_saida IS NULL")->fetch_assoc()['total'];
+$abertasLivro1 = (int)consulta($conn, "SELECT COUNT(*) total FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro1])->fetch_assoc()['total'];
 checar('Livro 1: nenhuma movimentação aberta depois de concluir', $abertasLivro1 === 0);
 
 echo "\n=== (g) Resgate: iniciar, bloquear movimentações, concluir sem abrir rodada nova ===\n";
 $res = iniciarResgate($conn, $livro2, $usuarioId);
-checar('Livro 2 marcado como extraviado', $conn->query("SELECT status FROM livros WHERE id=$livro2")->fetch_assoc()['status'] === 'extraviado');
+checar('Livro 2 marcado como extraviado', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro2])->fetch_assoc()['status'] === 'extraviado');
 checar('Resgate referencia a movimentação aberta antes do extravio', $res['movimentacao_referencia_id'] === (int)ultimaMovimentacao($conn, $livro2)['id']);
 
 foreach ([
@@ -314,13 +329,13 @@ try {
 $entradasDiagramacaoAntes = contarEntradasAnteriores($conn, $livro2, $idDiagramacao);
 
 $r = concluirResgate($conn, $livro2, $idDiagramacao, $mesaId, 'Na mesa errada, na sala ao lado', $usuarioId);
-checar('Resgate concluído: livro voltou a em_andamento', $conn->query("SELECT status FROM livros WHERE id=$livro2")->fetch_assoc()['status'] === 'em_andamento');
+checar('Resgate concluído: livro voltou a em_andamento', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro2])->fetch_assoc()['status'] === 'em_andamento');
 checar('Resgate concluído: etapa_atual_id atualizado para a etapa informada', etapaAtualDoLivro($conn, $livro2)['etapa_nome'] === 'Diagramação');
 checar('Resgate manteve a rodada já existente na etapa de destino (não abriu rodada nova)', $r['rodada'] === $entradasDiagramacaoAntes);
 checar('Resgate refletiu o excedente já acumulado em Diagramação (rodada 4 > limite 3)', $r['excedente'] === true);
 $movResgate = ultimaMovimentacao($conn, $livro2);
 checar('Última movimentação tem tipo resgate', $movResgate['tipo'] === 'resgate');
-$resgateFechado = $conn->query("SELECT local_encontrado, data_conclusao FROM resgates WHERE livro_id=$livro2 ORDER BY id DESC LIMIT 1")->fetch_assoc();
+$resgateFechado = consulta($conn, "SELECT local_encontrado, data_conclusao FROM resgates WHERE livro_id=? ORDER BY id DESC LIMIT 1", 'i', [$livro2])->fetch_assoc();
 checar('Registro de resgates foi fechado com local_encontrado preenchido', $resgateFechado['data_conclusao'] !== null && $resgateFechado['local_encontrado'] === 'Na mesa errada, na sala ao lado');
 
 // Depois de concluído, a contagem real de entradas em Diagramação continua a mesma de
@@ -341,8 +356,8 @@ $livro3 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 3 (cancelamento)', $mesaId
 $livrosDeTeste[] = $livro3;
 avancarEtapa($conn, $livro3, $idContrato, $usuarioId);
 $res = cancelarLivro($conn, $livro3, $usuarioId);
-checar('Livro 3 cancelado: status virou cancelado', $conn->query("SELECT status FROM livros WHERE id=$livro3")->fetch_assoc()['status'] === 'cancelado');
-checar('Livro 3 cancelado: nenhuma movimentação aberta depois', (int)$conn->query("SELECT COUNT(*) total FROM movimentacoes WHERE livro_id=$livro3 AND data_saida IS NULL")->fetch_assoc()['total'] === 0);
+checar('Livro 3 cancelado: status virou cancelado', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro3])->fetch_assoc()['status'] === 'cancelado');
+checar('Livro 3 cancelado: nenhuma movimentação aberta depois', (int)consulta($conn, "SELECT COUNT(*) total FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro3])->fetch_assoc()['total'] === 0);
 try {
     avancarEtapa($conn, $livro3, $idEnvioMaterial, $usuarioId);
     checar('Avançar um livro cancelado foi REJEITADO', false);
@@ -359,7 +374,7 @@ try {
 echo "\n=== (i) Regra: o Administrador não pode ser mesa (mas continua registrando ações) ===\n";
 $idsMesa = array_map('intval', array_column(usuariosQuePodemSerMesa($conn), 'id'));
 checar('Lista de mesas possíveis não inclui nenhum Administrador', !in_array($usuarioId, $idsMesa, true)
-    && (int)$conn->query("SELECT COUNT(*) c FROM vw_usuarios_publico WHERE perfil = 'admin' AND id IN (" . implode(',', $idsMesa ?: [0]) . ")")->fetch_assoc()['c'] === 0);
+    && (int)consulta($conn, "SELECT COUNT(*) c FROM vw_usuarios_publico WHERE perfil = 'admin' AND id IN (" . marcadoresIn(count($idsMesa)) . ')', str_repeat('i', max(count($idsMesa), 1)), $idsMesa ?: [0])->fetch_assoc()['c'] === 0);
 checar('Lista de mesas possíveis inclui o usuário de teste (não-Admin)', in_array($mesaId, $idsMesa, true));
 
 $livro4 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 4 (regra do Admin)', $mesaId, $usuarioId, []);
@@ -375,9 +390,9 @@ avancarEtapa($conn, $livro4, $idDiagramacao, $usuarioId);
 
 $antes = [
     'etapa' => etapaAtualDoLivro($conn, $livro4)['etapa_nome'],
-    'mesa' => (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro4")->fetch_assoc()['responsavel_atual_id'],
-    'movs' => (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro4")->fetch_assoc()['c'],
-    'abertas' => (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro4 AND data_saida IS NULL")->fetch_assoc()['c'],
+    'mesa' => (int)consulta($conn, "SELECT responsavel_atual_id FROM livros WHERE id=?", 'i', [$livro4])->fetch_assoc()['responsavel_atual_id'],
+    'movs' => (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=?", 'i', [$livro4])->fetch_assoc()['c'],
+    'abertas' => (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro4])->fetch_assoc()['c'],
 ];
 foreach ([
     'avancarEtapa' => fn() => avancarEtapa($conn, $livro4, $idRevisao, $usuarioId, null, $usuarioId),
@@ -394,9 +409,9 @@ foreach ([
 }
 $depois = [
     'etapa' => etapaAtualDoLivro($conn, $livro4)['etapa_nome'],
-    'mesa' => (int)$conn->query("SELECT responsavel_atual_id FROM livros WHERE id=$livro4")->fetch_assoc()['responsavel_atual_id'],
-    'movs' => (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro4")->fetch_assoc()['c'],
-    'abertas' => (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro4 AND data_saida IS NULL")->fetch_assoc()['c'],
+    'mesa' => (int)consulta($conn, "SELECT responsavel_atual_id FROM livros WHERE id=?", 'i', [$livro4])->fetch_assoc()['responsavel_atual_id'],
+    'movs' => (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=?", 'i', [$livro4])->fetch_assoc()['c'],
+    'abertas' => (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro4])->fetch_assoc()['c'],
 ];
 checar('As quatro recusas não alteraram nada (etapa, mesa, movimentações, 1 aberta)', $antes === $depois && $depois['abertas'] === 1);
 try {
@@ -414,9 +429,9 @@ try {
 } catch (InvalidArgumentException $e) {
     checar('Concluir resgate com o Administrador como responsável rejeitado com a mensagem clara', $e->getMessage() === MSG_ADMIN_NAO_E_MESA);
 }
-checar('...e o livro continua extraviado, com o resgate em aberto', $conn->query("SELECT status FROM livros WHERE id=$livro4")->fetch_assoc()['status'] === 'extraviado' && buscarResgateAbertoPorLivro($conn, $livro4) !== null);
+checar('...e o livro continua extraviado, com o resgate em aberto', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro4])->fetch_assoc()['status'] === 'extraviado' && buscarResgateAbertoPorLivro($conn, $livro4) !== null);
 concluirResgate($conn, $livro4, $idDiagramacao, $mesaId, 'Gaveta 3', $usuarioId);
-checar('Concluir resgate com um responsável válido (registrado pelo Admin) funciona', $conn->query("SELECT status FROM livros WHERE id=$livro4")->fetch_assoc()['status'] === 'em_andamento');
+checar('Concluir resgate com um responsável válido (registrado pelo Admin) funciona', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro4])->fetch_assoc()['status'] === 'em_andamento');
 
 // Livro de ANTES da regra, com um Administrador como mesa (gravado direto no banco): nada é alterado sozinho,
 // mas movimentar sem escolher responsável é recusado e escolhendo um válido a mesa é corrigida.
@@ -434,7 +449,7 @@ checar('Escolhendo um responsável válido a mesa passa do Admin para ele', (int
 $livro6 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 6 (Admin como mesa, cancelar)', $usuarioId, $usuarioId, []);
 $livrosDeTeste[] = $livro6;
 cancelarLivro($conn, $livro6, $usuarioId);
-checar('Cancelar livro que está com o Admin como mesa continua possível', $conn->query("SELECT status FROM livros WHERE id=$livro6")->fetch_assoc()['status'] === 'cancelado');
+checar('Cancelar livro que está com o Admin como mesa continua possível', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro6])->fetch_assoc()['status'] === 'cancelado');
 
 // Trava de promoção a Admin: livros em andamento/extraviados sob a responsabilidade do usuário.
 $titulosSob = array_column(livrosSobResponsabilidade($conn, $mesaId), 'id');
@@ -446,7 +461,7 @@ echo "\n=== (j) Observação nas movimentações (Passo 20.8) ===\n";
 $livro6 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 6 (observações)', $mesaId, $usuarioId, []);
 $livrosDeTeste[] = $livro6;
 $obsDaUltima = fn(int $livroId): ?string => ultimaMovimentacao($conn, $livroId)['observacao'];
-$totalMov = fn(int $livroId): int => (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livroId")->fetch_assoc()['c'];
+$totalMov = fn(int $livroId): int => (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=?", 'i', [$livroId])->fetch_assoc()['c'];
 checar('Livro recém-criado: a movimentação inicial não tem observação (NULL)', $obsDaUltima($livro6) === null);
 
 avancarEtapa($conn, $livro6, $idContrato, $usuarioId, null, $mesaId, "Contrato enviado.\nAguardando assinatura.");
@@ -457,7 +472,7 @@ avancarEtapa($conn, $livro6, $idCapa, $usuarioId, null, null, "   \n  ");
 checar('Observação só com espaços e quebras vira NULL', $obsDaUltima($livro6) === null);
 avancarEtapa($conn, $livro6, $idAprovacaoCapa, $usuarioId, $idIlustracao, null, "Sem ilustração.\r\nSeguir direto.");
 checar('Pular etapa opcional: a observação vai na linha do avanço (\\r\\n vira \\n)', $obsDaUltima($livro6) === "Sem ilustração.\nSeguir direto." && ultimaMovimentacao($conn, $livro6)['tipo'] === 'avanco');
-$obsPulo = $conn->query("SELECT observacao FROM movimentacoes WHERE livro_id=$livro6 AND tipo='pulo_opcional'")->fetch_assoc()['observacao'];
+$obsPulo = consulta($conn, "SELECT observacao FROM movimentacoes WHERE livro_id=? AND tipo='pulo_opcional'", 'i', [$livro6])->fetch_assoc()['observacao'];
 checar('...e a linha do pulo_opcional fica sem observação', $obsPulo === null);
 avancarEtapa($conn, $livro6, $idDiagramacao, $usuarioId);
 
@@ -497,7 +512,7 @@ foreach ([
 }
 checar('...e nada foi gravado (mesma contagem de movimentações, mesma etapa, uma só aberta)', $totalMov($livro6) === $movAntes
     && etapaAtualDoLivro($conn, $livro6)['etapa_nome'] === $etapaAntes
-    && (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=$livro6 AND data_saida IS NULL")->fetch_assoc()['c'] === 1);
+    && (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro6])->fetch_assoc()['c'] === 1);
 
 // Resgate: concluir grava a observação na linha do tipo 'resgate'.
 iniciarResgate($conn, $livro6, $usuarioId);
@@ -508,20 +523,26 @@ try {
     concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta', $usuarioId, $mil1);
     checar('Concluir resgate com 1.001 caracteres foi REJEITADO', false);
 } catch (InvalidArgumentException $e) {
-    checar('Concluir resgate com 1.001 caracteres rejeitado e o livro segue extraviado', (string)$conn->query("SELECT status FROM livros WHERE id=$livro6")->fetch_assoc()['status'] === 'extraviado');
+    checar('Concluir resgate com 1.001 caracteres rejeitado e o livro segue extraviado', (string)consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro6])->fetch_assoc()['status'] === 'extraviado');
     concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta', $usuarioId);
 }
 checar('Resgate concluído sem observação grava NULL', $obsDaUltima($livro6) === null);
 
-$comObs = (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id <> $livro6 AND observacao IS NOT NULL AND livro_id IN (" . implode(',', array_diff($livrosDeTeste, [$livro6])) . ")")->fetch_assoc()['c'];
+$outrosLivros = array_values(array_diff($livrosDeTeste, [$livro6]));
+$comObs = (int)consulta($conn, 'SELECT COUNT(*) c FROM movimentacoes WHERE livro_id <> ? AND observacao IS NOT NULL AND livro_id IN (' . marcadoresIn(count($outrosLivros)) . ')', str_repeat('i', 1 + max(count($outrosLivros), 1)), [$livro6, ...($outrosLivros ?: [0])])->fetch_assoc()['c'];
 checar('Os outros livros de teste (cenários anteriores) não ganharam observação', $comObs === 0);
 
 echo "\n=== (k) Excluir livro cadastrado por engano (Passo 20.10) ===\n";
-$contaLinhas = fn(string $tabela, int $livroId): int => (int)$conn->query("SELECT COUNT(*) c FROM $tabela WHERE livro_id=$livroId")->fetch_assoc()['c'];
+// Nome de tabela não pode ser parâmetro: lista fechada (qualquer outro nome lança erro).
+$contaLinhas = fn(string $tabela, int $livroId): int => (int)consulta($conn, match ($tabela) {
+    'movimentacoes' => 'SELECT COUNT(*) c FROM movimentacoes WHERE livro_id = ?',
+    'contribuicoes' => 'SELECT COUNT(*) c FROM contribuicoes WHERE livro_id = ?',
+    'resgates' => 'SELECT COUNT(*) c FROM resgates WHERE livro_id = ?',
+}, 'i', [$livroId])->fetch_assoc()['c'];
 $idPapelAutor = papelIdPorNome($conn, 'Autor');
 $pessoaK = criarPessoaTeste($conn, 'TESTE FLUXO - Pessoa K');
 $pessoasDeTeste[] = $pessoaK;
-$existeLivro = fn(int $livroId): bool => (int)$conn->query("SELECT COUNT(*) c FROM livros WHERE id=$livroId")->fetch_assoc()['c'] === 1;
+$existeLivro = fn(int $livroId): bool => (int)consulta($conn, "SELECT COUNT(*) c FROM livros WHERE id=?", 'i', [$livroId])->fetch_assoc()['c'] === 1;
 $tentarExcluir = function (int $livroId, ?string $justificativa = null) use ($conn, $usuarioId): ?string {
     try { excluirLivro($conn, $livroId, $usuarioId, $justificativa); return null; } catch (InvalidArgumentException $e) { return $e->getMessage(); }
 };
@@ -538,13 +559,13 @@ checar('regra: concluído não pode', str_contains((string)motivoBloqueioExclusa
 // Livro recém-cadastrado: some o livro, as contribuições e a movimentação inicial; a pessoa fica; o log registra
 $livroK1 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K1 (engano)', $mesaId, $usuarioId, [['pessoa_id' => $pessoaK, 'papel_id' => $idPapelAutor]]);
 $livrosDeTeste[] = $livroK1;
-$conn->query("UPDATE livros SET isbn='9788532530806' WHERE id=$livroK1");
+consulta($conn, "UPDATE livros SET isbn='9788532530806' WHERE id=?", 'i', [$livroK1]);
 checar('livro novo tem 1 movimentação, 1 vínculo e nenhum resgate', usoDoLivro($conn, $livroK1) === ['movs' => 1, 'resgates' => 0, 'contribuicoes' => 1]);
 $r = excluirLivro($conn, $livroK1, $usuarioId, null);
 checar('excluir livro recém-cadastrado: devolve código, título e nº de vínculos', $r['codigo'] === codigoLivro($livroK1) && $r['titulo'] === 'TESTE FLUXO - Livro K1 (engano)' && $r['contribuicoes'] === 1);
 checar('...o livro, as movimentações e as contribuições sumiram', !$existeLivro($livroK1) && $contaLinhas('movimentacoes', $livroK1) === 0 && $contaLinhas('contribuicoes', $livroK1) === 0);
-checar('...a pessoa vinculada continua cadastrada', (int)$conn->query("SELECT COUNT(*) c FROM pessoas WHERE id=$pessoaK")->fetch_assoc()['c'] === 1);
-$lg = $conn->query("SELECT usuario_id, entidade_tipo, entidade_id, valor_anterior, valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK1")->fetch_assoc();
+checar('...a pessoa vinculada continua cadastrada', (int)consulta($conn, "SELECT COUNT(*) c FROM pessoas WHERE id=?", 'i', [$pessoaK])->fetch_assoc()['c'] === 1);
+$lg = consulta($conn, "SELECT usuario_id, entidade_tipo, entidade_id, valor_anterior, valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=?", 'i', [$livroK1])->fetch_assoc();
 checar('...log com código, ISBN formatado e título; valor novo "Excluído"', $lg && (int)$lg['usuario_id'] === $usuarioId && $lg['entidade_tipo'] === 'livro'
     && $lg['valor_anterior'] === 'Livro ' . codigoLivro($livroK1) . ' · 978-85-325-3080-6 · TESTE FLUXO - Livro K1 (engano)' && $lg['valor_novo'] === 'Excluído', json_encode($lg));
 checar('excluir de novo o mesmo livro: "Livro não encontrado."', $tentarExcluir($livroK1) === 'Livro não encontrado.');
@@ -553,19 +574,19 @@ checar('excluir de novo o mesmo livro: "Livro não encontrado."', $tentarExcluir
 $livroK2 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K2', $mesaId, $usuarioId, []);
 $livrosDeTeste[] = $livroK2;
 excluirLivro($conn, $livroK2, $usuarioId, '  Cadastro duplicado  ');
-$lg = $conn->query("SELECT valor_anterior, valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK2")->fetch_assoc();
+$lg = consulta($conn, "SELECT valor_anterior, valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=?", 'i', [$livroK2])->fetch_assoc();
 checar('livro sem ISBN e com justificativa (sem espaços nas pontas)', !$existeLivro($livroK2) && str_contains($lg['valor_anterior'], '· sem ISBN ·') && $lg['valor_novo'] === 'Excluído. Justificativa: Cadastro duplicado', json_encode($lg));
 $livroK3 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K3', $mesaId, $usuarioId, []);
 $livrosDeTeste[] = $livroK3;
 checar('justificativa de 201 caracteres é recusada e nada é excluído', str_contains((string)$tentarExcluir($livroK3, str_repeat('é', 201)), '200') && $existeLivro($livroK3));
 excluirLivro($conn, $livroK3, $usuarioId, str_repeat('é', 200));
-$valorNovoK3 = $conn->query("SELECT valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK3")->fetch_assoc()['valor_novo'];
+$valorNovoK3 = consulta($conn, "SELECT valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=?", 'i', [$livroK3])->fetch_assoc()['valor_novo'];
 checar('justificativa de 200 caracteres cabe inteira no log', !$existeLivro($livroK3) && mb_strlen($valorNovoK3) === mb_strlen('Excluído. Justificativa: ') + 200 && !str_ends_with($valorNovoK3, '…'));
 $livroK3b = criarLivroTeste($conn, str_repeat('T', 255), $mesaId, $usuarioId, []);
 $livrosDeTeste[] = $livroK3b;
-$conn->query("UPDATE livros SET isbn='9788532530806' WHERE id=$livroK3b");
+consulta($conn, "UPDATE livros SET isbn='9788532530806' WHERE id=?", 'i', [$livroK3b]);
 excluirLivro($conn, $livroK3b, $usuarioId, null);
-$anteriorK3b = $conn->query("SELECT valor_anterior FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK3b")->fetch_assoc()['valor_anterior'];
+$anteriorK3b = consulta($conn, "SELECT valor_anterior FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=?", 'i', [$livroK3b])->fetch_assoc()['valor_anterior'];
 checar('título de 255 caracteres: o log corta só o título (código e ISBN ficam)', str_starts_with($anteriorK3b, 'Livro ' . codigoLivro($livroK3b) . ' · 978-85-325-3080-6 · TTT') && str_ends_with($anteriorK3b, '…') && mb_strlen($anteriorK3b) <= 241);
 
 // Livro que já andou: recusa com o motivo, sem apagar nada
@@ -592,9 +613,9 @@ cancelarLivro($conn, $livroK7, $usuarioId);
 checar('cancelado logo após o cadastro: ainda 1 movimentação (fechada)', usoDoLivro($conn, $livroK7)['movs'] === 1);
 checar('...sem justificativa é recusado ("Informe a justificativa da exclusão.") e nada é excluído', $tentarExcluir($livroK7) === 'Informe a justificativa da exclusão.' && $tentarExcluir($livroK7, '   ') === 'Informe a justificativa da exclusão.' && $existeLivro($livroK7));
 excluirLivro($conn, $livroK7, $usuarioId, 'Cadastrado e cancelado por engano');
-$lg = $conn->query("SELECT valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK7")->fetch_assoc();
+$lg = consulta($conn, "SELECT valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=?", 'i', [$livroK7])->fetch_assoc();
 checar('...com justificativa é excluído e o log diz que estava cancelado', !$existeLivro($livroK7) && $lg['valor_novo'] === 'Excluído (estava cancelado). Justificativa: Cadastrado e cancelado por engano', json_encode($lg));
-checar('...as linhas antigas do log desse livro (cadastro e cancelamento) continuam lá', (int)$conn->query("SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=$livroK7 AND acao IN ('livro.cancelar')")->fetch_assoc()['c'] === 1);
+checar('...as linhas antigas do log desse livro (cadastro e cancelamento) continuam lá', (int)consulta($conn, "SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=? AND acao IN ('livro.cancelar')", 'i', [$livroK7])->fetch_assoc()['c'] === 1);
 // Cancelado depois de andar: não pode
 $livroK8 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K8 (cancelado depois de andar)', $mesaId, $usuarioId, []);
 $livrosDeTeste[] = $livroK8;
@@ -614,7 +635,7 @@ checar('a conexão segue utilizável depois do rollback (nenhuma transação abe
 // Consistência: nada órfão e as views não mostram o que foi excluído
 checar('nenhuma movimentação/vínculo órfão de livro excluído', (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes m LEFT JOIN livros l ON l.id=m.livro_id WHERE l.id IS NULL")->fetch_assoc()['c'] === 0
     && (int)$conn->query("SELECT COUNT(*) c FROM contribuicoes c LEFT JOIN livros l ON l.id=c.livro_id WHERE l.id IS NULL")->fetch_assoc()['c'] === 0);
-checar('as views não listam o livro excluído', (int)$conn->query("SELECT COUNT(*) c FROM vw_livros_situacao_atual WHERE livro_id IN ($livroK1, $livroK2, $livroK7)")->fetch_assoc()['c'] === 0);
+checar('as views não listam o livro excluído', (int)consulta($conn, "SELECT COUNT(*) c FROM vw_livros_situacao_atual WHERE livro_id IN (?, ?, ?)", 'iii', [$livroK1, $livroK2, $livroK7])->fetch_assoc()['c'] === 0);
 
 echo "\n=== Validações negativas (regras que devem ser rejeitadas) ===\n";
 try {
@@ -635,19 +656,19 @@ try {
 
 echo "\n=== Limpeza ===\n";
 foreach ($livrosDeTeste as $lid) {
-    $conn->query("DELETE FROM resgates WHERE livro_id=$lid");
-    $conn->query("DELETE FROM movimentacoes WHERE livro_id=$lid");
-    $conn->query("DELETE FROM contribuicoes WHERE livro_id=$lid");
-    $conn->query("DELETE FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=$lid");
-    $conn->query("DELETE FROM livros WHERE id=$lid");
+    consulta($conn, "DELETE FROM resgates WHERE livro_id=?", 'i', [$lid]);
+    consulta($conn, "DELETE FROM movimentacoes WHERE livro_id=?", 'i', [$lid]);
+    consulta($conn, "DELETE FROM contribuicoes WHERE livro_id=?", 'i', [$lid]);
+    consulta($conn, "DELETE FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=?", 'i', [$lid]);
+    consulta($conn, "DELETE FROM livros WHERE id=?", 'i', [$lid]);
 }
 foreach ($pessoasDeTeste as $pid) {
-    $conn->query("DELETE FROM log_alteracoes WHERE entidade_tipo='pessoa' AND entidade_id=$pid");
-    $conn->query("DELETE FROM pessoas WHERE id=$pid");
+    consulta($conn, "DELETE FROM log_alteracoes WHERE entidade_tipo='pessoa' AND entidade_id=?", 'i', [$pid]);
+    consulta($conn, "DELETE FROM pessoas WHERE id=?", 'i', [$pid]);
 }
 if ($usuarioTesteCriadoId !== null) {
-    $conn->query("DELETE FROM log_alteracoes WHERE usuario_id=$usuarioTesteCriadoId");
-    $conn->query("DELETE FROM usuarios WHERE id=$usuarioTesteCriadoId");
+    consulta($conn, "DELETE FROM log_alteracoes WHERE usuario_id=?", 'i', [$usuarioTesteCriadoId]);
+    consulta($conn, "DELETE FROM usuarios WHERE id=?", 'i', [$usuarioTesteCriadoId]);
     echo "Usuário de teste removido: $usuarioTesteCriadoId\n";
 }
 echo "Livros de teste removidos: " . implode(', ', $livrosDeTeste) . "\n";

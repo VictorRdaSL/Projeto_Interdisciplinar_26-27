@@ -41,7 +41,7 @@ INSERT INTO configuracoes (chave, valor) VALUES
     ('dias_limite_livro_parado', '15');
 
 -- Administrador inicial.
--- SENHA PROVISÓRIA: SENHA_REMOVIDA (hash bcrypt gerado por password_hash do PHP).
--- Troque-a antes de publicar o sistema — ver README.txt.
+-- A senha é a combinada com o responsável pelo projeto (aqui só o hash bcrypt, gerado por password_hash do PHP).
+-- Para trocá-la, ver "Primeiro acesso" no README.md.
 INSERT INTO usuarios (nome, email, senha_hash, perfil, tema, criado_em) VALUES
     ('Administrador', 'admin@exemplo.com', 'HASH_REMOVIDO', 'admin', 'claro', NOW());

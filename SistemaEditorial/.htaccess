@@ -1,3 +1,11 @@
+# Cabeçalhos de segurança (só valem se o módulo mod_headers do Apache estiver ativo; sem ele este bloco é ignorado).
+# Não há Content-Security-Policy de propósito: as telas usam scripts e estilos em linha.
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
 # Documentação e anotações do desenvolvedor não são páginas do sistema: não servir pelo navegador.
 <FilesMatch "\.(md|sql|txt|log|bak)$">
     <IfModule mod_authz_core.c>

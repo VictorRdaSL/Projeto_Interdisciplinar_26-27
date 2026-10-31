@@ -1,10 +1,7 @@
 <?php
 // Teste de includes/isbn.php (CLI). Uso: php tests/isbn_teste.php
 // Rode de novo depois de atualizar includes/isbn_faixas.php.
-if (PHP_SAPI !== 'cli') {
-    http_response_code(403);
-    exit;
-}
+require_once __DIR__ . '/_guarda.php'; // só linha de comando e só em desenvolvimento
 require_once __DIR__ . '/../includes/isbn.php';
 
 $falhas = 0;

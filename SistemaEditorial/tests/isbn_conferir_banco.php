@@ -3,10 +3,7 @@
 //   php tests/isbn_conferir_banco.php            só relata (não altera nada)
 //   php tests/isbn_conferir_banco.php --aplicar  também grava só os 13 dígitos nos ISBNs válidos que ainda tenham
 //                                                traços/espaços. Nunca apaga livro nem mexe em ISBN inválido ou repetido.
-if (PHP_SAPI !== 'cli') {
-    http_response_code(403);
-    exit;
-}
+require_once __DIR__ . '/_guarda.php'; // só linha de comando e só em desenvolvimento
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/isbn.php';
 
