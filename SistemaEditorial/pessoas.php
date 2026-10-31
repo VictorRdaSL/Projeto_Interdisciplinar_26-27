@@ -40,12 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PESSOA, 'O nome')) {
             $errosPessoa['nome'] = $erroTam;
         }
-        if ($email !== '') {
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $errosPessoa['email'] = 'Informe um e-mail válido, ou deixe o campo vazio.';
-            } elseif ($erroTam = erroTamanho($email, LIMITE_EMAIL, 'O e-mail')) {
-                $errosPessoa['email'] = $erroTam;
-            }
+        // O e-mail da pessoa é só um contato informativo (texto livre, aceita "não tem"): só o tamanho é conferido.
+        if ($erroTam = erroTamanho($email, LIMITE_EMAIL, 'O e-mail')) {
+            $errosPessoa['email'] = $erroTam;
         }
         if ($erroTam = erroTamanho($telefone, LIMITE_TELEFONE, 'O telefone')) {
             $errosPessoa['telefone'] = $erroTam;
@@ -263,7 +260,7 @@ require __DIR__ . '/includes/cabecalho.php';
             </div>
             <div class="ws-campo<?= classeCampoErro($errosPessoa['email'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="pessoa_email">E-mail <span class="ws-campo__opcional">(opcional)</span></label>
-              <input class="ws-input" type="email" id="pessoa_email" name="email" value="<?= escaparHtml($formPessoa['email'] ?? '') ?>" maxlength="<?= LIMITE_EMAIL ?>"<?= atributosCampo('pessoa_email', $errosPessoa['email'] ?? null) ?>>
+              <input class="ws-input" type="text" id="pessoa_email" name="email" value="<?= escaparHtml($formPessoa['email'] ?? '') ?>" maxlength="<?= LIMITE_EMAIL ?>"<?= atributosCampo('pessoa_email', $errosPessoa['email'] ?? null) ?>>
               <?= htmlErroCampo('pessoa_email', $errosPessoa['email'] ?? null) ?>
             </div>
             <div class="ws-campo<?= classeCampoErro($errosPessoa['telefone'] ?? null) ?>">
