@@ -3,6 +3,7 @@ require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/relatorios.php';
 require_once __DIR__ . '/includes/mesa.php';
+require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/relatorios_layout.php';
 
 exigirPermissaoRelatorios();
@@ -56,7 +57,7 @@ foreach ($livros as $l) {
     $linhas[] = [
         'titulo' => $l['titulo'],
         'pessoas' => $l['pessoas_papeis'] ?? '',
-        'isbn' => $l['isbn'] ?? '',
+        'isbn' => formatarIsbn($l['isbn']),
         'copia' => (int)$l['tem_copia'] === 1 ? 'Sim' : 'Não',
         'etapa' => $l['etapa_nome'],
         'rodada' => $rodada,
