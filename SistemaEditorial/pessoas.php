@@ -6,12 +6,16 @@ require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/campos.php';
 
 function voltarPessoas(string $tipo, string $mensagem): never {
     $_SESSION['flash'] = ['type' => $tipo, 'message' => $mensagem];
     header('Location: pessoas.php');
     exit;
 }
+
+$errosPessoa = [];
+$formPessoa = null; // preenchido quando o envio volta com erro: o modal reabre com o que foi digitado
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!usuarioTemPermissao('pessoas.gerenciar')) {
@@ -29,17 +33,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = entradaTexto($_POST, 'email');
         $telefone = entradaTexto($_POST, 'telefone');
 
-        if ($nome === '') voltarPessoas('erro', 'Informe o nome da pessoa.');
-        if ($erroTam = erroTamanho($nome, LIMITE_NOME_PESSOA, 'O nome')) voltarPessoas('erro', $erroTam);
-        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            voltarPessoas('erro', 'Informe um e-mail válido, ou deixe o campo vazio.');
+        // Erros de campo: a página volta com o modal aberto e a mensagem junto do campo (nada é gravado).
+        $errosPessoa = [];
+        if ($nome === '') {
+            $errosPessoa['nome'] = 'Informe o nome da pessoa.';
+        } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PESSOA, 'O nome')) {
+            $errosPessoa['nome'] = $erroTam;
         }
-        if ($erroTam = erroTamanho($email, LIMITE_EMAIL, 'O e-mail')) voltarPessoas('erro', $erroTam);
-        if ($erroTam = erroTamanho($telefone, LIMITE_TELEFONE, 'O telefone')) voltarPessoas('erro', $erroTam);
+        if ($email !== '') {
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errosPessoa['email'] = 'Informe um e-mail válido, ou deixe o campo vazio.';
+            } elseif ($erroTam = erroTamanho($email, LIMITE_EMAIL, 'O e-mail')) {
+                $errosPessoa['email'] = $erroTam;
+            }
+        }
+        if ($erroTam = erroTamanho($telefone, LIMITE_TELEFONE, 'O telefone')) {
+            $errosPessoa['telefone'] = $erroTam;
+        }
+        if ($errosPessoa) {
+            $formPessoa = ['id' => $pessoaId, 'nome' => $nome, 'email' => $email, 'telefone' => $telefone];
+        }
         $emailParam = $email !== '' ? $email : null;
         $telefoneParam = $telefone !== '' ? $telefone : null;
 
-        if ($pessoaId > 0) {
+        if (!$errosPessoa && $pessoaId > 0) {
             $stmtAntes = $conn->prepare('SELECT nome FROM pessoas WHERE id = ?');
             $stmtAntes->bind_param('i', $pessoaId);
             $stmtAntes->execute();
@@ -61,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 voltarPessoas('erro', mensagemErroSegura($e, 'atualizar a pessoa'));
             }
             voltarPessoas('sucesso', 'Pessoa atualizada com sucesso.');
-        } else {
+        } elseif (!$errosPessoa) {
             // Cadastro novo só passa uma vez por exibição do formulário (duplo clique / reenvio).
             if (!envio_unico_consumir($_POST['envio_id'] ?? null)) {
                 if (empty($_SESSION['flash'])) voltarPessoas('erro', MSG_ENVIO_DUPLICADO);
@@ -228,28 +245,31 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($podeGerenciar): ?>
       <!-- Modal: nova pessoa / editar pessoa (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-pessoa" aria-labelledby="modal-pessoa-titulo">
-        <form class="ws-modal__caixa" method="post">
+        <form class="ws-modal__caixa" method="post" novalidate>
           <?= csrf_field() ?>
           <?= envio_unico_field() ?>
           <input type="hidden" name="acao" value="salvar_pessoa">
-          <input type="hidden" name="pessoa_id" id="pessoa_id" value="0">
+          <input type="hidden" name="pessoa_id" id="pessoa_id" value="<?= $formPessoa ? (int)$formPessoa['id'] : 0 ?>">
           <header class="ws-modal__cabecalho">
-            <h2 id="modal-pessoa-titulo">Nova pessoa</h2>
+            <h2 id="modal-pessoa-titulo"><?= $formPessoa && (int)$formPessoa['id'] > 0 ? 'Editar pessoa' : 'Nova pessoa' ?></h2>
             <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
           </header>
           <div class="ws-modal__corpo ws-pilha">
             <p class="ws-texto-suave">Autor, organizador ou ilustrador. Não é usuário do sistema.</p>
-            <div class="ws-campo">
+            <div class="ws-campo<?= classeCampoErro($errosPessoa['nome'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="pessoa_nome">Nome</label>
-              <input class="ws-input" type="text" id="pessoa_nome" name="nome" maxlength="<?= LIMITE_NOME_PESSOA ?>" required autofocus>
+              <input class="ws-input" type="text" id="pessoa_nome" name="nome" value="<?= escaparHtml($formPessoa['nome'] ?? '') ?>" maxlength="<?= LIMITE_NOME_PESSOA ?>" required autofocus<?= atributosCampo('pessoa_nome', $errosPessoa['nome'] ?? null) ?>>
+              <?= htmlErroCampo('pessoa_nome', $errosPessoa['nome'] ?? null) ?>
             </div>
-            <div class="ws-campo">
+            <div class="ws-campo<?= classeCampoErro($errosPessoa['email'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="pessoa_email">E-mail <span class="ws-campo__opcional">(opcional)</span></label>
-              <input class="ws-input" type="email" id="pessoa_email" name="email" maxlength="<?= LIMITE_EMAIL ?>">
+              <input class="ws-input" type="email" id="pessoa_email" name="email" value="<?= escaparHtml($formPessoa['email'] ?? '') ?>" maxlength="<?= LIMITE_EMAIL ?>"<?= atributosCampo('pessoa_email', $errosPessoa['email'] ?? null) ?>>
+              <?= htmlErroCampo('pessoa_email', $errosPessoa['email'] ?? null) ?>
             </div>
-            <div class="ws-campo">
+            <div class="ws-campo<?= classeCampoErro($errosPessoa['telefone'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="pessoa_telefone">Telefone <span class="ws-campo__opcional">(opcional)</span></label>
-              <input class="ws-input" type="text" id="pessoa_telefone" name="telefone" maxlength="<?= LIMITE_TELEFONE ?>">
+              <input class="ws-input" type="text" id="pessoa_telefone" name="telefone" value="<?= escaparHtml($formPessoa['telefone'] ?? '') ?>" maxlength="<?= LIMITE_TELEFONE ?>"<?= atributosCampo('pessoa_telefone', $errosPessoa['telefone'] ?? null) ?>>
+              <?= htmlErroCampo('pessoa_telefone', $errosPessoa['telefone'] ?? null) ?>
             </div>
           </div>
           <footer class="ws-modal__rodape">
@@ -287,6 +307,7 @@ require __DIR__ . '/includes/cabecalho.php';
       document.querySelectorAll('[data-ws-modal-abrir="modal-pessoa"]').forEach(function (botao) {
         botao.addEventListener('click', function () {
           const nova = botao.hasAttribute('data-pessoa-nova');
+          if (window.WareSys) window.WareSys.limparErros('modal-pessoa');
           document.getElementById('modal-pessoa-titulo').textContent = nova ? 'Nova pessoa' : 'Editar pessoa';
           document.getElementById('pessoa_id').value = nova ? '0' : botao.dataset.id;
           document.getElementById('pessoa_nome').value = nova ? '' : botao.dataset.nome;
@@ -294,6 +315,10 @@ require __DIR__ . '/includes/cabecalho.php';
           document.getElementById('pessoa_telefone').value = nova ? '' : botao.dataset.telefone;
         });
       });
+<?php if ($formPessoa): ?>
+      // O envio voltou com erro: reabre o modal, com o que foi digitado e a mensagem junto do campo.
+      document.addEventListener('DOMContentLoaded', function () { window.WareSys.abrirModal('modal-pessoa'); });
+<?php endif; ?>
       document.querySelectorAll('[data-ws-modal-abrir="modal-excluir"]').forEach(function (botao) {
         botao.addEventListener('click', function () {
           document.getElementById('excluir_pessoa_id').value = botao.dataset.id;

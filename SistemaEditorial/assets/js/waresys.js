@@ -116,7 +116,8 @@
     }
 
     // Foco no primeiro campo; se não houver, no botão de confirmar; se não, no 1º focável
-    var alvo = modal.querySelector('[autofocus]') ||
+    var alvo = modal.querySelector('[aria-invalid="true"]') ||
+               modal.querySelector('[autofocus]') ||
                modal.querySelector('input, select, textarea') ||
                modal.querySelector('[data-ws-confirmar-ok]') ||
                focaveis(modal)[0];
@@ -356,9 +357,34 @@
   }
 
   /* ------------------------------------------------------------------------
+     Erros de campo
+     O servidor desenha o erro junto do campo (.ws-campo--erro, aria-invalid e <p class="ws-campo__erro">).
+     Quando um modal é reaberto para outro registro, limparErros() tira esses restos antes de preencher de novo.
+     ------------------------------------------------------------------------ */
+  function limparErros(raiz) {
+    if (typeof raiz === 'string') raiz = document.getElementById(raiz);
+    if (!raiz) return;
+    cada('.ws-campo--erro', function (c) { c.classList.remove('ws-campo--erro'); }, raiz);
+    cada('[aria-invalid]', function (c) { c.removeAttribute('aria-invalid'); }, raiz);
+    cada('.ws-campo__erro', function (p) { p.remove(); }, raiz);
+    // aria-describedby que apontava para o erro removido (ou para qualquer id que já não exista) é refeito.
+    cada('[aria-describedby]', function (c) {
+      var vivos = c.getAttribute('aria-describedby').split(/\s+/).filter(function (id) { return id && document.getElementById(id); });
+      if (vivos.length) c.setAttribute('aria-describedby', vivos.join(' ')); else c.removeAttribute('aria-describedby');
+    }, raiz);
+  }
+
+  /* ------------------------------------------------------------------------
      Início
      ------------------------------------------------------------------------ */
+  // Página que volta com erro de campo: o foco vai para o primeiro campo marcado (os modais fazem o mesmo ao abrir).
+  function focarPrimeiroErro() {
+    var campo = document.querySelector('[aria-invalid="true"]');
+    if (campo && !campo.closest('dialog') && typeof campo.focus === 'function') campo.focus();
+  }
+
   function iniciar() {
+    focarPrimeiroErro();
     iniciarRodadas();
     iniciarMenu();
     iniciarModais();
@@ -378,6 +404,7 @@
     toast: toast,
     abrirModal: abrirModal,
     fecharModal: fecharModal,
-    iniciarIcones: iniciarIcones
+    iniciarIcones: iniciarIcones,
+    limparErros: limparErros
   };
 })();

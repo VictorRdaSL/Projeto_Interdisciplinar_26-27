@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/log.php';
 require_once __DIR__ . '/includes/alertas.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/campos.php';
 require_once __DIR__ . '/includes/mesa.php';
 
 // Formulários de cadastro novo só valem uma vez por exibição (duplo clique / reenvio / "voltar").
@@ -26,7 +27,29 @@ function exigirEnvioUnico(): void
 $podeGerenciarUsuarios = usuarioTemPermissao('config.usuarios');
 $podeConfigurarDiasLimite = usuarioTemPermissao('config.dias_limite');
 $podeGerenciarEtapasPapeis = usuarioTemPermissao('config.etapas_papeis');
+$podeVerLog = usuarioTemPermissao('log.ver');
+
+// Log de alterações só para quem tem log.ver (Gerente e Admin). Quem não tem e chega com filtros do log na URL é recusado
+// aqui, antes de qualquer consulta: a página volta sem filtros e com o aviso de permissão.
+if (!$podeVerLog && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    foreach (['filtro_usuario', 'filtro_acao', 'filtro_de', 'filtro_ate'] as $chaveFiltroLog) {
+        if (array_key_exists($chaveFiltroLog, $_GET)) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Você não tem permissão para realizar esta ação.'];
+            header('Location: configuracoes.php');
+            exit;
+        }
+    }
+}
 $agindoComoAdmin = papelAtual() === 'admin';
+
+// Erros de campo (Passo 20.6): em vez de redirecionar com um aviso no topo, a página volta com a mensagem junto do campo.
+// Cada formulário tem o seu par erros/valores; os dois modais (editar etapa e editar papel) reabrem sozinhos.
+$errosDias = []; $valorDiasPost = null;
+$errosUsuario = []; $valoresUsuario = null;
+$errosEtapaNova = []; $valoresEtapaNova = null;
+$errosEtapaEd = []; $formEtapaEd = null;
+$errosPapelNovo = []; $valoresPapelNovo = null;
+$errosPapelEd = []; $formPapelEd = null;
 
 // Nome exato semeado em database/seed.sql — mesmo identificado usado em
 // includes/movimentacoes.php (NOME_ETAPA_CATALOGACAO) pro aviso de ISBN
@@ -53,25 +76,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($permissaoPorAcao[$acaoRecebi
     exit;
 }
 
+/** Erros de campo do formulário de etapa (criar: $ignorarId = 0). Vazio = tudo certo. Chaves: nome, rodadas, dias. */
+function errosCamposEtapa(mysqli $conn, string $nome, string $rodadasStr, string $diasStr, int $ignorarId): array
+{
+    $erros = [];
+    if ($nome === '') {
+        $erros['nome'] = 'Informe o nome da etapa.';
+    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_ETAPA, 'O nome da etapa')) {
+        $erros['nome'] = $erroTam;
+    } elseif (nomeEtapaJaExiste($conn, $nome, $ignorarId)) {
+        $erros['nome'] = $ignorarId > 0
+            ? 'Já existe outra etapa com esse nome (mesmo desativada). Escolha outro nome.'
+            : 'Já existe uma etapa com esse nome (mesmo desativada). Escolha outro nome.';
+    }
+    if ($rodadasStr !== '' && inteiroPositivo($rodadasStr, LIMITE_RODADAS_MAX) === null) {
+        $erros['rodadas'] = 'Rodadas incluídas deve ser um número inteiro entre 1 e ' . LIMITE_RODADAS_MAX . ', ou vazio para sem limite.';
+    }
+    if ($diasStr !== '' && inteiroPositivo($diasStr, LIMITE_DIAS_MAX) === null) {
+        $erros['dias'] = 'Dias limite deve ser um número inteiro entre 1 e ' . LIMITE_DIAS_MAX . ', ou vazio para usar o padrão global.';
+    }
+    return $erros;
+}
+
+/** Erro do nome do papel de autoria (criar: $ignorarId = 0), ou null. */
+function erroNomePapel(mysqli $conn, string $nome, int $ignorarId): ?string
+{
+    if ($nome === '') return 'Informe o nome do papel.';
+    if ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) return $erroTam;
+    if (nomePapelJaExiste($conn, $nome, $ignorarId)) {
+        return $ignorarId > 0
+            ? 'Já existe outro papel com esse nome (mesmo desativado). Escolha outro nome.'
+            : 'Já existe um papel com esse nome (mesmo desativado). Escolha outro nome.';
+    }
+    return null;
+}
 /**
  * Campos do formulário de etapa, em blocos (Identificação, Regras, Limites, Situação). Só apresentação: os
  * `name` dos campos que são enviados (nome, opcional, repetivel, rodadas_incluidas, dias_limite, ativa) são os mesmos
  * de sempre e a validação continua nos handlers acima. Ordem e "Finaliza o livro" são só informativos (sem `name`,
  * não são enviados): a ordem muda pelas setas da lista e "finaliza_livro" não é editável por esta tela.
  */
-function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0): void
+function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0, array $v = [], array $erros = []): void
 {
+    $eNome = $erros['nome'] ?? null; $eRod = $erros['rodadas'] ?? null; $eDias = $erros['dias'] ?? null;
     ?>
               <fieldset class="ws-grupo-campos">
                 <legend><h3 class="ws-h2">Identificação</h3></legend>
                 <div class="ws-form__grade">
-                  <div class="ws-campo ws-campo--inteiro">
+                  <div class="ws-campo ws-campo--inteiro<?= classeCampoErro($eNome) ?>">
                     <label class="ws-campo__rotulo" for="<?= $p ?>_nome">Nome da etapa</label>
-                    <input class="ws-input" type="text" id="<?= $p ?>_nome" name="nome" maxlength="<?= LIMITE_NOME_ETAPA ?>" required>
+                    <input class="ws-input" type="text" id="<?= $p ?>_nome" name="nome" value="<?= escaparHtml($v['nome'] ?? '') ?>" maxlength="<?= LIMITE_NOME_ETAPA ?>" required<?= atributosCampo($p . '_nome', $eNome) ?>>
+                    <?= htmlErroCampo($p . '_nome', $eNome) ?>
                   </div>
                   <div class="ws-campo">
                     <label class="ws-campo__rotulo" for="<?= $p ?>_ordem">Ordem</label>
-                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_ordem" value="<?= $edicao ? '' : $ordemNova ?>" readonly tabindex="-1" aria-describedby="<?= $p ?>_ordem_ajuda" style="max-width:120px">
+                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_ordem" value="<?= $edicao ? ($v['ordem'] ?? '') : $ordemNova ?>" readonly tabindex="-1" aria-describedby="<?= $p ?>_ordem_ajuda" style="max-width:120px">
                     <p class="ws-campo__ajuda" id="<?= $p ?>_ordem_ajuda"><?= $edicao ? 'Para mudar a ordem, use as setas da lista.' : 'A etapa nova entra no final do fluxo; depois use as setas da lista.' ?></p>
                   </div>
                 </div>
@@ -79,10 +138,10 @@ function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0): void
               <fieldset class="ws-grupo-campos">
                 <legend><h3 class="ws-h2">Regras</h3></legend>
                 <div class="ws-pilha ws-pilha--peq">
-                  <label class="ws-opcao" for="<?= $p ?>_opcional"><input type="checkbox" id="<?= $p ?>_opcional" name="opcional">Etapa opcional</label>
-                  <label class="ws-opcao" for="<?= $p ?>_repetivel"><input type="checkbox" id="<?= $p ?>_repetivel" name="repetivel">Pode ser repetida</label>
+                  <label class="ws-opcao" for="<?= $p ?>_opcional"><input type="checkbox" id="<?= $p ?>_opcional" name="opcional"<?= !empty($v['opcional']) ? ' checked' : '' ?>>Etapa opcional</label>
+                  <label class="ws-opcao" for="<?= $p ?>_repetivel"><input type="checkbox" id="<?= $p ?>_repetivel" name="repetivel"<?= !empty($v['repetivel']) ? ' checked' : '' ?>>Pode ser repetida</label>
                   <div>
-                    <label class="ws-opcao" for="<?= $p ?>_finaliza"><input type="checkbox" id="<?= $p ?>_finaliza" disabled aria-describedby="<?= $p ?>_finaliza_ajuda">Finaliza o livro</label>
+                    <label class="ws-opcao" for="<?= $p ?>_finaliza"><input type="checkbox" id="<?= $p ?>_finaliza"<?= !empty($v['finaliza']) ? ' checked' : '' ?> disabled aria-describedby="<?= $p ?>_finaliza_ajuda">Finaliza o livro</label>
                     <p class="ws-campo__ajuda" id="<?= $p ?>_finaliza_ajuda">Não é editável nesta tela.</p>
                   </div>
                 </div>
@@ -90,14 +149,16 @@ function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0): void
               <fieldset class="ws-grupo-campos">
                 <legend><h3 class="ws-h2">Limites</h3></legend>
                 <div class="ws-form__grade">
-                  <div class="ws-campo">
+                  <div class="ws-campo<?= classeCampoErro($eRod) ?>">
                     <label class="ws-campo__rotulo" for="<?= $p ?>_rodadas">Rodadas incluídas <span class="ws-campo__opcional">(opcional)</span></label>
-                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_rodadas" name="rodadas_incluidas" min="1" max="<?= LIMITE_RODADAS_MAX ?>" aria-describedby="<?= $p ?>_rodadas_ajuda">
+                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_rodadas" name="rodadas_incluidas" value="<?= escaparHtml((string)($v['rodadas'] ?? '')) ?>" min="1" max="<?= LIMITE_RODADAS_MAX ?>"<?= atributosCampo($p . '_rodadas', $eRod, $p . '_rodadas_ajuda') ?>>
+                    <?= htmlErroCampo($p . '_rodadas', $eRod) ?>
                     <p class="ws-campo__ajuda" id="<?= $p ?>_rodadas_ajuda">Vazio = sem limite de rodadas</p>
                   </div>
-                  <div class="ws-campo">
+                  <div class="ws-campo<?= classeCampoErro($eDias) ?>">
                     <label class="ws-campo__rotulo" for="<?= $p ?>_dias">Dias limite <span class="ws-campo__opcional">(opcional)</span></label>
-                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_dias" name="dias_limite" min="1" max="<?= LIMITE_DIAS_MAX ?>" aria-describedby="<?= $p ?>_dias_ajuda">
+                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_dias" name="dias_limite" value="<?= escaparHtml((string)($v['dias'] ?? '')) ?>" min="1" max="<?= LIMITE_DIAS_MAX ?>"<?= atributosCampo($p . '_dias', $eDias, $p . '_dias_ajuda') ?>>
+                    <?= htmlErroCampo($p . '_dias', $eDias) ?>
                     <p class="ws-campo__ajuda" id="<?= $p ?>_dias_ajuda">Vazio = usa o padrão global</p>
                   </div>
                 </div>
@@ -105,7 +166,7 @@ function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0): void
               <fieldset class="ws-grupo-campos">
                 <legend><h3 class="ws-h2">Situação</h3></legend>
 <?php if ($edicao): ?>
-                <label class="ws-opcao" for="<?= $p ?>_ativa"><input type="checkbox" id="<?= $p ?>_ativa" name="ativa">Etapa ativa</label>
+                <label class="ws-opcao" for="<?= $p ?>_ativa"><input type="checkbox" id="<?= $p ?>_ativa" name="ativa"<?= !empty($v['ativa']) ? ' checked' : '' ?>>Etapa ativa</label>
 <?php else: ?>
                 <div>
                   <label class="ws-opcao" for="<?= $p ?>_ativa"><input type="checkbox" id="<?= $p ?>_ativa" checked disabled aria-describedby="<?= $p ?>_ativa_ajuda">Etapa ativa</label>
@@ -169,9 +230,11 @@ if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POS
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
-        $novoDiasLimite = inteiroPositivo(entradaTexto($_POST, 'dias_limite_livro_parado'), LIMITE_DIAS_MAX);
+        $diasPostStr = entradaTexto($_POST, 'dias_limite_livro_parado');
+        $novoDiasLimite = inteiroPositivo($diasPostStr, LIMITE_DIAS_MAX);
         if ($novoDiasLimite === null) {
-            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe um número inteiro de dias entre 1 e ' . LIMITE_DIAS_MAX . '.'];
+            $errosDias['dias_limite_livro_parado'] = $diasPostStr === '' ? 'Informe os dias-limite padrão.' : 'Informe um número inteiro de dias entre 1 e ' . LIMITE_DIAS_MAX . '.';
+            $valorDiasPost = $diasPostStr;
         } else {
             $diasLimiteAntigo = (string)buscarDiasLimiteGlobal($conn);
             $stmt = $conn->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'dias_limite_livro_parado'");
@@ -184,8 +247,10 @@ if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POS
             $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Limite padrão de dias atualizado com sucesso.'];
         }
     }
-    header('Location: configuracoes.php');
-    exit;
+    if (!$errosDias) {
+        header('Location: configuracoes.php');
+        exit;
+    }
 }
 
 if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_papel') {
@@ -255,43 +320,60 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
     $novaConfirmarSenha = entradaBruta($_POST, 'nova_confirmar_senha');
     $novoPapelCriado = $_POST['novo_papel'] ?? 'usuario';
 
-    if ($novoNome === '' || $novoEmail === '' || $novaSenha === '' || $novaConfirmarSenha === '') {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Preencha todos os campos do novo usuário.'];
+    $errosUsuario = [];
+    if ($novoNome === '') {
+        $errosUsuario['nome'] = 'Informe o nome do usuário.';
     } elseif ($erroTam = erroTamanho($novoNome, LIMITE_NOME_USUARIO, 'O nome')) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
+        $errosUsuario['nome'] = $erroTam;
+    }
+    if ($novoEmail === '') {
+        $errosUsuario['email'] = 'Informe o e-mail do usuário.';
     } elseif (!filter_var($novoEmail, FILTER_VALIDATE_EMAIL)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe um e-mail válido para o novo usuário.'];
+        $errosUsuario['email'] = 'Informe um e-mail válido para o usuário.';
     } elseif ($erroTam = erroTamanho($novoEmail, LIMITE_EMAIL, 'O e-mail')) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
-    } elseif (strlen($novaSenha) < 6) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'A senha deve ter pelo menos 6 caracteres.'];
-    } elseif ($novaSenha !== $novaConfirmarSenha) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'As senhas não coincidem.'];
-    } elseif (!in_array($novoPapelCriado, PAPEIS_VALIDOS, true)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Papel inválido.'];
-    } elseif (!$agindoComoAdmin && $novoPapelCriado === 'admin') {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Somente administradores podem criar um usuário com o papel de Administrador.'];
+        $errosUsuario['email'] = $erroTam;
     } else {
         $stmtExiste = $conn->prepare('SELECT id FROM vw_usuarios_publico WHERE email = ?');
         $stmtExiste->bind_param('s', $novoEmail);
         $stmtExiste->execute();
         if ($stmtExiste->get_result()->fetch_assoc()) {
-            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe um usuário com esse e-mail.'];
-        } else {
-            $novaSenhaHash = password_hash($novaSenha, PASSWORD_DEFAULT);
-            $criadoEm = date('Y-m-d H:i:s');
-            $stmtInsert = $conn->prepare('INSERT INTO usuarios (nome, email, senha_hash, perfil, criado_em) VALUES (?, ?, ?, ?, ?)');
-            $stmtInsert->bind_param('sssss', $novoNome, $novoEmail, $novaSenhaHash, $novoPapelCriado, $criadoEm);
-            $stmtInsert->execute();
-            $novoUsuarioId = $conn->insert_id;
-            registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.criar', 'usuario', $novoUsuarioId, null, $novoPapelCriado);
-            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Usuário cadastrado com sucesso.'];
+            $errosUsuario['email'] = 'Já existe um usuário com esse e-mail.';
         }
     }
-    header('Location: configuracoes.php');
-    exit;
-}
+    if ($novaSenha === '') {
+        $errosUsuario['senha'] = 'Informe a senha.';
+    } elseif (strlen($novaSenha) < 6) {
+        $errosUsuario['senha'] = 'A senha deve ter pelo menos 6 caracteres.';
+    }
+    if ($novaConfirmarSenha === '') {
+        $errosUsuario['confirmar'] = 'Confirme a senha.';
+    } elseif ($novaSenha !== '' && $novaSenha !== $novaConfirmarSenha) {
+        $errosUsuario['confirmar'] = 'As senhas não coincidem.';
+    }
+    if (!is_string($novoPapelCriado) || !in_array($novoPapelCriado, PAPEIS_VALIDOS, true)) {
+        $errosUsuario['papel'] = 'Escolha um papel válido.';
+    } elseif (!$agindoComoAdmin && $novoPapelCriado === 'admin') {
+        $errosUsuario['papel'] = 'Somente administradores podem criar um usuário com o papel de Administrador.';
+    }
 
+    if ($errosUsuario) {
+        // As senhas nunca voltam para a tela; nome, e-mail e papel sim.
+        $valoresUsuario = ['nome' => $novoNome, 'email' => $novoEmail, 'papel' => is_string($novoPapelCriado) ? $novoPapelCriado : 'usuario'];
+    } else {
+        $novaSenhaHash = password_hash($novaSenha, PASSWORD_DEFAULT);
+        $criadoEm = date('Y-m-d H:i:s');
+        $stmtInsert = $conn->prepare('INSERT INTO usuarios (nome, email, senha_hash, perfil, criado_em) VALUES (?, ?, ?, ?, ?)');
+        $stmtInsert->bind_param('sssss', $novoNome, $novoEmail, $novaSenhaHash, $novoPapelCriado, $criadoEm);
+        $stmtInsert->execute();
+        $novoUsuarioId = $conn->insert_id;
+        registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.criar', 'usuario', $novoUsuarioId, null, $novoPapelCriado);
+        $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Usuário cadastrado com sucesso.'];
+    }
+    if (!$errosUsuario) {
+        header('Location: configuracoes.php');
+        exit;
+    }
+}
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'criar_etapa') {
     if (!csrf_validar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
@@ -304,16 +386,9 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
     $rodadasStr = entradaTexto($_POST, 'rodadas_incluidas');
     $diasStr = entradaTexto($_POST, 'dias_limite');
 
-    if ($nome === '') {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
-    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_ETAPA, 'O nome da etapa')) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
-    } elseif (nomeEtapaJaExiste($conn, $nome, 0)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe uma etapa com esse nome (mesmo desativada). Escolha outro nome.'];
-    } elseif ($rodadasStr !== '' && inteiroPositivo($rodadasStr, LIMITE_RODADAS_MAX) === null) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro entre 1 e ' . LIMITE_RODADAS_MAX . ', ou vazio para sem limite.'];
-    } elseif ($diasStr !== '' && inteiroPositivo($diasStr, LIMITE_DIAS_MAX) === null) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro entre 1 e ' . LIMITE_DIAS_MAX . ', ou vazio para usar o padrão global.'];
+    $errosEtapaNova = errosCamposEtapa($conn, $nome, $rodadasStr, $diasStr, 0);
+    if ($errosEtapaNova) {
+        $valoresEtapaNova = ['nome' => $nome, 'opcional' => $opcional, 'repetivel' => $repetivel, 'rodadas' => $rodadasStr, 'dias' => $diasStr];
     } else {
         $rodadas = $rodadasStr === '' ? null : (int)$rodadasStr;
         $dias = $diasStr === '' ? null : (int)$diasStr;
@@ -327,8 +402,10 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         registrarLog($conn, (int)$_SESSION['usuario_id'], 'etapa.criar', 'etapa', $novaEtapaId, null, $nome);
         $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Etapa cadastrada com sucesso.'];
     }
-    header('Location: configuracoes.php');
-    exit;
+    if (!$errosEtapaNova) {
+        header('Location: configuracoes.php');
+        exit;
+    }
 }
 
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_etapa') {
@@ -351,16 +428,12 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 
     if (!$etapaAtualRow) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Etapa não encontrada.'];
-    } elseif ($nome === '') {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome da etapa.'];
-    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_ETAPA, 'O nome da etapa')) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
-    } elseif (nomeEtapaJaExiste($conn, $nome, $etapaId)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe outra etapa com esse nome (mesmo desativada). Escolha outro nome.'];
-    } elseif ($rodadasStr !== '' && inteiroPositivo($rodadasStr, LIMITE_RODADAS_MAX) === null) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Rodadas incluídas deve ser um número inteiro entre 1 e ' . LIMITE_RODADAS_MAX . ', ou vazio para sem limite.'];
-    } elseif ($diasStr !== '' && inteiroPositivo($diasStr, LIMITE_DIAS_MAX) === null) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Dias limite deve ser um número inteiro entre 1 e ' . LIMITE_DIAS_MAX . ', ou vazio para usar o padrão global.'];
+    } elseif (($errosEtapaEd = errosCamposEtapa($conn, $nome, $rodadasStr, $diasStr, $etapaId)) !== []) {
+        $formEtapaEd = [
+            'id' => $etapaId, 'nomeOriginal' => $etapaAtualRow['nome'], 'ordem' => (int)$etapaAtualRow['ordem'], 'finaliza' => (int)$etapaAtualRow['finaliza_livro'],
+            'ativaOriginal' => (int)$etapaAtualRow['ativa'], 'qtdLivros' => livrosNaEtapa($conn, $etapaId),
+            'valores' => ['nome' => $nome, 'opcional' => $opcional, 'repetivel' => $repetivel, 'rodadas' => $rodadasStr, 'dias' => $diasStr, 'ativa' => $ativa],
+        ];
     } else {
         $rodadas = $rodadasStr === '' ? null : (int)$rodadasStr;
         $dias = $diasStr === '' ? null : (int)$diasStr;
@@ -407,8 +480,10 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 
         $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Etapa atualizada com sucesso.'];
     }
-    header('Location: configuracoes.php');
-    exit;
+    if (!$errosEtapaEd) {
+        header('Location: configuracoes.php');
+        exit;
+    }
 }
 
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'mover_etapa') {
@@ -476,12 +551,10 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
     }
     exigirEnvioUnico();
     $nome = entradaTexto($_POST, 'nome');
-    if ($nome === '') {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
-    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
-    } elseif (nomePapelJaExiste($conn, $nome, 0)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe um papel com esse nome (mesmo desativado). Escolha outro nome.'];
+    $erroPapelNovo = erroNomePapel($conn, $nome, 0);
+    if ($erroPapelNovo !== null) {
+        $errosPapelNovo['nome'] = $erroPapelNovo;
+        $valoresPapelNovo = ['nome' => $nome];
     } else {
         $stmt = $conn->prepare('INSERT INTO papeis (nome, ativo) VALUES (?, 1)');
         $stmt->bind_param('s', $nome);
@@ -490,8 +563,10 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         registrarLog($conn, (int)$_SESSION['usuario_id'], 'papel.criar', 'papel', $novoPapelId, null, $nome);
         $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Papel cadastrado com sucesso.'];
     }
-    header('Location: configuracoes.php');
-    exit;
+    if (!$errosPapelNovo) {
+        header('Location: configuracoes.php');
+        exit;
+    }
 }
 
 if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'editar_papel') {
@@ -510,12 +585,9 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
 
     if (!$papelAtualRow) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Papel não encontrado.'];
-    } elseif ($nome === '') {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Informe o nome do papel.'];
-    } elseif ($erroTam = erroTamanho($nome, LIMITE_NOME_PAPEL, 'O nome do papel')) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => $erroTam];
-    } elseif (nomePapelJaExiste($conn, $nome, $papelId)) {
-        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Já existe outro papel com esse nome (mesmo desativado). Escolha outro nome.'];
+    } elseif (($erroPapelEd = erroNomePapel($conn, $nome, $papelId)) !== null) {
+        $errosPapelEd['nome'] = $erroPapelEd;
+        $formPapelEd = ['id' => $papelId, 'nome' => $nome, 'ativo' => $ativo];
     } else {
         $stmt = $conn->prepare('UPDATE papeis SET nome = ?, ativo = ? WHERE id = ?');
         $stmt->bind_param('sii', $nome, $ativo, $papelId);
@@ -534,8 +606,10 @@ if ($podeGerenciarEtapasPapeis && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_PO
         }
         $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Papel atualizado com sucesso.'];
     }
-    header('Location: configuracoes.php');
-    exit;
+    if (!$errosPapelEd) {
+        header('Location: configuracoes.php');
+        exit;
+    }
 }
 
 $usuarios = [];
@@ -560,7 +634,7 @@ if ($podeGerenciarEtapasPapeis) {
     while ($row = $rp->fetch_assoc()) $papeis[] = $row;
 }
 
-// Log de auditoria: aberto a qualquer usuário logado (decisão confirmada no Passo 9).
+// Log de auditoria: só Gerente e Admin (log.ver, Passo 20.5; antes era aberto a todos, decisão do Passo 9). A consulta nem roda sem a permissão.
 $logs = [];
 $filtroUsuario = (int)($_GET['filtro_usuario'] ?? 0);
 $filtroAcao = entradaTexto($_GET, 'filtro_acao');
@@ -598,11 +672,13 @@ $sqlLog = "
     ORDER BY l.criado_em DESC
     LIMIT 100
 ";
-$stmtLog = $conn->prepare($sqlLog);
-if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
-$stmtLog->execute();
-$rl = $stmtLog->get_result();
-while ($row = $rl->fetch_assoc()) $logs[] = $row;
+if ($podeVerLog) {
+    $stmtLog = $conn->prepare($sqlLog);
+    if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
+    $stmtLog->execute();
+    $rl = $stmtLog->get_result();
+    while ($row = $rl->fetch_assoc()) $logs[] = $row;
+}
 
 // O flash da sessão é lido, exibido e apagado pelo includes/rodape.php (toast).
 $temaAtual = ($_SESSION['usuario_tema'] ?? 'claro') === 'escuro' ? 'escuro' : 'claro';
@@ -646,12 +722,13 @@ require __DIR__ . '/includes/cabecalho.php';
               <p>Quantos dias um livro pode ficar na mesma etapa antes de entrar no alerta do Painel. Vale para as etapas que não têm limite próprio, definido em Etapas do fluxo.</p>
             </div>
           </div>
-          <form method="post" class="ws-form ws-card ws-card--superficie">
+          <form method="post" class="ws-form ws-card ws-card--superficie" novalidate>
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="alterar_dias_limite">
-            <div class="ws-campo">
+            <div class="ws-campo<?= classeCampoErro($errosDias['dias_limite_livro_parado'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="dias_limite_livro_parado">Dias-limite padrão</label>
-              <input class="ws-input ws-input--codigo" type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" max="<?= LIMITE_DIAS_MAX ?>" value="<?= (int)$diasLimiteAtual ?>" required aria-describedby="dias-ajuda" style="max-width:160px">
+              <input class="ws-input ws-input--codigo" type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" max="<?= LIMITE_DIAS_MAX ?>" value="<?= $valorDiasPost !== null ? escaparHtml($valorDiasPost) : (int)$diasLimiteAtual ?>" required<?= atributosCampo('dias_limite_livro_parado', $errosDias['dias_limite_livro_parado'] ?? null, 'dias-ajuda') ?> style="max-width:160px">
+              <?= htmlErroCampo('dias_limite_livro_parado', $errosDias['dias_limite_livro_parado'] ?? null) ?>
               <p class="ws-campo__ajuda" id="dias-ajuda">Número inteiro de 1 a <?= LIMITE_DIAS_MAX ?>.</p>
             </div>
             <div class="ws-form__acoes">
@@ -718,39 +795,45 @@ require __DIR__ . '/includes/cabecalho.php';
             </table>
           </div>
 
-          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-usuario-titulo">
+          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-usuario-titulo" novalidate>
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="criar_usuario">
             <?= envio_unico_field() ?>
             <fieldset class="ws-grupo-campos">
               <legend><h3 class="ws-h2" id="novo-usuario-titulo">Novo usuário</h3></legend>
               <div class="ws-form__grade">
-                <div class="ws-campo">
+                <div class="ws-campo<?= classeCampoErro($errosUsuario['nome'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="novo_nome">Nome</label>
-                  <input class="ws-input" type="text" id="novo_nome" name="novo_nome" maxlength="<?= LIMITE_NOME_USUARIO ?>" autocomplete="off" required>
+                  <input class="ws-input" type="text" id="novo_nome" name="novo_nome" value="<?= escaparHtml($valoresUsuario['nome'] ?? '') ?>" maxlength="<?= LIMITE_NOME_USUARIO ?>" autocomplete="off" required<?= atributosCampo('novo_nome', $errosUsuario['nome'] ?? null) ?>>
+                  <?= htmlErroCampo('novo_nome', $errosUsuario['nome'] ?? null) ?>
                 </div>
-                <div class="ws-campo">
+                <div class="ws-campo<?= classeCampoErro($errosUsuario['email'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="novo_email">E-mail</label>
-                  <input class="ws-input" type="email" id="novo_email" name="novo_email" maxlength="<?= LIMITE_EMAIL ?>" autocomplete="off" required>
+                  <input class="ws-input" type="email" id="novo_email" name="novo_email" value="<?= escaparHtml($valoresUsuario['email'] ?? '') ?>" maxlength="<?= LIMITE_EMAIL ?>" autocomplete="off" required<?= atributosCampo('novo_email', $errosUsuario['email'] ?? null) ?>>
+                  <?= htmlErroCampo('novo_email', $errosUsuario['email'] ?? null) ?>
                 </div>
-                <div class="ws-campo">
+                <div class="ws-campo<?= classeCampoErro($errosUsuario['senha'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="nova_senha">Senha</label>
-                  <input class="ws-input" type="password" id="nova_senha" name="nova_senha" minlength="6" autocomplete="new-password" required aria-describedby="senha-ajuda">
+                  <input class="ws-input" type="password" id="nova_senha" name="nova_senha" minlength="6" autocomplete="new-password" required<?= atributosCampo('nova_senha', $errosUsuario['senha'] ?? null, 'senha-ajuda') ?>>
+                  <?= htmlErroCampo('nova_senha', $errosUsuario['senha'] ?? null) ?>
                   <p class="ws-campo__ajuda" id="senha-ajuda">Mínimo de 6 caracteres.</p>
                 </div>
-                <div class="ws-campo">
+                <div class="ws-campo<?= classeCampoErro($errosUsuario['confirmar'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="nova_confirmar_senha">Confirmar senha</label>
-                  <input class="ws-input" type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="6" autocomplete="new-password" required>
+                  <input class="ws-input" type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="6" autocomplete="new-password" required<?= atributosCampo('nova_confirmar_senha', $errosUsuario['confirmar'] ?? null) ?>>
+                  <?= htmlErroCampo('nova_confirmar_senha', $errosUsuario['confirmar'] ?? null) ?>
                 </div>
-                <div class="ws-campo">
+                <div class="ws-campo<?= classeCampoErro($errosUsuario['papel'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="novo_papel">Papel</label>
-                  <select class="ws-select" id="novo_papel" name="novo_papel">
+                  <select class="ws-select" id="novo_papel" name="novo_papel"<?= atributosCampo('novo_papel', $errosUsuario['papel'] ?? null) ?>>
+<?php $papelMarcado = $valoresUsuario['papel'] ?? 'usuario'; ?>
 <?php if ($agindoComoAdmin): ?>
-                    <option value="admin">Administrador</option>
+                    <option value="admin"<?= $papelMarcado === 'admin' ? ' selected' : '' ?>>Administrador</option>
 <?php endif; ?>
-                    <option value="gerente">Gerente</option>
-                    <option value="usuario" selected>Usuário</option>
+                    <option value="gerente"<?= $papelMarcado === 'gerente' ? ' selected' : '' ?>>Gerente</option>
+                    <option value="usuario"<?= $papelMarcado === 'usuario' ? ' selected' : '' ?>>Usuário</option>
                   </select>
+                  <?= htmlErroCampo('novo_papel', $errosUsuario['papel'] ?? null) ?>
                 </div>
               </div>
             </fieldset>
@@ -849,15 +932,19 @@ require __DIR__ . '/includes/cabecalho.php';
           </div>
 <?php endif; ?>
 
-          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="nova-etapa-titulo">
+          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="nova-etapa-titulo" novalidate>
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="criar_etapa">
             <?= envio_unico_field() ?>
             <h3 class="ws-h2" id="nova-etapa-titulo">Nova etapa</h3>
-            <?php camposFormEtapa('nova_etapa', false, $etapas ? (int)max(array_column($etapas, 'ordem')) + 1 : 1); ?>
+            <?php camposFormEtapa('nova_etapa', false, $etapas ? (int)max(array_column($etapas, 'ordem')) + 1 : 1, $valoresEtapaNova ?? [], $errosEtapaNova); ?>
             <div class="ws-form__acoes">
               <button class="ws-btn ws-btn--primario" type="submit">Cadastrar etapa</button>
+<?php if ($errosEtapaNova): ?>
+              <a class="ws-btn ws-btn--link" href="configuracoes.php#nova-etapa-titulo">Limpar</a>
+<?php else: ?>
               <button class="ws-btn ws-btn--link" type="reset">Limpar</button>
+<?php endif; ?>
             </div>
           </form>
         </section>
@@ -908,15 +995,16 @@ require __DIR__ . '/includes/cabecalho.php';
           </div>
 <?php endif; ?>
 
-          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-papel-titulo">
+          <form class="ws-form ws-card ws-card--superficie" method="post" aria-labelledby="novo-papel-titulo" novalidate>
             <?= csrf_field() ?>
             <input type="hidden" name="acao" value="criar_papel">
             <?= envio_unico_field() ?>
             <fieldset class="ws-grupo-campos">
               <legend><h3 class="ws-h2" id="novo-papel-titulo">Novo papel</h3></legend>
-              <div class="ws-campo">
+              <div class="ws-campo<?= classeCampoErro($errosPapelNovo['nome'] ?? null) ?>">
                 <label class="ws-campo__rotulo" for="novo_papel_nome">Nome do papel</label>
-                <input class="ws-input" type="text" id="novo_papel_nome" name="nome" maxlength="<?= LIMITE_NOME_PAPEL ?>" required>
+                <input class="ws-input" type="text" id="novo_papel_nome" name="nome" value="<?= escaparHtml($valoresPapelNovo['nome'] ?? '') ?>" maxlength="<?= LIMITE_NOME_PAPEL ?>" required<?= atributosCampo('novo_papel_nome', $errosPapelNovo['nome'] ?? null) ?>>
+                <?= htmlErroCampo('novo_papel_nome', $errosPapelNovo['nome'] ?? null) ?>
               </div>
             </fieldset>
             <div class="ws-form__acoes">
@@ -926,7 +1014,8 @@ require __DIR__ . '/includes/cabecalho.php';
         </section>
 <?php endif; ?>
 
-        <!-- Seção 6 (IV-8): Log de alterações (aberto aos 3 perfis). -->
+<?php if ($podeVerLog): ?>
+        <!-- Seção 6 (IV-8): Log de alterações. Só Gerente e Admin (log.ver, Passo 20.5). -->
         <section class="ws-secao" id="log" aria-labelledby="log-titulo">
           <div class="ws-secao__cabecalho">
             <div>
@@ -1013,6 +1102,7 @@ require __DIR__ . '/includes/cabecalho.php';
           </div>
 <?php endif; ?>
         </section>
+<?php endif; ?>
 
       </div>
 
@@ -1020,10 +1110,10 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($podeGerenciarEtapasPapeis): ?>
       <!-- Modal: editar etapa (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-etapa" aria-labelledby="modal-etapa-titulo">
-        <form class="ws-modal__caixa" method="post" id="form-editar-etapa" data-ws-confirmar="modal-desativar-etapa">
+        <form class="ws-modal__caixa" method="post" id="form-editar-etapa" data-ws-confirmar="modal-desativar-etapa" novalidate<?= $formEtapaEd ? ' data-ativa-original="' . (int)$formEtapaEd['ativaOriginal'] . '" data-qtd-livros="' . (int)$formEtapaEd['qtdLivros'] . '"' : '' ?>>
           <?= csrf_field() ?>
           <input type="hidden" name="acao" value="editar_etapa">
-          <input type="hidden" name="etapa_id" id="ed_etapa_id" value="0">
+          <input type="hidden" name="etapa_id" id="ed_etapa_id" value="<?= $formEtapaEd ? (int)$formEtapaEd['id'] : 0 ?>">
           <input type="hidden" name="confirmacao" value="">
           <header class="ws-modal__cabecalho">
             <h2 id="modal-etapa-titulo">Editar etapa</h2>
@@ -1031,13 +1121,13 @@ require __DIR__ . '/includes/cabecalho.php';
           </header>
           <div class="ws-modal__corpo ws-pilha">
             <p class="ws-texto-suave">Alterações valem para as próximas movimentações; o que já foi registrado não muda.</p>
-            <div class="ws-alerta ws-alerta--limite" role="status" id="ed_etapa_aviso" hidden>
+            <div class="ws-alerta ws-alerta--limite" role="status" id="ed_etapa_aviso"<?= $formEtapaEd && $formEtapaEd['nomeOriginal'] === NOME_ETAPA_CATALOGACAO_CONFIG ? '' : ' hidden' ?>>
               <i class="ws-alerta__icone" data-lucide="triangle-alert"></i>
               <div class="ws-alerta__corpo">
                 <p>Atenção: o aviso automático de ISBN vazio identifica esta etapa pelo nome exato. Renomear aqui desativa esse aviso.</p>
               </div>
             </div>
-            <?php camposFormEtapa('ed_etapa', true); ?>
+            <?php camposFormEtapa('ed_etapa', true, 0, $formEtapaEd ? array_merge($formEtapaEd['valores'], ['ordem' => $formEtapaEd['ordem'], 'finaliza' => $formEtapaEd['finaliza']]) : [], $errosEtapaEd); ?>
           </div>
           <footer class="ws-modal__rodape">
             <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Cancelar</button>
@@ -1088,6 +1178,7 @@ require __DIR__ . '/includes/cabecalho.php';
       document.querySelectorAll('[data-ws-modal-abrir="modal-etapa"]').forEach(function (botao) {
         botao.addEventListener('click', function () {
           const d = botao.dataset, f = document.getElementById('form-editar-etapa');
+          if (window.WareSys) window.WareSys.limparErros('modal-etapa');
           document.getElementById('ed_etapa_id').value = d.id;
           document.getElementById('ed_etapa_nome').value = d.nome;
           document.getElementById('ed_etapa_ordem').value = d.ordem;
@@ -1104,6 +1195,10 @@ require __DIR__ . '/includes/cabecalho.php';
         });
       });
       document.getElementById('ed_etapa_nome').setAttribute('autofocus', '');
+<?php if ($formEtapaEd): ?>
+      // O envio voltou com erro: reabre o modal, com o que foi digitado e a mensagem junto do campo.
+      document.addEventListener('DOMContentLoaded', function () { window.WareSys.abrirModal('modal-etapa'); });
+<?php endif; ?>
 
       // Campo oculto "confirmacao": só o botão de confirmar do modal o preenche (com 1). Sem ele o PHP não grava.
       document.querySelectorAll('dialog.ws-modal [data-ws-confirmar-ok]').forEach(function (botao) {
@@ -1141,21 +1236,22 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($podeGerenciarEtapasPapeis): ?>
       <!-- Modal: editar papel de autoria (um só, preenchido pelo script abaixo) -->
       <dialog class="ws-modal" id="modal-papel" aria-labelledby="modal-papel-titulo">
-        <form class="ws-modal__caixa" method="post">
+        <form class="ws-modal__caixa" method="post" novalidate>
           <?= csrf_field() ?>
           <input type="hidden" name="acao" value="editar_papel">
-          <input type="hidden" name="papel_id" id="ed_papel_id" value="0">
+          <input type="hidden" name="papel_id" id="ed_papel_id" value="<?= $formPapelEd ? (int)$formPapelEd['id'] : 0 ?>">
           <header class="ws-modal__cabecalho">
             <h2 id="modal-papel-titulo">Editar papel</h2>
             <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
           </header>
           <div class="ws-modal__corpo ws-pilha">
-            <div class="ws-campo">
+            <div class="ws-campo<?= classeCampoErro($errosPapelEd['nome'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="ed_papel_nome">Nome do papel</label>
-              <input class="ws-input" type="text" id="ed_papel_nome" name="nome" maxlength="<?= LIMITE_NOME_PAPEL ?>" required autofocus>
+              <input class="ws-input" type="text" id="ed_papel_nome" name="nome" value="<?= escaparHtml($formPapelEd['nome'] ?? '') ?>" maxlength="<?= LIMITE_NOME_PAPEL ?>" required autofocus<?= atributosCampo('ed_papel_nome', $errosPapelEd['nome'] ?? null) ?>>
+              <?= htmlErroCampo('ed_papel_nome', $errosPapelEd['nome'] ?? null) ?>
             </div>
             <div>
-              <label class="ws-opcao" for="ed_papel_ativo"><input type="checkbox" id="ed_papel_ativo" name="ativo" aria-describedby="ed_papel_ativo_ajuda">Papel ativo</label>
+              <label class="ws-opcao" for="ed_papel_ativo"><input type="checkbox" id="ed_papel_ativo" name="ativo"<?= $formPapelEd && !empty($formPapelEd['ativo']) ? ' checked' : '' ?> aria-describedby="ed_papel_ativo_ajuda">Papel ativo</label>
               <p class="ws-campo__ajuda" id="ed_papel_ativo_ajuda">Um papel desativado continua nos vínculos que os livros já têm, mas não pode ser usado em vínculos novos.</p>
             </div>
           </div>
@@ -1170,11 +1266,16 @@ require __DIR__ . '/includes/cabecalho.php';
       // Editar papel: o botão preenche o modal com os dados da linha (roda antes do waresys.js, que abre o modal).
       document.querySelectorAll('[data-ws-modal-abrir="modal-papel"]').forEach(function (botao) {
         botao.addEventListener('click', function () {
+          if (window.WareSys) window.WareSys.limparErros('modal-papel');
           document.getElementById('ed_papel_id').value = botao.dataset.id;
           document.getElementById('ed_papel_nome').value = botao.dataset.nome;
           document.getElementById('ed_papel_ativo').checked = botao.dataset.ativo === '1';
         });
       });
+<?php if ($formPapelEd): ?>
+      // O envio voltou com erro: reabre o modal, com o que foi digitado e a mensagem junto do campo.
+      document.addEventListener('DOMContentLoaded', function () { window.WareSys.abrirModal('modal-papel'); });
+<?php endif; ?>
       </script>
 <?php endif; ?>
 <?php require __DIR__ . '/includes/rodape.php'; ?>
