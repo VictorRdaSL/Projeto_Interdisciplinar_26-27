@@ -74,7 +74,7 @@ $ws_base = BASE_URL;
       </a>
       <div class="ws-pilha">
         <p class="ws-eyebrow">Controle editorial · para editoras</p>
-        <p class="ws-display ws-login__frase">Ordem<br>que se lê.</p>
+        <p class="ws-display ws-login__frase">Processos editoriais<br>de capa a capa.</p>
         <p class="ws-login__texto">Cada livro com sua etapa, seu responsável e suas rodadas à vista. Sem caderno, planilha ou grupo de WhatsApp.</p>
       </div>
       <p class="ws-login__texto" style="font-size:12px">Projeto acadêmico · Engenharia de Software · FATEC</p>
