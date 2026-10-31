@@ -17,6 +17,8 @@ require_once __DIR__ . '/log.php';
 require_once __DIR__ . '/procedures.php';
 require_once __DIR__ . '/validacao.php';
 require_once __DIR__ . '/mesa.php';
+require_once __DIR__ . '/formatacao.php';
+require_once __DIR__ . '/isbn.php';
 
 // Nome exato semeado em database/seed.sql. Não há coluna de identificador
 // estável em `etapas` — se essa etapa for renomeada no futuro, o aviso de
@@ -357,6 +359,94 @@ function concluirLivro(mysqli $conn, int $livroId, int $registradoPorId): array
         'excedente' => false,
         'avisos' => $avisos,
     ];
+}
+
+/** Quanto o livro já tem de histórico: movimentações, resgates e pessoas vinculadas (para decidir se pode ser EXCLUÍDO). */
+function usoDoLivro(mysqli $conn, int $livroId): array
+{
+    $stmt = $conn->prepare('SELECT (SELECT COUNT(*) FROM movimentacoes WHERE livro_id = ?) AS movs, (SELECT COUNT(*) FROM resgates WHERE livro_id = ?) AS resgates, (SELECT COUNT(*) FROM contribuicoes WHERE livro_id = ?) AS contribuicoes');
+    $stmt->bind_param('iii', $livroId, $livroId, $livroId);
+    $stmt->execute();
+    $r = $stmt->get_result()->fetch_assoc();
+    return ['movs' => (int)$r['movs'], 'resgates' => (int)$r['resgates'], 'contribuicoes' => (int)$r['contribuicoes']];
+}
+
+/**
+ * Por que o livro NÃO pode ser excluído (texto para a tela), ou null se pode. Mesma função para a tela e para o
+ * POST. Só livro cadastrado por engano: em andamento, ou cancelado logo depois do cadastro, com APENAS a
+ * movimentação inicial e nenhum resgate. Livro que já andou no fluxo é cancelado, não excluído: apagar o histórico
+ * apagaria a linha do tempo e as rodadas cobradas.
+ */
+function motivoBloqueioExclusaoLivro(array $livro, int $movs, int $resgates): ?string
+{
+    $status = $livro['status'];
+    if ($status === 'concluido') {
+        return 'Este livro já foi concluído e tem ' . qtdTexto($movs, 'movimentação', 'movimentações') . ' no histórico. Livro concluído não é excluído.';
+    }
+    $partes = [];
+    if ($movs > 1) $partes[] = qtdTexto($movs, 'movimentação', 'movimentações') . ' no histórico';
+    if ($resgates > 0) $partes[] = qtdTexto($resgates, 'resgate', 'resgates');
+    if ($partes) {
+        $texto = 'Este livro tem ' . implode(' e ', $partes) . '.';
+        if ($status === 'cancelado') return $texto . ' Ele já foi cancelado.';
+        if ($status === 'em_andamento') return $texto . ' Cancele em vez de excluir.';
+        return $texto . ' Livro com resgate não é excluído.'; // extraviado
+    }
+    if ($status !== 'em_andamento' && $status !== 'cancelado') {
+        return 'Este livro está ' . ($status === 'extraviado' ? 'extraviado' : 'em um estado que não permite a exclusão') . '.';
+    }
+    return null;
+}
+
+/**
+ * Exclui um livro cadastrado por engano (Passo 20.10), numa transação: as contribuições (só o vínculo; as pessoas
+ * continuam), a movimentação inicial e o livro. O log de alterações não tem FK para livros, então nada dele é
+ * apagado: as linhas antigas ficam e passam a mostrar "#id"; esta grava mais uma, com código, ISBN, título e a
+ * justificativa. Livro CANCELADO exige justificativa. Quem chama confere permissão e confirmação.
+ */
+function excluirLivro(mysqli $conn, int $livroId, int $registradoPorId, ?string $justificativa = null): array
+{
+    $justificativa = trim((string)$justificativa);
+    if (($erro = erroTamanho($justificativa, LIMITE_JUSTIFICATIVA_EXCLUSAO, 'A justificativa')) !== null) {
+        throw new InvalidArgumentException($erro);
+    }
+
+    $conn->begin_transaction();
+    try {
+        $stmt = $conn->prepare('SELECT * FROM livros WHERE id = ? FOR UPDATE');
+        $stmt->bind_param('i', $livroId);
+        $stmt->execute();
+        $livro = $stmt->get_result()->fetch_assoc();
+        if (!$livro) {
+            throw new InvalidArgumentException('Livro não encontrado.');
+        }
+        $uso = usoDoLivro($conn, $livroId);
+        if (($motivo = motivoBloqueioExclusaoLivro($livro, $uso['movs'], $uso['resgates'])) !== null) {
+            throw new InvalidArgumentException($motivo);
+        }
+        if ($livro['status'] === 'cancelado' && $justificativa === '') {
+            throw new InvalidArgumentException('Informe a justificativa da exclusão.');
+        }
+
+        // Ordem das FKs (todas RESTRICT): filhos primeiro.
+        foreach (['DELETE FROM contribuicoes WHERE livro_id = ?', 'DELETE FROM movimentacoes WHERE livro_id = ?', 'DELETE FROM livros WHERE id = ?'] as $sql) {
+            $stmtD = $conn->prepare($sql);
+            $stmtD->bind_param('i', $livroId);
+            $stmtD->execute();
+        }
+
+        $isbn = $livro['isbn'] !== null && $livro['isbn'] !== '' ? formatarIsbn($livro['isbn']) : 'sem ISBN';
+        $anterior = 'Livro ' . codigoLivro($livroId) . ' · ' . $isbn . ' · ' . $livro['titulo']; // o título vai por último: é o que o corte atinge
+        $novo = 'Excluído' . ($livro['status'] === 'cancelado' ? ' (estava cancelado)' : '') . ($justificativa !== '' ? '. Justificativa: ' . $justificativa : '');
+        registrarLog($conn, $registradoPorId, 'livro.excluir', 'livro', $livroId, truncarParaLog($anterior), truncarParaLog($novo));
+
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        throw $e;
+    }
+
+    return ['livro_id' => $livroId, 'codigo' => codigoLivro($livroId), 'titulo' => $livro['titulo'], 'contribuicoes' => $uso['contribuicoes']];
 }
 
 function cancelarLivro(mysqli $conn, int $livroId, int $registradoPorId): array

@@ -26,6 +26,7 @@ const NOMES_ACOES_LOG = [
     'livro.editar_copia'         => 'Editou "tem cópia" do livro',
     'livro.editar_observacoes'   => 'Editou observações do livro',
     'livro.cancelar'             => 'Cancelou livro',
+    'livro.excluir'              => 'Excluiu livro',
     'contribuicao.adicionar'     => 'Adicionou contribuidor',
     'contribuicao.remover'       => 'Removeu contribuidor',
     'pessoa.criar'                => 'Cadastrou pessoa',

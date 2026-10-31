@@ -516,6 +516,106 @@ checar('Resgate concluído sem observação grava NULL', $obsDaUltima($livro6) =
 $comObs = (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes WHERE livro_id <> $livro6 AND observacao IS NOT NULL AND livro_id IN (" . implode(',', array_diff($livrosDeTeste, [$livro6])) . ")")->fetch_assoc()['c'];
 checar('Os outros livros de teste (cenários anteriores) não ganharam observação', $comObs === 0);
 
+echo "\n=== (k) Excluir livro cadastrado por engano (Passo 20.10) ===\n";
+$contaLinhas = fn(string $tabela, int $livroId): int => (int)$conn->query("SELECT COUNT(*) c FROM $tabela WHERE livro_id=$livroId")->fetch_assoc()['c'];
+$idPapelAutor = papelIdPorNome($conn, 'Autor');
+$pessoaK = criarPessoaTeste($conn, 'TESTE FLUXO - Pessoa K');
+$pessoasDeTeste[] = $pessoaK;
+$existeLivro = fn(int $livroId): bool => (int)$conn->query("SELECT COUNT(*) c FROM livros WHERE id=$livroId")->fetch_assoc()['c'] === 1;
+$tentarExcluir = function (int $livroId, ?string $justificativa = null) use ($conn, $usuarioId): ?string {
+    try { excluirLivro($conn, $livroId, $usuarioId, $justificativa); return null; } catch (InvalidArgumentException $e) { return $e->getMessage(); }
+};
+
+// Regra pura (sem banco)
+$umLivro = fn(string $status) => ['status' => $status];
+checar('regra: em andamento com só a movimentação inicial pode', motivoBloqueioExclusaoLivro($umLivro('em_andamento'), 1, 0) === null);
+checar('regra: cancelado com só a movimentação inicial pode', motivoBloqueioExclusaoLivro($umLivro('cancelado'), 1, 0) === null);
+checar('regra: em andamento com 8 movimentações → "Cancele em vez de excluir."', motivoBloqueioExclusaoLivro($umLivro('em_andamento'), 8, 0) === 'Este livro tem 8 movimentações no histórico. Cancele em vez de excluir.');
+checar('regra: cancelado com histórico não sugere cancelar de novo', motivoBloqueioExclusaoLivro($umLivro('cancelado'), 3, 0) === 'Este livro tem 3 movimentações no histórico. Ele já foi cancelado.');
+checar('regra: com resgate não pode', str_contains((string)motivoBloqueioExclusaoLivro($umLivro('extraviado'), 1, 1), '1 resgate'));
+checar('regra: concluído não pode', str_contains((string)motivoBloqueioExclusaoLivro($umLivro('concluido'), 14, 0), 'concluído'));
+
+// Livro recém-cadastrado: some o livro, as contribuições e a movimentação inicial; a pessoa fica; o log registra
+$livroK1 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K1 (engano)', $mesaId, $usuarioId, [['pessoa_id' => $pessoaK, 'papel_id' => $idPapelAutor]]);
+$livrosDeTeste[] = $livroK1;
+$conn->query("UPDATE livros SET isbn='9788532530806' WHERE id=$livroK1");
+checar('livro novo tem 1 movimentação, 1 vínculo e nenhum resgate', usoDoLivro($conn, $livroK1) === ['movs' => 1, 'resgates' => 0, 'contribuicoes' => 1]);
+$r = excluirLivro($conn, $livroK1, $usuarioId, null);
+checar('excluir livro recém-cadastrado: devolve código, título e nº de vínculos', $r['codigo'] === codigoLivro($livroK1) && $r['titulo'] === 'TESTE FLUXO - Livro K1 (engano)' && $r['contribuicoes'] === 1);
+checar('...o livro, as movimentações e as contribuições sumiram', !$existeLivro($livroK1) && $contaLinhas('movimentacoes', $livroK1) === 0 && $contaLinhas('contribuicoes', $livroK1) === 0);
+checar('...a pessoa vinculada continua cadastrada', (int)$conn->query("SELECT COUNT(*) c FROM pessoas WHERE id=$pessoaK")->fetch_assoc()['c'] === 1);
+$lg = $conn->query("SELECT usuario_id, entidade_tipo, entidade_id, valor_anterior, valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK1")->fetch_assoc();
+checar('...log com código, ISBN formatado e título; valor novo "Excluído"', $lg && (int)$lg['usuario_id'] === $usuarioId && $lg['entidade_tipo'] === 'livro'
+    && $lg['valor_anterior'] === 'Livro ' . codigoLivro($livroK1) . ' · 978-85-325-3080-6 · TESTE FLUXO - Livro K1 (engano)' && $lg['valor_novo'] === 'Excluído', json_encode($lg));
+checar('excluir de novo o mesmo livro: "Livro não encontrado."', $tentarExcluir($livroK1) === 'Livro não encontrado.');
+
+// Sem ISBN e com justificativa opcional
+$livroK2 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K2', $mesaId, $usuarioId, []);
+$livrosDeTeste[] = $livroK2;
+excluirLivro($conn, $livroK2, $usuarioId, '  Cadastro duplicado  ');
+$lg = $conn->query("SELECT valor_anterior, valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK2")->fetch_assoc();
+checar('livro sem ISBN e com justificativa (sem espaços nas pontas)', !$existeLivro($livroK2) && str_contains($lg['valor_anterior'], '· sem ISBN ·') && $lg['valor_novo'] === 'Excluído. Justificativa: Cadastro duplicado', json_encode($lg));
+$livroK3 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K3', $mesaId, $usuarioId, []);
+$livrosDeTeste[] = $livroK3;
+checar('justificativa de 201 caracteres é recusada e nada é excluído', str_contains((string)$tentarExcluir($livroK3, str_repeat('é', 201)), '200') && $existeLivro($livroK3));
+excluirLivro($conn, $livroK3, $usuarioId, str_repeat('é', 200));
+$valorNovoK3 = $conn->query("SELECT valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK3")->fetch_assoc()['valor_novo'];
+checar('justificativa de 200 caracteres cabe inteira no log', !$existeLivro($livroK3) && mb_strlen($valorNovoK3) === mb_strlen('Excluído. Justificativa: ') + 200 && !str_ends_with($valorNovoK3, '…'));
+$livroK3b = criarLivroTeste($conn, str_repeat('T', 255), $mesaId, $usuarioId, []);
+$livrosDeTeste[] = $livroK3b;
+$conn->query("UPDATE livros SET isbn='9788532530806' WHERE id=$livroK3b");
+excluirLivro($conn, $livroK3b, $usuarioId, null);
+$anteriorK3b = $conn->query("SELECT valor_anterior FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK3b")->fetch_assoc()['valor_anterior'];
+checar('título de 255 caracteres: o log corta só o título (código e ISBN ficam)', str_starts_with($anteriorK3b, 'Livro ' . codigoLivro($livroK3b) . ' · 978-85-325-3080-6 · TTT') && str_ends_with($anteriorK3b, '…') && mb_strlen($anteriorK3b) <= 241);
+
+// Livro que já andou: recusa com o motivo, sem apagar nada
+$livroK4 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K4 (andou)', $mesaId, $usuarioId, [['pessoa_id' => $pessoaK, 'papel_id' => $idPapelAutor]]);
+$livrosDeTeste[] = $livroK4;
+avancarEtapa($conn, $livroK4, $idContrato, $usuarioId, null, $mesaId);
+$msg = $tentarExcluir($livroK4);
+checar('livro que já avançou: recusado com "2 movimentações ... Cancele em vez de excluir."', $msg === 'Este livro tem 2 movimentações no histórico. Cancele em vez de excluir.', (string)$msg);
+checar('...nada foi apagado (livro, 2 movimentações, 1 vínculo)', $existeLivro($livroK4) && $contaLinhas('movimentacoes', $livroK4) === 2 && $contaLinhas('contribuicoes', $livroK4) === 1);
+$livroK5 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K5 (troca de mesa)', $mesaId, $usuarioId, []);
+$livrosDeTeste[] = $livroK5;
+passarParaOutraMesa($conn, $livroK5, $mesaId, $usuarioId);
+checar('só uma troca de mesa já conta como histórico (2 movimentações): recusado', str_contains((string)$tentarExcluir($livroK5), '2 movimentações') && $existeLivro($livroK5));
+$livroK6 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K6 (resgate)', $mesaId, $usuarioId, []);
+$livrosDeTeste[] = $livroK6;
+iniciarResgate($conn, $livroK6, $usuarioId);
+checar('livro extraviado (1 movimentação, com resgate): recusado', str_contains((string)$tentarExcluir($livroK6), 'resgate') && $existeLivro($livroK6) && $contaLinhas('resgates', $livroK6) === 1);
+checar('livro concluído (Livro 1 deste teste): recusado', str_contains((string)$tentarExcluir($livro1), 'concluído') && $existeLivro($livro1));
+
+// Cancelado logo depois do cadastro: pode, mas exige justificativa
+$livroK7 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K7 (cancelado)', $mesaId, $usuarioId, [['pessoa_id' => $pessoaK, 'papel_id' => $idPapelAutor]]);
+$livrosDeTeste[] = $livroK7;
+cancelarLivro($conn, $livroK7, $usuarioId);
+checar('cancelado logo após o cadastro: ainda 1 movimentação (fechada)', usoDoLivro($conn, $livroK7)['movs'] === 1);
+checar('...sem justificativa é recusado ("Informe a justificativa da exclusão.") e nada é excluído', $tentarExcluir($livroK7) === 'Informe a justificativa da exclusão.' && $tentarExcluir($livroK7, '   ') === 'Informe a justificativa da exclusão.' && $existeLivro($livroK7));
+excluirLivro($conn, $livroK7, $usuarioId, 'Cadastrado e cancelado por engano');
+$lg = $conn->query("SELECT valor_novo FROM log_alteracoes WHERE acao='livro.excluir' AND entidade_id=$livroK7")->fetch_assoc();
+checar('...com justificativa é excluído e o log diz que estava cancelado', !$existeLivro($livroK7) && $lg['valor_novo'] === 'Excluído (estava cancelado). Justificativa: Cadastrado e cancelado por engano', json_encode($lg));
+checar('...as linhas antigas do log desse livro (cadastro e cancelamento) continuam lá', (int)$conn->query("SELECT COUNT(*) c FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=$livroK7 AND acao IN ('livro.cancelar')")->fetch_assoc()['c'] === 1);
+// Cancelado depois de andar: não pode
+$livroK8 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K8 (cancelado depois de andar)', $mesaId, $usuarioId, []);
+$livrosDeTeste[] = $livroK8;
+avancarEtapa($conn, $livroK8, $idContrato, $usuarioId, null, $mesaId);
+cancelarLivro($conn, $livroK8, $usuarioId);
+checar('cancelado depois de andar: recusado, sem sugerir cancelar de novo', $tentarExcluir($livroK8, 'x') === 'Este livro tem 2 movimentações no histórico. Ele já foi cancelado.' && $existeLivro($livroK8));
+// Atomicidade: o log falhando no meio desfaz tudo (usuário inexistente viola a FK do log)
+$livroK9 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K9 (atomicidade)', $mesaId, $usuarioId, [['pessoa_id' => $pessoaK, 'papel_id' => $idPapelAutor]]);
+$livrosDeTeste[] = $livroK9;
+try {
+    excluirLivro($conn, $livroK9, 999999999, null);
+    checar('exclusão com falha no log foi REJEITADA', false);
+} catch (Throwable $e) {
+    checar('falha no meio (log com usuário inexistente) desfaz tudo: livro, movimentação e vínculo continuam', $existeLivro($livroK9) && $contaLinhas('movimentacoes', $livroK9) === 1 && $contaLinhas('contribuicoes', $livroK9) === 1);
+}
+checar('a conexão segue utilizável depois do rollback (nenhuma transação aberta)', (int)$conn->query('SELECT @@in_transaction t')->fetch_assoc()['t'] === 0);
+// Consistência: nada órfão e as views não mostram o que foi excluído
+checar('nenhuma movimentação/vínculo órfão de livro excluído', (int)$conn->query("SELECT COUNT(*) c FROM movimentacoes m LEFT JOIN livros l ON l.id=m.livro_id WHERE l.id IS NULL")->fetch_assoc()['c'] === 0
+    && (int)$conn->query("SELECT COUNT(*) c FROM contribuicoes c LEFT JOIN livros l ON l.id=c.livro_id WHERE l.id IS NULL")->fetch_assoc()['c'] === 0);
+checar('as views não listam o livro excluído', (int)$conn->query("SELECT COUNT(*) c FROM vw_livros_situacao_atual WHERE livro_id IN ($livroK1, $livroK2, $livroK7)")->fetch_assoc()['c'] === 0);
+
 echo "\n=== Validações negativas (regras que devem ser rejeitadas) ===\n";
 try {
     avancarEtapa($conn, $livro2, $idCatalogacao, $usuarioId, $idDepositoLegal);
