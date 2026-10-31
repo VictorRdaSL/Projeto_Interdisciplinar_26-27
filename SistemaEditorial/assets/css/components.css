@@ -1484,6 +1484,22 @@ a.ws-kpi:hover {
   color: var(--ws-cor-texto-suave);
 }
 
+/* Observação (recado) deixada ao abrir a movimentação: cor lisa com filete à esquerda; quebras de linha preservadas.
+   HTML: <p class="ws-evento__nota"><span class="ws-evento__nota-rotulo">Observação</span>texto com <br></p> */
+.ws-evento__nota {
+  margin-top: var(--ws-esp-1);
+  padding: var(--ws-esp-2) var(--ws-esp-3);
+  border-left: 3px solid var(--ws-cor-acao);
+  background: var(--ws-cor-fundo);
+  overflow-wrap: anywhere;
+}
+
+.ws-evento__nota-rotulo {
+  display: block;
+  color: var(--ws-cor-texto-suave);
+  font-size: var(--ws-fs-codigo);
+}
+
 .ws-evento__data {
   padding-top: 7px;
   color: var(--ws-cor-texto-suave);
@@ -1599,6 +1615,7 @@ a.ws-kpi:hover {
   display: grid;
   gap: 2px;
   min-width: 0;
+  overflow-wrap: anywhere; /* texto longo sem espaço (ex.: observação do livro) quebra em vez de alargar a página */
 }
 
 .ws-alerta__corpo p + p {

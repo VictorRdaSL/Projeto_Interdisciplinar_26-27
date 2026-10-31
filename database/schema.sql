@@ -122,6 +122,9 @@ CREATE TABLE movimentacoes (
     excedente          TINYINT(1) NOT NULL DEFAULT 0,
     data_entrada       DATETIME NOT NULL,
     data_saida         DATETIME NULL,
+    -- Recado opcional de quem fez a ação para quem recebe o livro (Passo 20.8). Faz parte do histórico:
+    -- é gravado ao abrir a movimentação e não é editado depois. Máx. 1.000 caracteres (validado no PHP).
+    observacao         VARCHAR(1000) NULL,
     PRIMARY KEY (id),
     KEY idx_mov_livro_etapa (livro_id, etapa_id),
     KEY idx_mov_livro_saida (livro_id, data_saida),

@@ -25,6 +25,8 @@ DELIMITER $$
 --   p_novo_responsavel_id  usuário que passa a ser a mesa
 --   p_registrado_por_id    usuário que fez a ação (vai para movimentacoes e log_alteracoes)
 --   p_agora                data/hora da ação, calculada no PHP
+--   p_observacao           recado opcional (NULL = sem), gravado em movimentacoes.observacao da nova linha;
+--                          o limite de 1.000 caracteres é conferido no PHP
 -- Tabelas: livros, movimentacoes, log_alteracoes (grava); vw_usuarios_publico (lê nomes).
 -- Faz, numa transação: trava o livro; valida; fecha a movimentação aberta; abre outra do tipo
 -- 'troca_responsavel' NA MESMA etapa copiando rodada e excedente (trocar de mesa nunca abre
@@ -36,7 +38,8 @@ CREATE PROCEDURE sp_trocar_mesa(
     IN p_livro_id INT,
     IN p_novo_responsavel_id INT,
     IN p_registrado_por_id INT,
-    IN p_agora DATETIME
+    IN p_agora DATETIME,
+    IN p_observacao VARCHAR(1000)
 )
 COMMENT 'Passa um livro para outra mesa (mesma etapa e rodada). Grava livros, movimentacoes e log_alteracoes numa transacao.'
 BEGIN
@@ -95,9 +98,9 @@ BEGIN
     UPDATE movimentacoes SET data_saida = p_agora WHERE id = v_mov_aberta_id;
 
     INSERT INTO movimentacoes
-        (livro_id, etapa_id, responsavel_id, registrado_por_id, tipo, rodada, excedente, data_entrada, data_saida)
+        (livro_id, etapa_id, responsavel_id, registrado_por_id, tipo, rodada, excedente, data_entrada, data_saida, observacao)
     VALUES
-        (p_livro_id, v_etapa_id, p_novo_responsavel_id, p_registrado_por_id, 'troca_responsavel', v_rodada, v_excedente, p_agora, NULL);
+        (p_livro_id, v_etapa_id, p_novo_responsavel_id, p_registrado_por_id, 'troca_responsavel', v_rodada, v_excedente, p_agora, NULL, p_observacao);
     SET v_nova_mov_id = LAST_INSERT_ID();
 
     UPDATE livros

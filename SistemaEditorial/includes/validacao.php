@@ -15,6 +15,7 @@ const LIMITE_NOME_USUARIO = 120;     // usuarios.nome
 const LIMITE_NOME_ETAPA = 120;       // etapas.nome
 const LIMITE_NOME_PAPEL = 80;        // papeis.nome
 const LIMITE_LOCAL_ENCONTRADO = 255; // resgates.local_encontrado
+const LIMITE_OBSERVACAO_MOVIMENTACAO = 1000; // movimentacoes.observacao (Passo 20.8)
 // livros.observacoes é TEXT (65.535 BYTES). Com até 4 bytes por caractere em utf8mb4,
 // 16.000 caracteres cabem com folga em qualquer idioma/emoji.
 const LIMITE_OBSERVACOES = 16000;
@@ -27,6 +28,22 @@ function erroTamanho(string $valor, int $max, string $rotulo): ?string
         return null;
     }
     return $rotulo . ' deve ter no máximo ' . $max . ' caracteres (foram digitados ' . $tamanho . ').';
+}
+
+/**
+ * Texto da observação de uma movimentação como será gravado: sem espaços nas pontas, quebras de linha
+ * como "\n" (o navegador envia "\r\n", que contaria 2 caracteres no limite) e vazio = null.
+ */
+function textoObservacaoMovimentacao(?string $texto): ?string
+{
+    $texto = trim(str_replace("\r\n", "\n", $texto ?? ''));
+    return $texto === '' ? null : $texto;
+}
+
+/** Mensagem de erro da observação de movimentação (passou de 1.000 caracteres), ou null. */
+function erroObservacaoMovimentacao(?string $texto): ?string
+{
+    return erroTamanho(textoObservacaoMovimentacao($texto) ?? '', LIMITE_OBSERVACAO_MOVIMENTACAO, 'A observação');
 }
 
 /**

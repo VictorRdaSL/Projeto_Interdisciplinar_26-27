@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $novaEtapaId = (int)($_POST['etapa_id'] ?? 0);
     $novoResponsavelId = (int)($_POST['responsavel_id'] ?? 0);
     $localEncontrado = entradaTexto($_POST, 'local_encontrado');
+    $observacaoPost = entradaTexto($_POST, 'observacao'); // recado opcional para quem recebe o livro
 
     // Campos obrigatórios conferidos aqui, para a mensagem aparecer junto do campo (a página volta com o que foi preenchido).
     $idsEtapasAtivas = [];
@@ -57,11 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errosResgate['responsavel_id'] = 'Escolha um Gerente ou um Usuário como responsável.';
     }
 
+    if (($erroObs = erroObservacaoMovimentacao($observacaoPost)) !== null) {
+        $errosResgate['observacao'] = $erroObs;
+    }
+
     if ($errosResgate) {
-        $valoresResgate = ['local_encontrado' => $localEncontrado, 'etapa_id' => $novaEtapaId, 'responsavel_id' => $novoResponsavelId];
+        $valoresResgate = ['local_encontrado' => $localEncontrado, 'etapa_id' => $novaEtapaId, 'responsavel_id' => $novoResponsavelId, 'observacao' => $observacaoPost];
     } else {
         try {
-            $resultado = concluirResgate($conn, $livroId, $novaEtapaId, $novoResponsavelId, $localEncontrado, $usuarioId);
+            $resultado = concluirResgate($conn, $livroId, $novaEtapaId, $novoResponsavelId, $localEncontrado, $usuarioId, $observacaoPost);
             $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate concluído. Livro de volta em andamento, na etapa ' . $resultado['etapa_nome'] . '.'];
             header('Location: livro_detalhes.php?id=' . $livroId);
             exit;
@@ -235,6 +240,13 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($mesaSugeridaValida && $valoresResgate === null): ?>
                   <p class="ws-campo__ajuda" id="mesa-ajuda">Já vem marcada a última mesa conhecida.</p>
 <?php endif; ?>
+                </div>
+
+                <div class="ws-campo ws-campo--inteiro<?= classeCampoErro($errosResgate['observacao'] ?? null) ?>">
+                  <label class="ws-campo__rotulo" for="obs-resgate">Observação <span class="ws-campo__opcional">(opcional)</span></label>
+                  <textarea class="ws-textarea" id="obs-resgate" name="observacao" rows="2" maxlength="<?= LIMITE_OBSERVACAO_MOVIMENTACAO ?>" placeholder="Recado para quem recebe o livro."<?= atributosCampo('obs-resgate', $errosResgate['observacao'] ?? null, 'obs-resgate-ajuda') ?>><?= escaparHtml($valoresResgate['observacao'] ?? '') ?></textarea>
+                  <?= htmlErroCampo('obs-resgate', $errosResgate['observacao'] ?? null) ?>
+                  <p class="ws-campo__ajuda" id="obs-resgate-ajuda">Fica no histórico do livro. Até <?= number_format(LIMITE_OBSERVACAO_MOVIMENTACAO, 0, ',', '.') ?> caracteres.</p>
                 </div>
               </div>
             </fieldset>
