@@ -114,14 +114,16 @@ require __DIR__ . '/includes/cabecalho.php';
               <tbody>
 <?php foreach ($livros as $l):
     $id = (int)$l['id'];
-    $busca = strtolower($l['titulo'] . ' ' . ($l['isbn'] ?? '') . ' ' . ($l['pessoas_nomes'] ?? ''));
+    $isbnTela = formatarIsbn($l['isbn']);
+    // A busca acha o ISBN com ou sem traços: o texto leva a forma formatada e, à parte, os 13 dígitos (data-isbn).
+    $busca = strtolower($l['titulo'] . ' ' . $isbnTela . ' ' . ($l['pessoas_nomes'] ?? ''));
     $temRodada = $l['rodada'] !== null;
     $limiteRodadas = $l['rodadas_incluidas'];
 ?>
-                <tr data-busca="<?= escaparHtml($busca) ?>">
+                <tr data-busca="<?= escaparHtml($busca) ?>" data-isbn="<?= escaparHtml(normalizarIsbn($l['isbn'] ?? '')) ?>">
                   <td class="ws-tabela__codigo" data-rotulo="Livro"><?= escaparHtml(codigoLivro($id)) ?></td>
                   <td class="ws-tabela__titulo" data-rotulo="Título"><a href="livro_detalhes.php?id=<?= $id ?>"><?= escaparHtml($l['titulo']) ?></a><span class="ws-tabela__sub"><?= escaparHtml($l['pessoas_nomes'] ?: 'Sem pessoas vinculadas') ?></span></td>
-                  <td data-rotulo="ISBN"><?php if ($l['isbn']): ?><span class="ws-tabela__codigo"><?= escaparHtml($l['isbn']) ?></span><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
+                  <td data-rotulo="ISBN"><?php if ($l['isbn']): ?><span class="ws-tabela__codigo"><?= escaparHtml($isbnTela) ?></span><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
                   <td data-rotulo="Etapa"><?= escaparHtml($l['etapa_nome'] ?: '—') ?></td>
                   <td class="ws-tabela__codigo" data-rotulo="Na etapa desde"><?= escaparHtml(formatarDataHora($l['etapa_desde'])) ?></td>
                   <td data-rotulo="Mesa"><?= escaparHtml($l['responsavel_nome'] ?: '—') ?></td>
@@ -176,9 +178,12 @@ require __DIR__ . '/includes/cabecalho.php';
         }
         function aplicarFiltroLivros(){
           const termo = document.getElementById('busca').value.trim().toLowerCase();
+          // Termo só de números, traços e espaços (ex.: 978-85-7522 ou 9788575): também compara só os dígitos com o ISBN.
+          const digitos = /^[\d\s-]+$/.test(termo) ? termo.replace(/\D/g, '') : '';
           let visiveis = 0;
           document.querySelectorAll('#tabela-livros tbody tr[data-busca]').forEach(linha=>{
-            const mostra = termo === '' || linha.dataset.busca.includes(termo);
+            const mostra = termo === '' || linha.dataset.busca.includes(termo)
+              || (digitos !== '' && linha.dataset.isbn.includes(digitos));
             linha.style.display = mostra ? '' : 'none';
             if (mostra) visiveis++;
           });

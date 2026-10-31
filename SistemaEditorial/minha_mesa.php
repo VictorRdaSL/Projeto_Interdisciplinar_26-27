@@ -3,6 +3,7 @@ require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/alertas.php';
 
 $usuarioId = (int)$_SESSION['usuario_id'];
@@ -88,7 +89,7 @@ require __DIR__ . '/includes/cabecalho.php';
                 <tr>
                   <td class="ws-tabela__codigo" data-rotulo="Livro"><?= escaparHtml(codigoLivro($id)) ?></td>
                   <td class="ws-tabela__titulo" data-rotulo="Título"><a href="livro_detalhes.php?id=<?= $id ?>"><?= escaparHtml($l['titulo']) ?></a></td>
-                  <td data-rotulo="ISBN"><?php if ($l['isbn']): ?><span class="ws-tabela__codigo"><?= escaparHtml($l['isbn']) ?></span><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
+                  <td data-rotulo="ISBN"><?php if ($l['isbn']): ?><span class="ws-tabela__codigo"><?= escaparHtml(formatarIsbn($l['isbn'])) ?></span><?php else: ?><span class="ws-tabela__suave">—</span><?php endif; ?></td>
                   <td data-rotulo="Etapa"><?= escaparHtml($l['etapa_nome'] ?: '—') ?></td>
                   <td class="ws-tabela__num" data-rotulo="Rodada"><?= escaparHtml(rotuloRodada((int)$l['rodada'], $limiteRodadas)) ?></td>
                   <td data-rotulo="Na etapa há"><?= $dias === 0 ? 'menos de 1 dia' : escaparHtml(qtdTexto($dias, 'dia', 'dias')) ?></td>

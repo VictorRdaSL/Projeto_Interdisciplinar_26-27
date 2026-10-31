@@ -78,7 +78,7 @@ $erro = '';
 // Campo a que a mensagem de $erro se refere (titulo, isbn, observacoes, responsavel, pessoas); vazio = erro geral.
 $erroCampo = '';
 $titulo = $editando ? $livroAtual['titulo'] : '';
-$isbn = $editando ? ($livroAtual['isbn'] ?? '') : '';
+$isbn = $editando ? formatarIsbn($livroAtual['isbn'] ?? '') : ''; // no banco são só dígitos; o campo mostra com traços
 $temCopia = $editando ? (int)$livroAtual['tem_copia'] : 0;
 $observacoes = $editando ? ($livroAtual['observacoes'] ?? '') : '';
 $responsavelSelecionado = $editando ? (int)$livroAtual['responsavel_atual_id'] : (int)$_SESSION['usuario_id'];
@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $titulo = entradaTexto($_POST, 'titulo');
         $isbnBruto = entradaTexto($_POST, 'isbn');
-        $isbn = $isbnBruto; // o que foi digitado volta ao campo se houver erro (antes o campo voltava ao valor antigo)
+        $isbn = formatarIsbn($isbnBruto); // o que foi digitado volta ao campo (com traços se for um ISBN válido de faixa conhecida)
         // O select envia '' para "Não" e '1' para "Sim"; isset() dava 1 nos dois casos.
         $temCopia = entradaTexto($_POST, 'tem_copia') === '1' ? 1 : 0;
         $observacoes = entradaTexto($_POST, 'observacoes');
@@ -162,8 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($erroTamanho = erroTamanho($titulo, LIMITE_TITULO_LIVRO, 'O título')) {
             $erro = $erroTamanho;
             $erroCampo = 'titulo';
-        } elseif ($isbnBruto !== '' && !isbnValido($isbnBruto)) {
-            $erro = 'ISBN inválido. Informe um ISBN-13 válido (13 dígitos, com dígito verificador correto), ou deixe o campo vazio.';
+        } elseif (($erroIsbn = erroIsbn($isbnBruto)) !== null) {
+            $erro = $erroIsbn;
             $erroCampo = 'isbn';
         } elseif ($erroTamanho = erroTamanho($observacoes, LIMITE_OBSERVACOES, 'As observações')) {
             $erro = $erroTamanho;
@@ -376,11 +376,11 @@ require __DIR__ . '/includes/cabecalho.php';
 
                   <div class="ws-campo<?= $temErroCampo('isbn') ? ' ws-campo--erro' : '' ?>">
                     <label class="ws-campo__rotulo" for="isbn">ISBN <span class="ws-campo__opcional">(opcional)</span></label>
-                    <input class="ws-input ws-input--codigo" type="text" id="isbn" name="isbn" value="<?= escaparHtml($isbn) ?>" inputmode="numeric"<?= $temErroCampo('isbn') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['isbn-erro' => $temErroCampo('isbn'), 'isbn-ajuda' => true]) ?>>
+                    <input class="ws-input ws-input--codigo" type="text" id="isbn" name="isbn" value="<?= escaparHtml($isbn) ?>" inputmode="numeric" maxlength="25" autocomplete="off"<?= $temErroCampo('isbn') ? ' aria-invalid="true"' : '' ?><?= ariaDescr(['isbn-erro' => $temErroCampo('isbn'), 'isbn-ajuda' => true]) ?>>
 <?php if ($temErroCampo('isbn')): ?>
                     <p class="ws-campo__erro" id="isbn-erro"><i data-lucide="circle-alert"></i><?= escaparHtml($erro) ?></p>
 <?php endif; ?>
-                    <p class="ws-campo__ajuda" id="isbn-ajuda">ISBN-13. Pode ficar vazio até a Catalogação.</p>
+                    <p class="ws-campo__ajuda" id="isbn-ajuda">Digite só os 13 números, começando por 978 ou 979. Pode ficar vazio até a Catalogação.</p>
                   </div>
 
                   <div class="ws-campo">

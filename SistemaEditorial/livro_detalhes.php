@@ -5,6 +5,7 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/csrf.php';
 require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
+require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/campos.php';
 require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/alertas.php';
@@ -835,7 +836,7 @@ require __DIR__ . '/includes/cabecalho.php';
               <h2 id="dados-titulo">Dados do livro</h2>
               <dl class="ws-dados">
                 <div><dt>Livro</dt><dd class="ws-codigo"><?= escaparHtml($codigo) ?></dd></div>
-                <div><dt>ISBN</dt><dd><?php if ($livro['isbn']): ?><span class="ws-codigo"><?= escaparHtml($livro['isbn']) ?></span><?php else: ?><span class="ws-texto-suave">Ainda sem ISBN</span><?php endif; ?></dd></div>
+                <div><dt>ISBN</dt><dd><?php if ($livro['isbn']): ?><span class="ws-codigo"><?= escaparHtml(formatarIsbn($livro['isbn'])) ?></span><?php else: ?><span class="ws-texto-suave">Ainda sem ISBN</span><?php endif; ?></dd></div>
                 <div><dt>Tem cópia</dt><dd><?= ((int)$livro['tem_copia'] === 1) ? 'Sim' : 'Não' ?></dd></div>
                 <div><dt>Cadastrado em</dt><dd class="ws-codigo"><?= escaparHtml(formatarDataHora($livro['criado_em'])) ?></dd></div>
                 <div><dt>Pessoas</dt><dd>
