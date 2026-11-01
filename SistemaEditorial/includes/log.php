@@ -22,6 +22,7 @@ const NOMES_ACOES_LOG = [
     'usuario.remover'            => 'Removeu usuário (sem acesso)',
     'usuario.excluir'            => 'Excluiu usuário',
     'usuario.reativar'           => 'Reativou usuário',
+    'usuario.alterar_senha'      => 'Alterou a própria senha',
     'livro.criar'                => 'Cadastrou livro',
     'livro.editar'                => 'Editou livro', // chave antiga, mantida só para exibir logs históricos
     'livro.editar_titulo'        => 'Editou título do livro',

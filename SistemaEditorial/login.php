@@ -6,6 +6,7 @@ require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
 require_once __DIR__ . '/includes/campos.php';
 require_once __DIR__ . '/includes/tema.php';
+require_once __DIR__ . '/includes/login_tentativas.php';
 
 if (!empty($_SESSION['usuario_id'])) {
     header('Location: index.php');
@@ -30,31 +31,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($errosLogin) {
             // nada a conferir no banco: os campos voltam marcados
         } else {
-            $stmt = $conn->prepare('SELECT id, nome, senha_hash, perfil, tema, ativo FROM usuarios WHERE email = ?');
-            $stmt->bind_param('s', $email);
-            $stmt->execute();
-            $usuario = $stmt->get_result()->fetch_assoc();
+            $emailTentativa = emailDaTentativa($email);
+            $ipTentativa = ipDoCliente();
+            $agoraLogin = date('Y-m-d H:i:s');
 
-            if ($usuario && password_verify($senha, $usuario['senha_hash']) && (int)$usuario['ativo'] !== 1) {
-                // Só depois de acertar a senha: a mensagem não revela quais e-mails existem.
-                $erro = MSG_SEM_ACESSO;
-            } elseif ($usuario && password_verify($senha, $usuario['senha_hash'])) {
-                session_regenerate_id(true);
-                $_SESSION['usuario_id'] = $usuario['id'];
-                $_SESSION['usuario_nome'] = $usuario['nome'];
-                $_SESSION['usuario_perfil'] = $usuario['perfil'];
-                $_SESSION['usuario_tema'] = $usuario['tema'];
-                header('Location: index.php');
-                exit;
-            }
+            if (loginBloqueado($conn, $emailTentativa, $ipTentativa, $agoraLogin)) {
+                // Bloqueado (5 falhas seguidas): nem a senha certa entra, e a mensagem serve para qualquer e-mail.
+                registrarLoginBloqueado($conn, $emailTentativa, $ipTentativa, $agoraLogin);
+                $erro = MSG_LOGIN_BLOQUEADO;
+            } else {
+                $stmt = $conn->prepare('SELECT id, nome, senha_hash, perfil, tema, ativo FROM usuarios WHERE email = ?');
+                $stmt->bind_param('s', $email);
+                $stmt->execute();
+                $usuario = $stmt->get_result()->fetch_assoc();
+                $senhaCerta = conferirSenhaDoUsuario($usuario, $senha);
 
-            if ($erro === '') {
-                $erro = 'E-mail ou senha inválidos.';
+                if ($senhaCerta && (int)$usuario['ativo'] !== 1) {
+                    // Só depois de acertar a senha: a mensagem não revela quais e-mails existem. Não é falha de senha.
+                    $erro = MSG_SEM_ACESSO;
+                } elseif ($senhaCerta) {
+                    registrarLoginSucesso($conn, $emailTentativa, $ipTentativa, $agoraLogin);
+                    session_regenerate_id(true);
+                    $_SESSION['usuario_id'] = $usuario['id'];
+                    $_SESSION['usuario_nome'] = $usuario['nome'];
+                    $_SESSION['usuario_perfil'] = $usuario['perfil'];
+                    $_SESSION['usuario_tema'] = $usuario['tema'];
+                    $_SESSION['ultimo_acesso'] = time();
+                    header('Location: index.php');
+                    exit;
+                } else {
+                    // Falhou: fica registrado e, na quinta falha seguida, o e-mail (ou o IP) é bloqueado por 15 minutos.
+                    registrarLoginFalha($conn, $emailTentativa, $ipTentativa, $agoraLogin);
+                    $erro = MSG_LOGIN_INVALIDO;
+                }
             }
         }
     }
 } elseif (($_GET['motivo'] ?? '') === 'sem_acesso') {
     $erro = MSG_SEM_ACESSO; // veio de auth_check.php: a conta foi removida com a sessão aberta
+} elseif (($_GET['motivo'] ?? '') === 'sessao_expirada') {
+    $erro = 'Sua sessão expirou por inatividade. Entre novamente.';
 }
 // Tela de entrada: sem sessão não há tema do usuário, então ela abre sempre no tema claro.
 // Caminhos de CSS, JS e links pela BASE_URL; fonte e ícones locais (design system).
@@ -66,6 +82,9 @@ $ws_base = BASE_URL;
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Entrar · WareSys</title>
+  <link rel="icon" href="<?= escaparHtml($ws_base) ?>/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="<?= escaparHtml($ws_base) ?>/favicon.ico" sizes="48x48">
+  <link rel="apple-touch-icon" href="<?= escaparHtml($ws_base) ?>/apple-touch-icon.png">
   <!-- Design system WareSys: fonte Inter local primeiro, depois os 4 CSS nesta ordem -->
   <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/fontes.css">
   <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/tokens.css">
@@ -78,7 +97,7 @@ $ws_base = BASE_URL;
     <!-- Painel da marca: cinza profundo, cor lisa -->
     <section class="ws-login__marca" aria-label="WareSys">
       <a class="ws-logo ws-logo--assinatura ws-logo--negativa" href="<?= escaparHtml($ws_base) ?>/login.php" aria-label="WareSys">
-        <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+        <span class="ws-logo__simbolo" aria-hidden="true"></span>
         <span class="ws-logo__wordmark">WareSys</span>
       </a>
       <div class="ws-pilha">

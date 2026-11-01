@@ -46,6 +46,9 @@ $ws_perfil = nomePapel(papelAtual());
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= escaparHtml($ws_titulo) ?></title>
+  <link rel="icon" href="<?= escaparHtml($ws_base) ?>/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="<?= escaparHtml($ws_base) ?>/favicon.ico" sizes="48x48">
+  <link rel="apple-touch-icon" href="<?= escaparHtml($ws_base) ?>/apple-touch-icon.png">
   <!-- Design system WareSys: fonte Inter local primeiro, depois os 4 CSS nesta ordem -->
   <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/fontes.css">
   <link rel="stylesheet" href="<?= escaparHtml($ws_base) ?>/assets/css/tokens.css">
@@ -64,7 +67,7 @@ $ws_perfil = nomePapel(papelAtual());
         <i data-lucide="menu"></i>
       </a>
       <a class="ws-logo ws-logo--assinatura ws-logo--peq" href="<?= escaparHtml($ws_base) ?>/index.php" aria-label="WareSys, ir para o Painel">
-        <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+        <span class="ws-logo__simbolo" aria-hidden="true"></span>
         <span class="ws-logo__wordmark">WareSys</span>
       </a>
     </header>
@@ -72,7 +75,7 @@ $ws_perfil = nomePapel(papelAtual());
     <aside class="ws-sidebar" id="ws-sidebar" aria-label="Menu principal">
       <div class="ws-sidebar__marca">
         <a class="ws-logo ws-logo--assinatura" href="<?= escaparHtml($ws_base) ?>/index.php" aria-label="WareSys, ir para o Painel">
-          <span class="ws-logo__simbolo ws-logo__simbolo--reservado" aria-hidden="true"></span>
+          <span class="ws-logo__simbolo" aria-hidden="true"></span>
           <span class="ws-logo__wordmark">WareSys</span>
         </a>
         <a class="ws-btn ws-btn--icone ws-btn--peq ws-sidebar__fechar" href="#" data-ws-menu-fechar aria-label="Fechar menu">

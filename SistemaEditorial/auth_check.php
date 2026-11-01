@@ -2,7 +2,8 @@
 require_once __DIR__ . '/includes/sessao.php';
 
 if (empty($_SESSION['usuario_id'])) {
-    header('Location: login.php');
+    // SESSAO_EXPIROU: sessao.php acabou de descartar uma sessão sem uso há mais de 30 minutos.
+    header('Location: login.php' . (defined('SESSAO_EXPIROU') ? '?motivo=sessao_expirada' : ''));
     exit;
 }
 

@@ -20,6 +20,22 @@ const LIMITE_JUSTIFICATIVA_EXCLUSAO = 200;   // justificativa de excluir livro: 
 // livros.observacoes é TEXT (65.535 BYTES). Com até 4 bytes por caractere em utf8mb4,
 // 16.000 caracteres cabem com folga em qualquer idioma/emoji.
 const LIMITE_OBSERVACOES = 16000;
+// Senha de usuário (Passo 21): mínimo de 12 caracteres para qualquer senha nova (criar usuário e trocar a própria senha).
+// O máximo existe porque o bcrypt só usa os primeiros 72 bytes: acima disso o resto seria ignorado em silêncio.
+const SENHA_MINIMA = 12;
+const SENHA_MAXIMA_BYTES = 72;
+
+/** Texto de erro se a senha nova não servir (curta demais ou longa demais para o bcrypt); null se estiver boa. */
+function erroSenhaNova(string $senha): ?string
+{
+    if (mb_strlen($senha, 'UTF-8') < SENHA_MINIMA) {
+        return 'A senha deve ter pelo menos ' . SENHA_MINIMA . ' caracteres.';
+    }
+    if (strlen($senha) > SENHA_MAXIMA_BYTES) {
+        return 'A senha pode ter no máximo ' . SENHA_MAXIMA_BYTES . ' bytes (cerca de 72 caracteres comuns).';
+    }
+    return null;
+}
 
 /** Texto de erro se $valor passar de $max caracteres; null se estiver dentro do limite. */
 function erroTamanho(string $valor, int $max, string $rotulo): ?string

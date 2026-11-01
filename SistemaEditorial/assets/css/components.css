@@ -32,8 +32,12 @@
 /* ==========================================================================
    1. Logo
    --------------------------------------------------------------------------
-   O símbolo NÃO é redesenhado aqui. Coloque os SVG originais em assets/img/logo/
-   (pendência registrada no CLAUDE.md) dentro de .ws-logo__simbolo.
+   O símbolo NÃO é redesenhado aqui: vem do SVG da marca (assets/img/logo/
+   waresys-simbolo.svg, um só caminho, sem cor própria) usado como máscara de
+   .ws-logo__simbolo, que se pinta com a cor da versão (currentColor). Um só
+   arquivo serve a todas as versões e aos dois temas, sem repetir o SVG no HTML.
+   HTML: <a class="ws-logo ws-logo--assinatura"><span class="ws-logo__simbolo"
+   aria-hidden="true"></span><span class="ws-logo__wordmark">WareSys</span></a>
    - .ws-logo--assinatura: símbolo + wordmark, mín. 96px de largura.
    - .ws-logo--simbolo:    só o símbolo completo, mín. 32px.
    - .ws-logo--simplificado: abaixo de 32px (16–31px), arquivo simplificado.
@@ -55,23 +59,14 @@
 }
 
 .ws-logo__simbolo {
-  display: inline-flex;
+  display: inline-block;
   flex: none;
   height: var(--ws-logo-altura);
+  aspect-ratio: 1055 / 989;               /* proporção do SVG da marca */
   color: var(--ws-logo-cor-simbolo);
-}
-
-.ws-logo__simbolo img,
-.ws-logo__simbolo svg {
-  width: auto;
-  height: 100%;
-}
-
-/* Espaço reservado enquanto o SVG original não é inserido.
-   Remova a classe quando colocar o <img> ou <svg>. */
-.ws-logo__simbolo--reservado {
-  width: var(--ws-logo-altura);
-  border: 1px dashed currentColor;
+  background-color: currentColor;
+  -webkit-mask: url("../img/logo/waresys-simbolo.svg") center / contain no-repeat;
+          mask: url("../img/logo/waresys-simbolo.svg") center / contain no-repeat;
 }
 
 .ws-logo__wordmark {
@@ -1038,6 +1033,12 @@ a.ws-kpi:hover {
     padding: var(--ws-esp-1) var(--ws-esp-4);
     border-bottom: 0;
     text-align: left !important;
+    overflow-wrap: anywhere; /* e-mail ou código longo, sem espaço, quebra no cartão em vez de ser cortado */
+  }
+
+  /* No cartão, a coluna em mono (IP, código) também pode quebrar: sem isso ela força a rolagem do cartão */
+  .ws-tabela--empilhar td.ws-tabela__codigo {
+    white-space: normal;
   }
 
   /* Conteúdo da célula sempre na 2ª coluna, mesmo com vários elementos */

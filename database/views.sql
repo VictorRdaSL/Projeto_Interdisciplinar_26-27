@@ -6,16 +6,16 @@
 -- tela grava dados através de view, e nenhuma view calcula "dias" — datas em dias são
 -- sempre calculadas em PHP (DateTime::diff), porque NOW()/DATEDIFF() do MySQL já
 -- causaram divergência de fuso no projeto.
--- Segurança: as views usam SQL SECURITY DEFINER (padrão), o que permite, no futuro, dar a
--- um usuário de banco só SELECT nas views, sem acesso direto às tabelas. O definer será o
--- usuário que rodar este arquivo (hoje root@localhost) — ajustar ao publicar.
+-- Segurança e hospedagem: as views usam SQL SECURITY INVOKER e não têm cláusula DEFINER. Na hospedagem
+-- compartilhada o usuário não pode criar objetos em nome de outro usuário (root@localhost, por exemplo), então
+-- nada aqui depende de quem os criou: a view roda com os privilégios de quem a consulta (o usuário do sistema).
+-- O banco não é selecionado aqui (sem USE): ver o cabeçalho do schema.sql.
 --
 -- Funções exclusivas de MySQL/MariaDB usadas neste arquivo:
 --   GROUP_CONCAT(... DISTINCT / ORDER BY / SEPARATOR) — só em vw_livros_contribuidores.
 --   (O próprio CREATE OR REPLACE VIEW também é sintaxe de MySQL/MariaDB.)
 
 SET NAMES utf8mb4;
-USE waresys;
 
 -- ------------------------------------------------------------
 -- vw_usuarios_publico — usuários SEM a coluna senha_hash.
@@ -23,7 +23,7 @@ USE waresys;
 -- Uso: listagens, listas suspensas e consultas de nome/perfil/tema. Só o login (que precisa
 -- conferir a senha) e as gravações (criar usuário, trocar perfil/tema) usam a tabela direta.
 -- ------------------------------------------------------------
-CREATE OR REPLACE VIEW vw_usuarios_publico AS
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW vw_usuarios_publico AS
 SELECT
     u.id,
     u.nome,
@@ -42,7 +42,7 @@ FROM usuarios u;
 -- etapa_desde = data_entrada da movimentação ABERTA; ela é reaberta a cada troca de mesa,
 -- então não é a data em que o livro entrou na etapa (divergência já documentada no projeto).
 -- ------------------------------------------------------------
-CREATE OR REPLACE VIEW vw_livros_situacao_atual AS
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW vw_livros_situacao_atual AS
 SELECT
     l.id                    AS livro_id,
     l.titulo                AS titulo,
@@ -74,7 +74,7 @@ LEFT JOIN movimentacoes m ON m.livro_id = l.id AND m.data_saida IS NULL;
 -- Livros sem contribuições não aparecem; num LEFT JOIN as colunas vêm NULL.
 -- Usa GROUP_CONCAT (exclusivo de MySQL/MariaDB).
 -- ------------------------------------------------------------
-CREATE OR REPLACE VIEW vw_livros_contribuidores AS
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW vw_livros_contribuidores AS
 SELECT
     c.livro_id AS livro_id,
     GROUP_CONCAT(DISTINCT pe.nome ORDER BY pe.nome SEPARATOR ', ') AS pessoas_nomes,

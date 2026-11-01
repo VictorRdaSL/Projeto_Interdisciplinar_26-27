@@ -9,6 +9,7 @@ require_once __DIR__ . '/includes/validacao.php';
 require_once __DIR__ . '/includes/formatacao.php';
 require_once __DIR__ . '/includes/campos.php';
 require_once __DIR__ . '/includes/mesa.php';
+require_once __DIR__ . '/includes/login_tentativas.php';
 
 // Formulários de cadastro novo só valem uma vez por exibição (duplo clique / reenvio / "voltar").
 // Se um flash do primeiro envio ainda não foi mostrado, ele é preservado.
@@ -334,6 +335,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar
     exit;
 }
 
+// Alterar a PRÓPRIA senha (qualquer perfil). Pede a senha atual (conferida com o mesmo limite de tentativas do login), exige
+// a nova com no mínimo SENHA_MINIMA caracteres e diferente da atual, grava o hash e troca o id da sessão. Erro de campo volta
+// na própria página, junto do campo; as senhas digitadas nunca voltam.
+$errosSenhaPropria = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_minha_senha') {
+    if (!csrfValidar($_POST['csrf_token'] ?? null)) {
+        $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
+        header('Location: configuracoes.php'); exit;
+    }
+    $senhaAtualPost = entradaBruta($_POST, 'senha_atual');
+    $senhaNovaPost = entradaBruta($_POST, 'senha_nova');
+    $senhaConfirmarPost = entradaBruta($_POST, 'senha_confirmar');
+
+    if ($senhaAtualPost === '') {
+        $errosSenhaPropria['atual'] = 'Informe a senha atual.';
+    }
+    if ($senhaNovaPost === '') {
+        $errosSenhaPropria['nova'] = 'Informe a nova senha.';
+    } elseif (($erroNova = erroSenhaNova($senhaNovaPost)) !== null) {
+        $errosSenhaPropria['nova'] = $erroNova;
+    } elseif ($senhaAtualPost !== '' && $senhaNovaPost === $senhaAtualPost) {
+        $errosSenhaPropria['nova'] = 'A nova senha deve ser diferente da atual.';
+    }
+    if ($senhaConfirmarPost === '') {
+        $errosSenhaPropria['confirmar'] = 'Confirme a nova senha.';
+    } elseif ($senhaNovaPost !== '' && $senhaNovaPost !== $senhaConfirmarPost) {
+        $errosSenhaPropria['confirmar'] = 'As senhas não coincidem.';
+    }
+
+    if (!$errosSenhaPropria) {
+        $stmtMinha = $conn->prepare('SELECT email, senha_hash FROM usuarios WHERE id = ?');
+        $stmtMinha->bind_param('i', $_SESSION['usuario_id']);
+        $stmtMinha->execute();
+        $minhaConta = $stmtMinha->get_result()->fetch_assoc();
+        $emailMinhaConta = emailDaTentativa((string)($minhaConta['email'] ?? ''));
+        $ipMinhaConta = ipDoCliente();
+        $agoraSenha = date('Y-m-d H:i:s');
+
+        if (!$minhaConta) {
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Não foi possível alterar a senha.'];
+            header('Location: configuracoes.php'); exit;
+        }
+        if (loginBloqueado($conn, $emailMinhaConta, $ipMinhaConta, $agoraSenha)) {
+            registrarLoginBloqueado($conn, $emailMinhaConta, $ipMinhaConta, $agoraSenha);
+            $_SESSION['flash'] = ['type' => 'erro', 'message' => MSG_LOGIN_BLOQUEADO];
+            header('Location: configuracoes.php'); exit;
+        }
+        if (!password_verify($senhaAtualPost, $minhaConta['senha_hash'])) {
+            // Errar a senha atual aqui conta como falha de login: sem isso esta tela serviria para adivinhar senhas.
+            registrarLoginFalha($conn, $emailMinhaConta, $ipMinhaConta, $agoraSenha);
+            $errosSenhaPropria['atual'] = 'A senha atual não confere.';
+        } else {
+            registrarLoginSucesso($conn, $emailMinhaConta, $ipMinhaConta, $agoraSenha);
+            $novoHash = password_hash($senhaNovaPost, PASSWORD_DEFAULT);
+            $stmtSenha = $conn->prepare('UPDATE usuarios SET senha_hash = ? WHERE id = ?');
+            $stmtSenha->bind_param('si', $novoHash, $_SESSION['usuario_id']);
+            $stmtSenha->execute();
+            registrarLog($conn, (int)$_SESSION['usuario_id'], 'usuario.alterar_senha', 'usuario', (int)$_SESSION['usuario_id'], null, '(senha alterada)');
+            session_regenerate_id(true);
+            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Senha alterada com sucesso.'];
+            header('Location: configuracoes.php'); exit;
+        }
+    }
+}
+
 if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'alterar_dias_limite') {
     if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
@@ -454,8 +520,8 @@ if ($podeGerenciarUsuarios && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['
     }
     if ($novaSenha === '') {
         $errosUsuario['senha'] = 'Informe a senha.';
-    } elseif (strlen($novaSenha) < 6) {
-        $errosUsuario['senha'] = 'A senha deve ter pelo menos 6 caracteres.';
+    } elseif (($erroSenhaCriar = erroSenhaNova($novaSenha)) !== null) {
+        $errosUsuario['senha'] = $erroSenhaCriar;
     }
     if ($novaConfirmarSenha === '') {
         $errosUsuario['confirmar'] = 'Confirme a senha.';
@@ -953,6 +1019,18 @@ $sqlLog = "
     ORDER BY l.criado_em DESC
     LIMIT 100
 ";
+// Tentativas de login recusadas (Passo 21), só para quem vê o log: as 50 mais recentes que não foram sucesso.
+$tentativasLogin = [];
+if ($podeVerLog) {
+    $rt = $conn->query("SELECT email, ip, resultado, criado_em FROM login_tentativas WHERE resultado <> 'sucesso' ORDER BY id DESC LIMIT 50");
+    while ($row = $rt->fetch_assoc()) $tentativasLogin[] = $row;
+}
+const ROTULOS_RESULTADO_LOGIN = [
+    'falha' => 'Falha no login',
+    'bloqueada' => 'Durante o bloqueio',
+    'bloqueio_email' => 'Bloqueio do e-mail',
+    'bloqueio_ip' => 'Bloqueio do IP',
+];
 if ($podeVerLog) {
     $stmtLog = $conn->prepare($sqlLog);
     if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
@@ -990,6 +1068,41 @@ require __DIR__ . '/includes/cabecalho.php';
             <div class="ws-btn-grupo" role="group" aria-label="Tema de exibição">
               <button type="submit" name="tema" value="claro" class="ws-btn ws-btn--secundario<?= $temaAtual === 'claro' ? ' is-pressionado' : '' ?>" aria-pressed="<?= $temaAtual === 'claro' ? 'true' : 'false' ?>"><i data-lucide="sun"></i>Tema claro</button>
               <button type="submit" name="tema" value="escuro" class="ws-btn ws-btn--secundario<?= $temaAtual === 'escuro' ? ' is-pressionado' : '' ?>" aria-pressed="<?= $temaAtual === 'escuro' ? 'true' : 'false' ?>"><i data-lucide="moon"></i>Tema escuro</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Alterar a própria senha (todo perfil). Nova senha com no mínimo SENHA_MINIMA caracteres. -->
+        <section class="ws-secao" id="senha" aria-labelledby="senha-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="senha-titulo">Alterar minha senha</h2>
+              <p>Use no mínimo <?= SENHA_MINIMA ?> caracteres. Só você troca a sua senha; ninguém, nem o Administrador, vê a senha de outra pessoa.</p>
+            </div>
+          </div>
+          <form method="post" action="configuracoes.php#senha" class="ws-form ws-card ws-card--superficie" novalidate>
+            <?= csrfCampo() ?>
+            <input type="hidden" name="acao" value="alterar_minha_senha">
+            <div class="ws-form__grade">
+              <div class="ws-campo<?= classeCampoErro($errosSenhaPropria['atual'] ?? null) ?>">
+                <label class="ws-campo__rotulo" for="senha_atual">Senha atual</label>
+                <input class="ws-input" type="password" id="senha_atual" name="senha_atual" autocomplete="current-password" required<?= atributosCampo('senha_atual', $errosSenhaPropria['atual'] ?? null) ?>>
+                <?= htmlErroCampo('senha_atual', $errosSenhaPropria['atual'] ?? null) ?>
+              </div>
+              <div class="ws-campo<?= classeCampoErro($errosSenhaPropria['nova'] ?? null) ?>">
+                <label class="ws-campo__rotulo" for="senha_nova">Nova senha</label>
+                <input class="ws-input" type="password" id="senha_nova" name="senha_nova" minlength="<?= SENHA_MINIMA ?>" autocomplete="new-password" required<?= atributosCampo('senha_nova', $errosSenhaPropria['nova'] ?? null, 'senha-nova-ajuda') ?>>
+                <?= htmlErroCampo('senha_nova', $errosSenhaPropria['nova'] ?? null) ?>
+                <p class="ws-campo__ajuda" id="senha-nova-ajuda">Mínimo de <?= SENHA_MINIMA ?> caracteres.</p>
+              </div>
+              <div class="ws-campo<?= classeCampoErro($errosSenhaPropria['confirmar'] ?? null) ?>">
+                <label class="ws-campo__rotulo" for="senha_confirmar">Confirmar nova senha</label>
+                <input class="ws-input" type="password" id="senha_confirmar" name="senha_confirmar" minlength="<?= SENHA_MINIMA ?>" autocomplete="new-password" required<?= atributosCampo('senha_confirmar', $errosSenhaPropria['confirmar'] ?? null) ?>>
+                <?= htmlErroCampo('senha_confirmar', $errosSenhaPropria['confirmar'] ?? null) ?>
+              </div>
+            </div>
+            <div class="ws-form__acoes">
+              <button class="ws-btn ws-btn--primario" type="submit">Alterar senha</button>
             </div>
           </form>
         </section>
@@ -1155,13 +1268,13 @@ require __DIR__ . '/includes/cabecalho.php';
                 </div>
                 <div class="ws-campo<?= classeCampoErro($errosUsuario['senha'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="nova_senha">Senha</label>
-                  <input class="ws-input" type="password" id="nova_senha" name="nova_senha" minlength="6" autocomplete="new-password" required<?= atributosCampo('nova_senha', $errosUsuario['senha'] ?? null, 'senha-ajuda') ?>>
+                  <input class="ws-input" type="password" id="nova_senha" name="nova_senha" minlength="<?= SENHA_MINIMA ?>" autocomplete="new-password" required<?= atributosCampo('nova_senha', $errosUsuario['senha'] ?? null, 'senha-ajuda') ?>>
                   <?= htmlErroCampo('nova_senha', $errosUsuario['senha'] ?? null) ?>
-                  <p class="ws-campo__ajuda" id="senha-ajuda">Mínimo de 6 caracteres.</p>
+                  <p class="ws-campo__ajuda" id="senha-ajuda">Mínimo de <?= SENHA_MINIMA ?> caracteres.</p>
                 </div>
                 <div class="ws-campo<?= classeCampoErro($errosUsuario['confirmar'] ?? null) ?>">
                   <label class="ws-campo__rotulo" for="nova_confirmar_senha">Confirmar senha</label>
-                  <input class="ws-input" type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="6" autocomplete="new-password" required<?= atributosCampo('nova_confirmar_senha', $errosUsuario['confirmar'] ?? null) ?>>
+                  <input class="ws-input" type="password" id="nova_confirmar_senha" name="nova_confirmar_senha" minlength="<?= SENHA_MINIMA ?>" autocomplete="new-password" required<?= atributosCampo('nova_confirmar_senha', $errosUsuario['confirmar'] ?? null) ?>>
                   <?= htmlErroCampo('nova_confirmar_senha', $errosUsuario['confirmar'] ?? null) ?>
                 </div>
                 <div class="ws-campo<?= classeCampoErro($errosUsuario['papel'] ?? null) ?>">
@@ -1383,6 +1496,47 @@ require __DIR__ . '/includes/cabecalho.php';
               <button class="ws-btn ws-btn--primario" type="submit">Cadastrar papel</button>
             </div>
           </form>
+        </section>
+<?php endif; ?>
+
+<?php if ($podeVerLog): ?>
+        <!-- Tentativas de login recusadas (Passo 21): as 50 mais recentes. Gerente e Admin, como o log. -->
+        <section class="ws-secao" id="tentativas-login" aria-labelledby="tentativas-titulo">
+          <div class="ws-secao__cabecalho">
+            <div>
+              <h2 id="tentativas-titulo">Tentativas de login recusadas</h2>
+              <p>Depois de <?= LOGIN_MAX_FALHAS ?> falhas seguidas para o mesmo e-mail ou o mesmo IP, o acesso fica bloqueado por <?= LOGIN_BLOQUEIO_MINUTOS ?> minutos. As tentativas bem-sucedidas não aparecem aqui.</p>
+            </div>
+          </div>
+<?php if (!$tentativasLogin): ?>
+          <div class="ws-vazio">
+            <i class="ws-vazio__icone" data-lucide="shield-check"></i>
+            <h3 class="ws-h2">Nenhuma tentativa recusada.</h3>
+          </div>
+<?php else: ?>
+          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="tentativas-titulo">
+            <table class="ws-tabela ws-tabela--empilhar">
+              <thead>
+                <tr>
+                  <th scope="col">Data</th>
+                  <th scope="col">E-mail digitado</th>
+                  <th scope="col">IP</th>
+                  <th scope="col">Resultado</th>
+                </tr>
+              </thead>
+              <tbody>
+<?php foreach ($tentativasLogin as $t): ?>
+                <tr>
+                  <td class="ws-tabela__codigo" data-rotulo="Data"><?= escaparHtml(formatarDataHora($t['criado_em'])) ?></td>
+                  <td data-rotulo="E-mail digitado"><?= escaparHtml($t['email'] ?? '—') ?></td>
+                  <td class="ws-tabela__codigo" data-rotulo="IP"><?= escaparHtml($t['ip']) ?></td>
+                  <td data-rotulo="Resultado"><span class="ws-tag ws-tag--neutra"><?= escaparHtml(ROTULOS_RESULTADO_LOGIN[$t['resultado']] ?? $t['resultado']) ?></span></td>
+                </tr>
+<?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+<?php endif; ?>
         </section>
 <?php endif; ?>
 
