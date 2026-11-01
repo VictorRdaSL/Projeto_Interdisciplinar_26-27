@@ -95,32 +95,51 @@ Há três perfis. Todos veem o painel, Livros, Minha mesa, Pessoas e os relatór
 ## ⚙️ Instalação (XAMPP)
 
 1. Copie o projeto para `C:\xampp\htdocs\` e inicie **Apache** e **MySQL** no XAMPP.
-2. No phpMyAdmin (`http://localhost/phpmyadmin`), importe **nesta ordem** os quatro arquivos da pasta `database/` (não escolha um banco antes: o `schema.sql` cria o banco sozinho):
-   1. `schema.sql`: cria o banco **`waresys`** e todas as tabelas;
-   2. `seed.sql`: as 15 etapas, os papéis de autoria, a configuração inicial e o **usuário Administrador**;
+2. No phpMyAdmin (`http://localhost/phpmyadmin`), crie um banco chamado **`waresys`** (Novo → nome `waresys`, collation `utf8mb4_unicode_ci`). Depois **clique nesse banco** e, na aba **Importar**, importe **nesta ordem** os quatro arquivos da pasta `database/`:
+   1. `schema.sql`: todas as tabelas (inclusive a de tentativas de login);
+   2. `seed.sql`: as 15 etapas, os papéis de autoria e a configuração inicial (**não cria usuário nenhum**);
    3. `views.sql`: views de leitura (`vw_*`) usadas pelo sistema;
    4. `procedures.sql`: stored procedures (`sp_*`) chamadas pelo sistema.
 
-   Em linha de comando, para cada arquivo e na mesma ordem: `mysql -u root --default-character-set=utf8mb4 < database/schema.sql`. O `views.sql` e o `procedures.sql` podem ser rodados de novo a qualquer hora; o `schema.sql` e o `seed.sql` são só para um banco novo.
+   Em linha de comando, para cada arquivo e na mesma ordem: `mysql -u root --default-character-set=utf8mb4 waresys < database/schema.sql`. Os scripts não criam nem escolhem o banco (é o que permite importá-los numa hospedagem compartilhada, onde o banco já existe com outro nome). O `views.sql` e o `procedures.sql` podem ser rodados de novo a qualquer hora; o `schema.sql` e o `seed.sql` são só para um banco novo.
 3. Copie `SistemaEditorial/config/config.example.php` para `SistemaEditorial/config/config.php` e ajuste usuário e senha do MySQL, se necessário. Ajuste também o `base_url` (no XAMPP é `/Projeto_Interdisciplinar_26-27/SistemaEditorial`). O `config.php` nunca vai para o Git.
-4. Abra `http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/`.
+4. Crie o primeiro Administrador (próxima seção).
+5. Abra `http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/`.
 
-### Primeiro acesso
+### Primeiro acesso: criar o Administrador
 
-O `seed.sql` já cria o primeiro usuário **Administrador**. O e-mail e a senha de acesso são repassados pelo responsável pelo projeto e não ficam neste documento. Ainda não existe tela para trocar a senha; use o SQL:
+Nenhum usuário, e-mail ou senha vem no repositório: o primeiro Administrador é criado por você, depois de importar o banco.
 
-1. Gere o hash da nova senha: `php -r "echo password_hash('NOVA_SENHA', PASSWORD_DEFAULT);"`
-2. No phpMyAdmin (banco `waresys`, aba SQL): `UPDATE usuarios SET senha_hash = 'HASH_GERADO' WHERE perfil = 'admin';`
+**Com terminal (recomendado)**, na pasta do projeto:
 
-Depois do primeiro login, vá em **Configurações** e cadastre pelo menos um Gerente ou Usuário: sem isso não há quem escolher como responsável ao criar um livro.
+```
+php ferramentas/criar_admin.php
+```
+
+O script pergunta nome, e-mail (será o login) e senha, que é digitada **sem aparecer**, duas vezes, com no mínimo **12 caracteres**. Grava só o hash da senha e nunca a mostra. Só funciona pela linha de comando e se recusa a criar outro Administrador se já existir um (use `--outro` para forçar). Opções: `--config=/caminho/do/config.php`, `--nome=...`, `--email=...`.
+
+**Sem terminal (por exemplo, só com o phpMyAdmin da hospedagem)**: gere o hash **no seu computador**, sem escrever a senha em nenhum arquivo, e insira o usuário pelo phpMyAdmin.
+
+1. No seu computador, rode `php -r "echo password_hash(trim(fgets(STDIN)), PASSWORD_DEFAULT);"`, digite a senha (mínimo de 12 caracteres) e pressione Enter. O terminal mostra o hash (começa com `$2y$`). A senha não fica no histórico de comandos.
+2. No phpMyAdmin, no banco do WareSys, aba **SQL**, rode (troque os trechos em maiúsculas):
+
+   ```sql
+   INSERT INTO usuarios (nome, email, senha_hash, perfil, tema, ativo, criado_em)
+   VALUES ('SEU NOME', 'SEU_EMAIL', 'HASH_GERADO', 'admin', 'claro', 1, 'AAAA-MM-DD HH:MM:SS');
+   ```
+
+Depois do primeiro login, cada pessoa pode trocar a própria senha em **Configurações → Alterar minha senha**, e o Administrador cadastra pelo menos um Gerente ou Usuário em **Configurações**: sem isso não há quem escolher como responsável ao criar um livro.
 
 ---
 
 ## 🔐 Segurança e hospedagem
 
-- Todo acesso é checado no servidor (login e perfil), todo formulário tem proteção CSRF, todo SQL com valor variável usa *prepared statements* e toda saída é escapada. O cookie de sessão usa `HttpOnly` e `SameSite=Lax`, e `Secure` em produção com HTTPS.
-- **Ao hospedar:** publique **somente** a pasta `SistemaEditorial/` (nunca a raiz do repositório); use `'ambiente' => 'producao'` no `config.php` (os erros deixam de aparecer na tela e vão para `SistemaEditorial/logs/app.log`); ajuste o `base_url`; use HTTPS; **crie um usuário de banco só para o sistema**, com senha, em vez do `root` sem senha do XAMPP; e troque a senha do Administrador.
-- As pastas `config/`, `includes/`, `tests/` e `logs/` respondem 403 pelo navegador (`.htaccess`). Os scripts de `tests/` só rodam pela linha de comando e só com `'ambiente' => 'desenvolvimento'`.
+- Todo acesso é checado no servidor (login e perfil), todo formulário tem proteção CSRF, todo SQL com valor variável usa *prepared statements* e toda saída é escapada.
+- **Login:** 5 falhas seguidas para o mesmo e-mail (ou para o mesmo IP) bloqueiam por 15 minutos, com mensagem que não diz se o erro foi no e-mail ou na senha; as falhas ficam registradas e aparecem, para Gerente e Administrador, em Configurações. Senhas novas têm no mínimo 12 caracteres. A sessão expira com 30 minutos sem uso, e o cookie usa `HttpOnly`, `SameSite=Lax` e `Secure` (em produção, com HTTPS).
+- **Cabeçalhos e HTTPS** (`SistemaEditorial/.htaccess`): redireciona HTTP para HTTPS, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` e uma Content-Security-Policy; sem listagem de pastas; documentação, SQL, logs e arquivos ocultos respondem 403.
+- **Publicar na Hostinger (ou outra hospedagem):** siga o passo a passo do **[DEPLOY.md](DEPLOY.md)**. Em resumo: envie **somente** o conteúdo de `SistemaEditorial/` (sem `tests/` nem `config.php`), use `'ambiente' => 'producao'`, mantenha o arquivo de configuração **fora da pasta pública**, crie um usuário de banco só para o sistema (nunca `root`), importe os quatro `.sql`, crie o Administrador e ative o HTTPS.
+- **Configuração fora da pasta pública:** o sistema procura o arquivo de configuração, nesta ordem, em (1) a variável de ambiente `WARESYS_CONFIG`, (2) `waresys-config.php` na pasta acima da pasta do sistema (na Hostinger, a pasta do domínio, ao lado do `public_html`), (3) `waresys-config.php` duas pastas acima e (4) `config/config.php` dentro do sistema. O log de erros também pode ficar fora da pasta pública (chave `log_erros` do config).
+- Os scripts de `tests/` só rodam pela linha de comando e só com `'ambiente' => 'desenvolvimento'`.
 
 ---
 
@@ -135,7 +154,7 @@ Depois do primeiro login, vá em **Configurações** e cadastre pelo menos um Ge
 
 ## 🎨 Interface
 
-Toda a interface usa o design system do WareSys, em `SistemaEditorial/assets/` (`css/`, `js/` e `fonts/`): CSS próprio (`fontes.css`, `tokens.css`, `base.css`, `layout.css` e `components.css`), fonte Inter e ícones Lucide **locais** (nada de CDN, funciona sem internet) e tema claro/escuro por usuário. Os caminhos dos estilos, scripts e links do menu partem do `base_url` de `config/config.php`.
+Toda a interface usa o design system do WareSys, em `SistemaEditorial/assets/` (`css/`, `js/`, `fonts/` e `img/logo/`, com o símbolo da marca; o favicon fica na raiz do sistema): CSS próprio (`fontes.css`, `tokens.css`, `base.css`, `layout.css` e `components.css`), fonte Inter e ícones Lucide **locais** (nada de CDN, funciona sem internet) e tema claro/escuro por usuário. Os caminhos dos estilos, scripts e links do menu partem do `base_url` de `config/config.php`.
 
 ---
 
@@ -143,12 +162,15 @@ Toda a interface usa o design system do WareSys, em `SistemaEditorial/assets/` (
 
 ```
 database/            schema.sql, seed.sql, views.sql e procedures.sql (instalação do banco)
+ferramentas/         criar_admin.php (cria o primeiro Administrador; só linha de comando; não vai para o servidor)
+DEPLOY.md            passo a passo de publicação (Hostinger) e lista do que enviar e do que não enviar
 SistemaEditorial/    o sistema (cada página é um .php; sem framework e sem build)
   config/            config.example.php (modelo) e database.php (conexão)
-  includes/          funções compartilhadas: sessão, permissões, CSRF, validação, movimentações, relatórios...
-  assets/            CSS, JS e fontes do design system
+  includes/          funções compartilhadas: configuração, sessão, permissões, CSRF, validação, login, movimentações, relatórios...
+  assets/            CSS, JS, fontes e símbolo da marca (img/logo) do design system
+  favicon.svg / favicon.ico / apple-touch-icon.png   ícones da aba e da tela inicial
   tests/             scripts de teste, só pela linha de comando
-  logs/              app.log (erros em produção)
+  logs/              app.log (erros em produção, quando o config não define outro lugar)
 ```
 
 ---

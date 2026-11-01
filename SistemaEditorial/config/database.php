@@ -1,9 +1,10 @@
 <?php
-$configPath = __DIR__ . '/config.php';
-if (!file_exists($configPath)) {
-    die('<h2>Configuração ausente</h2><p>Copie <code>config/config.example.php</code> para <code>config/config.php</code> e ajuste os valores antes de continuar.</p>');
+require_once __DIR__ . '/../includes/configuracao.php';
+$config = carregarConfiguracao();
+if ($config === null) {
+    http_response_code(500);
+    die('<h2>Configuração ausente</h2><p>O arquivo de configuração não foi encontrado. Consulte o README.md (instalação) ou o DEPLOY.md (hospedagem).</p>');
 }
-$config = require $configPath;
 
 // Caminho base do sistema na URL (CSS, JS, imagens e links do menu das telas novas). Vem de config.php ('base_url');
 // se a chave não existir num config.php antigo, deriva do script em execução (as telas ficam na raiz de SistemaEditorial/).
@@ -23,7 +24,8 @@ error_reporting(E_ALL);
 if ($producao) {
     ini_set('display_errors', '0');
     ini_set('log_errors', '1');
-    ini_set('error_log', __DIR__ . '/../logs/app.log');
+    // O log pode ficar fora da pasta pública ('log_erros' no config.php); sem a chave, vale logs/app.log dentro do sistema.
+    ini_set('error_log', (string)($config['log_erros'] ?? (__DIR__ . '/../logs/app.log')));
 } else {
     ini_set('display_errors', '1');
 }
@@ -35,6 +37,7 @@ try {
     $conn = new mysqli($db['host'], $db['usuario'], $db['senha'], $db['nome'], (int)$db['porta']);
     $conn->set_charset($db['charset']);
 } catch (mysqli_sql_exception $e) {
+    http_response_code(500);
     if ($producao) {
         error_log('Erro ao conectar ao MySQL: ' . $e->getMessage());
         die('<h2>Erro ao conectar ao sistema</h2><p>Tente novamente mais tarde.</p>');

@@ -1,14 +1,7 @@
-WARESYS — CONTROLE EDITORIAL (XAMPP + PHP + MYSQL/MARIADB)
+WARESYS — CONTROLE EDITORIAL
 
-A documentação completa (o que é o sistema, o fluxo de etapas, a regra de rodadas, os perfis de acesso,
-a instalação, a troca da senha do Administrador e a hospedagem) está no README.md, na raiz do repositório.
+A documentação completa (o que é o sistema, o fluxo de etapas, a regra de rodadas, os perfis de acesso, a instalação
+no XAMPP, a criação do primeiro Administrador e a segurança) está no README.md, na raiz do repositório. O passo a passo
+de publicação na hospedagem e a lista do que enviar e do que NÃO enviar estão no DEPLOY.md, também na raiz.
 
-Resumo da instalação:
-1. Copie o projeto para C:\xampp\htdocs\ e inicie Apache e MySQL no XAMPP.
-2. No phpMyAdmin, importe NESTA ORDEM os arquivos da pasta database/ (na raiz do repositório, ao lado desta
-   pasta): schema.sql, seed.sql, views.sql e procedures.sql.
-3. Copie config/config.example.php para config/config.php e ajuste o MySQL e o 'base_url'.
-4. Abra http://localhost/Projeto_Interdisciplinar_26-27/SistemaEditorial/
-
-AO HOSPEDAR: publique SOMENTE esta pasta (SistemaEditorial/), use 'ambiente' => 'producao' no config.php,
-HTTPS, um usuário de banco próprio com senha, e troque a senha provisória do Administrador.
+Este arquivo (README.txt) não deve ser enviado ao servidor.

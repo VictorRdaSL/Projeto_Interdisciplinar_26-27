@@ -5,3 +5,10 @@ SistemaEditorial/config/config.php
 
 # Logs de erro em producao
 SistemaEditorial/logs/*.log
+
+# Configuração fora da pasta do sistema (produção ou desenvolvimento): nunca commitar
+waresys-config.php
+.env
+*.bak
+*.sql.gz
+*.dump

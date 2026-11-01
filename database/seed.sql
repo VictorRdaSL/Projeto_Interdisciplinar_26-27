@@ -3,7 +3,7 @@
 -- (Não é idempotente: numa segunda execução os INSERTs falham por chave duplicada.)
 
 SET NAMES utf8mb4;
-USE waresys;
+-- (O banco já deve estar selecionado: ver o cabeçalho do schema.sql.)
 
 -- ATENÇÃO (Passo 20.9): Gerente e Administrador podem EXCLUIR uma etapa que nunca foi usada, inclusive uma destas 15.
 -- Por isso este arquivo só serve para um banco recém-criado: num banco em uso ele falha por chave duplicada (os ids 1..15
@@ -40,8 +40,5 @@ INSERT INTO papeis (id, nome, ativo) VALUES
 INSERT INTO configuracoes (chave, valor) VALUES
     ('dias_limite_livro_parado', '15');
 
--- Administrador inicial.
--- A senha é a combinada com o responsável pelo projeto (aqui só o hash bcrypt, gerado por password_hash do PHP).
--- Para trocá-la, ver "Primeiro acesso" no README.md.
-INSERT INTO usuarios (nome, email, senha_hash, perfil, tema, criado_em) VALUES
-    ('Administrador', 'admin@waresys.com', '$2y$10$x6ZvZWwDzKcebLM7FLb65O931JaHgwX4Y8JgIhfcdTETgjYGiWoza', 'admin', 'claro', NOW());
+-- Este arquivo NÃO cria usuário: nenhuma conta, e-mail, senha ou hash fica no repositório. O primeiro Administrador é
+-- criado depois da importação, com ferramentas/criar_admin.php (linha de comando) ou pelo phpMyAdmin (ver README.md).

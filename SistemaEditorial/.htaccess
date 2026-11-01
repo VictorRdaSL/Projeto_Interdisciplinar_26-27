@@ -1,13 +1,38 @@
-# Cabeçalhos de segurança (só valem se o módulo mod_headers do Apache estiver ativo; sem ele este bloco é ignorado).
-# Não há Content-Security-Policy de propósito: as telas usam scripts e estilos em linha.
-<IfModule mod_headers.c>
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+# WareSys — .htaccess da aplicação (Apache e LiteSpeed, o servidor da Hostinger).
+
+# 1) Tudo por HTTPS. Em localhost (XAMPP) não redireciona. Atrás do proxy da hospedagem, o aviso de HTTPS pode vir no
+#    cabeçalho X-Forwarded-Proto: se ele já diz https, não redireciona de novo (evita laço de redirecionamento).
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# Documentação e anotações do desenvolvedor não são páginas do sistema: não servir pelo navegador.
-<FilesMatch "\.(md|sql|txt|log|bak)$">
+# 2) Sem listagem de pastas: abrir uma pasta sem index no navegador dá 403, não a lista de arquivos.
+Options -Indexes
+
+# 3) Cabeçalhos de segurança (precisam do mod_headers; sem ele este bloco é ignorado).
+#    - Strict-Transport-Security: depois da primeira visita por HTTPS o navegador só acessa o site por HTTPS (1 ano).
+#      Sem includeSubDomains nem preload de propósito: só valem para este endereço.
+#    - X-Frame-Options DENY e frame-ancestors 'none': o sistema não pode ser exibido dentro de outro site (clickjacking).
+#    - Content-Security-Policy: o sistema só carrega script, estilo, fonte e imagem do próprio endereço (fontes e ícones
+#      são locais, sem CDN). 'unsafe-inline' em script e estilo é necessário HOJE porque as telas têm scripts e atributos
+#      style escritos dentro da própria página; sem ele elas parariam. Tirar isso exige mover esses trechos para arquivos
+#      (ver PENDENCIAS.md). data: em img-src é para os ícones em SVG embutidos no CSS.
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+</IfModule>
+
+# 4) Arquivos que não são páginas do sistema nunca saem pelo navegador: documentação, SQL, logs, cópias de segurança,
+#    arquivos de configuração e arquivos ocultos (.env, .git...).
+<FilesMatch "(\.(md|sql|txt|log|bak|old|orig|swp|dist|env|ini|sh|ps1|lock)|~)$|^\.">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

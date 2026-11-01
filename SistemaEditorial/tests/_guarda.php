@@ -10,7 +10,8 @@ if (PHP_SAPI !== 'cli') {
     exit;
 }
 
-$configDoGuarda = @include __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/configuracao.php';
+$configDoGuarda = carregarConfiguracao();
 if (!is_array($configDoGuarda) || ($configDoGuarda['ambiente'] ?? '') !== 'desenvolvimento') {
     fwrite(STDERR, "Este script só pode ser executado em ambiente de desenvolvimento (config/config.php: 'ambiente' => 'desenvolvimento').\n");
     exit(1);

@@ -13,8 +13,9 @@
 --
 -- Importando pelo phpMyAdmin: o DELIMITER abaixo é entendido pelo importador.
 
+-- Sem USE (o banco já deve estar selecionado) e sem DEFINER: a procedure usa SQL SECURITY INVOKER, para não
+-- depender de quem a criou (a hospedagem compartilhada não deixa criar objeto em nome de outro usuário).
 SET NAMES utf8mb4;
-USE waresys;
 
 DELIMITER $$
 
@@ -41,6 +42,7 @@ CREATE PROCEDURE sp_trocar_mesa(
     IN p_agora DATETIME,
     IN p_observacao VARCHAR(1000)
 )
+SQL SECURITY INVOKER
 COMMENT 'Passa um livro para outra mesa (mesma etapa e rodada). Grava livros, movimentacoes e log_alteracoes numa transacao.'
 BEGIN
     -- sp_trocar_mesa: ver o cabeçalho em database/procedures.sql (parâmetros, tabelas e regras).

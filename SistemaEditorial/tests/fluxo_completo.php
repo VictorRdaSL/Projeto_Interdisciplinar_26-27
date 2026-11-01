@@ -128,8 +128,16 @@ function ultimaMovimentacao(mysqli $conn, int $livroId, ?int $etapaId = null): a
     return $stmt->get_result()->fetch_assoc();
 }
 
-$admin = $conn->query("SELECT id FROM usuarios WHERE email = 'admin@waresys.com'")->fetch_assoc();
-$usuarioId = (int)$admin['id'];
+// O repositório não tem Administrador (o seed.sql não cria usuário): o teste cria o seu próprio, que não faz login
+// ('sem-login' não é um hash válido), e o remove no final. Ele só REGISTRA as ações; os livros ficam com outra mesa.
+const EMAIL_ADMIN_TESTE = 'teste_fluxo_admin@teste.invalid';
+consulta($conn, 'DELETE FROM usuarios WHERE email = ?', 's', [EMAIL_ADMIN_TESTE]); // sobra de uma execução interrompida
+$agoraAdminTeste = date('Y-m-d H:i:s');
+$stmtAdminTeste = $conn->prepare("INSERT INTO usuarios (nome, email, senha_hash, perfil, criado_em) VALUES ('Teste Fluxo Admin', ?, 'sem-login', 'admin', ?)");
+$emailAdminTeste = EMAIL_ADMIN_TESTE;
+$stmtAdminTeste->bind_param('ss', $emailAdminTeste, $agoraAdminTeste);
+$stmtAdminTeste->execute();
+$usuarioId = $conn->insert_id;
 // O cenário (e) precisa de um 2º usuário. Se o banco só tem o admin, o teste cria o seu próprio
 // (e remove no final) — assim a troca de mesa nunca fica de fora por falta de usuário.
 const EMAIL_USUARIO_TESTE_MESA = 'teste_fluxo_mesa@teste.invalid';
@@ -666,6 +674,10 @@ foreach ($pessoasDeTeste as $pid) {
     consulta($conn, "DELETE FROM log_alteracoes WHERE entidade_tipo='pessoa' AND entidade_id=?", 'i', [$pid]);
     consulta($conn, "DELETE FROM pessoas WHERE id=?", 'i', [$pid]);
 }
+consulta($conn, "DELETE FROM log_alteracoes WHERE usuario_id=?", 'i', [$usuarioId]);
+consulta($conn, "DELETE FROM usuarios WHERE id=?", 'i', [$usuarioId]);
+echo "Administrador de teste removido: $usuarioId
+";
 if ($usuarioTesteCriadoId !== null) {
     consulta($conn, "DELETE FROM log_alteracoes WHERE usuario_id=?", 'i', [$usuarioTesteCriadoId]);
     consulta($conn, "DELETE FROM usuarios WHERE id=?", 'i', [$usuarioTesteCriadoId]);

@@ -1,6 +1,12 @@
 -- schema.sql — WareSys, Controle Editorial.
--- Cria o banco `waresys` e todas as tabelas, do zero, num MariaDB/MySQL vazio.
--- Rode ESTE arquivo primeiro e depois seed.sql. Não depende de nenhum outro script.
+-- Cria todas as tabelas, do zero, num banco MariaDB/MySQL VAZIO. Rode ESTE arquivo primeiro e depois seed.sql.
+-- Não depende de nenhum outro script.
+--
+-- O banco NÃO é criado nem selecionado aqui (sem CREATE DATABASE nem USE): na hospedagem compartilhada o banco já
+-- existe, com um nome próprio da conta, e o usuário não pode criar bancos. Quem importa escolhe o banco antes:
+--   phpMyAdmin: clique no banco e use a aba Importar;
+--   linha de comando: mysql -u USUARIO -p --default-character-set=utf8mb4 NOME_DO_BANCO < schema.sql
+-- Em desenvolvimento (XAMPP), crie o banco uma vez: CREATE DATABASE waresys CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 --
 -- Convenções: tabelas no plural, snake_case, sem acento; InnoDB, utf8mb4_unicode_ci.
 -- status/tipo/perfil/tema são VARCHAR validados no PHP (sem ENUM, de propósito).
@@ -9,9 +15,6 @@
 -- Todas as FKs: ON UPDATE CASCADE ON DELETE RESTRICT.
 
 SET NAMES utf8mb4;
-
-CREATE DATABASE IF NOT EXISTS waresys CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE waresys;
 
 -- ------------------------------------------------------------
 -- Tabelas sem dependência
@@ -166,4 +169,20 @@ CREATE TABLE log_alteracoes (
     PRIMARY KEY (id),
     KEY idx_log_criado_em (criado_em),
     CONSTRAINT fk_log_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tentativas de login (Passo 21): base do limite de 5 falhas seguidas (bloqueio de 15 minutos por e-mail ou por IP) e
+-- do registro das falhas, que Gerente e Administrador veem em Configurações. Sem FK: guarda também e-mail que não
+-- existe. `resultado`: falha | sucesso | bloqueada | bloqueio_email | bloqueio_ip. Ver includes/login_tentativas.php.
+CREATE TABLE login_tentativas (
+    id         INT NOT NULL AUTO_INCREMENT,
+    email      VARCHAR(150) NULL,
+    ip         VARCHAR(45)  NOT NULL,
+    resultado  VARCHAR(20)  NOT NULL,
+    contada    TINYINT(1)   NOT NULL DEFAULT 1,
+    criado_em  DATETIME     NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_login_email (email, criado_em),
+    KEY idx_login_ip (ip, criado_em),
+    KEY idx_login_criado_em (criado_em)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
