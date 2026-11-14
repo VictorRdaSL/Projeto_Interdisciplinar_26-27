@@ -109,7 +109,7 @@ Há três perfis. Todos veem o painel, Livros, Minha mesa, Pessoas e os relatór
 
 Nenhum usuário, e-mail ou senha vem no repositório: o primeiro Administrador é criado por você, depois de importar o banco.
 
-**Com terminal (recomendado)**, na pasta do projeto:
+Na pasta do projeto, pela linha de comando:
 
 ```
 php ferramentas/criar_admin.php
@@ -117,25 +117,15 @@ php ferramentas/criar_admin.php
 
 O script pergunta nome, e-mail (será o login) e senha, que é digitada **sem aparecer**, duas vezes, com no mínimo **12 caracteres**. Grava só o hash da senha e nunca a mostra. Só funciona pela linha de comando e se recusa a criar outro Administrador se já existir um (use `--outro` para forçar). Opções: `--config=/caminho/do/config.php`, `--nome=...`, `--email=...`.
 
-**Sem terminal (por exemplo, só com o phpMyAdmin da hospedagem)**: gere o hash **no seu computador**, sem escrever a senha em nenhum arquivo, e insira o usuário pelo phpMyAdmin.
-
-1. No seu computador, rode `php -r "echo password_hash(trim(fgets(STDIN)), PASSWORD_DEFAULT);"`, digite a senha (mínimo de 12 caracteres) e pressione Enter. O terminal mostra o hash (começa com `$2y$`). A senha não fica no histórico de comandos.
-2. No phpMyAdmin, no banco do WareSys, aba **SQL**, rode (troque os trechos em maiúsculas):
-
-   ```sql
-   INSERT INTO usuarios (nome, email, senha_hash, perfil, tema, ativo, criado_em)
-   VALUES ('SEU NOME', 'SEU_EMAIL', 'HASH_GERADO', 'admin', 'claro', 1, 'AAAA-MM-DD HH:MM:SS');
-   ```
-
 Depois do primeiro login, cada pessoa pode trocar a própria senha em **Configurações → Alterar minha senha**, e o Administrador cadastra pelo menos um Gerente ou Usuário em **Configurações**: sem isso não há quem escolher como responsável ao criar um livro.
 
 ---
 
-## 🔐 Segurança e hospedagem
+## 🔐 Segurança
 
 - Todo acesso é checado no servidor (login e perfil), todo formulário tem proteção CSRF, todo SQL com valor variável usa *prepared statements* e toda saída é escapada.
 - **Login:** 5 falhas seguidas para o mesmo e-mail (ou para o mesmo IP) bloqueiam por 15 minutos, com mensagem que não diz se o erro foi no e-mail ou na senha; as falhas ficam registradas e aparecem, para Gerente e Administrador, em Configurações. Senhas novas têm no mínimo 12 caracteres. A sessão expira com 30 minutos sem uso, e o cookie usa `HttpOnly`, `SameSite=Lax` e `Secure` (em produção, com HTTPS).
-- **Cabeçalhos e HTTPS** (`SistemaEditorial/.htaccess`): redireciona HTTP para HTTPS, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` e uma Content-Security-Policy; sem listagem de pastas; documentação, SQL, logs e arquivos ocultos respondem 403.
+- **Cabeçalhos de segurança e HTTPS** configurados no `.htaccess` da aplicação; pastas internas e arquivos de documentação, SQL e log não são servidos pelo navegador.
 - Os scripts de `tests/` só rodam pela linha de comando e só com `'ambiente' => 'desenvolvimento'`.
 
 ---

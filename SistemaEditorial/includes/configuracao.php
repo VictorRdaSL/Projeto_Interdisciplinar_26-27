@@ -8,8 +8,8 @@
  *
  *   1) a variável de ambiente WARESYS_CONFIG (caminho completo do arquivo; pode vir de "SetEnv WARESYS_CONFIG ..." no
  *      .htaccess, que não é segredo, ou do painel da hospedagem);
- *   2) waresys-config.php na pasta ACIMA da pasta do sistema (no XAMPP, a raiz do repositório; na Hostinger, a pasta
- *      do domínio, ao lado do public_html);
+ *   2) waresys-config.php na pasta ACIMA da pasta do sistema (no XAMPP, a raiz do repositório; em produção, ao lado
+ *      da pasta pública);
  *   3) waresys-config.php duas pastas acima (quando o sistema fica numa subpasta do public_html);
  *   4) config/config.php dentro da pasta do sistema (o padrão do desenvolvimento).
  *

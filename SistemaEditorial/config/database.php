@@ -3,7 +3,7 @@ require_once __DIR__ . '/../includes/configuracao.php';
 $config = carregarConfiguracao();
 if ($config === null) {
     http_response_code(500);
-    die('<h2>Configuração ausente</h2><p>O arquivo de configuração não foi encontrado. Consulte o README.md (instalação) ou o DEPLOY.md (hospedagem).</p>');
+    die('<h2>Configuração ausente</h2><p>O arquivo de configuração não foi encontrado. Consulte o README.md (instalação).</p>');
 }
 
 // Caminho base do sistema na URL (CSS, JS, imagens e links do menu das telas novas). Vem de config.php ('base_url');

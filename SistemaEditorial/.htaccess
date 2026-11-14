@@ -1,4 +1,4 @@
-# WareSys — .htaccess da aplicação (Apache e LiteSpeed, o servidor da Hostinger).
+# WareSys — .htaccess da aplicação (Apache e LiteSpeed).
 
 # 1) Tudo por HTTPS. Em localhost (XAMPP) não redireciona. Atrás do proxy da hospedagem, o aviso de HTTPS pode vir no
 #    cabeçalho X-Forwarded-Proto: se ele já diz https, não redireciona de novo (evita laço de redirecionamento).

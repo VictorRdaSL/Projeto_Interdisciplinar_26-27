@@ -2,9 +2,8 @@
 // Modelo de configuração: só valores de EXEMPLO. Nunca coloque credenciais reais neste arquivo (ele vai para o Git).
 //
 // Desenvolvimento (XAMPP): copie para "config.php" nesta pasta e ajuste. config.php é ignorado pelo Git.
-// Produção: crie o arquivo com os valores reais FORA da pasta pública do servidor (na Hostinger, a pasta do domínio,
-// acima do public_html) com o nome "waresys-config.php", ou aponte para ele com a variável de ambiente WARESYS_CONFIG.
-// A ordem de busca está em includes/configuracao.php e o passo a passo, no DEPLOY.md.
+// Produção: crie o arquivo com os valores reais FORA da pasta pública do servidor, com o nome "waresys-config.php",
+// ou aponte para ele com a variável de ambiente WARESYS_CONFIG. A ordem de busca está em includes/configuracao.php.
 
 return [
     'ambiente' => 'desenvolvimento', // 'desenvolvimento' ou 'producao' (em produção os erros não aparecem na tela)
