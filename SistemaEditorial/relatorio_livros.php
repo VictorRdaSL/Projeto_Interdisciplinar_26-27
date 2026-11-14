@@ -24,7 +24,7 @@ $condicoes = [];
 $parametros = [];
 $tipos = '';
 if ($filtroEtapaStatus !== '') { $condicoes[] = 'v.status = ?'; $parametros[] = $filtroEtapaStatus; $tipos .= 's'; }
-elseif ($filtroEtapa > 0) { $condicoes[] = "v.etapa_id = ? AND v.status IN ('em_andamento', 'extraviado')"; $parametros[] = $filtroEtapa; $tipos .= 'i'; }
+elseif ($filtroEtapa > 0) { $condicoes[] = "v.etapa_id = ? AND v.status = 'em_andamento'"; $parametros[] = $filtroEtapa; $tipos .= 'i'; }
 if ($filtroStatus !== '') { $condicoes[] = 'v.status = ?'; $parametros[] = $filtroStatus; $tipos .= 's'; }
 if ($filtroMesa > 0) { $condicoes[] = 'v.mesa_id = ?'; $parametros[] = $filtroMesa; $tipos .= 'i'; }
 $whereSql = $condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '';
@@ -54,7 +54,7 @@ foreach ($livros as $l) {
     $p = $permanenciaAberta[(int)$l['id']] ?? null;
     $rodada = '';
     $dias = '';
-    if ($p && in_array($l['status'], ['em_andamento', 'extraviado'], true)) {
+    if ($p && $l['status'] === 'em_andamento') {
         $rodada = (string)$p['rodada'];
         if ($l['rodadas_incluidas'] !== null) $rodada .= ' de ' . (int)$l['rodadas_incluidas'];
         if ($p['excedente']) $rodada .= ' (cobrável)';
@@ -92,7 +92,7 @@ relatorioAbrir('Relatório de livros', 'Relatórios');
 ?>
         <section class="ws-secao" aria-labelledby="filtros-titulo">
           <h2 class="ws-sr-only" id="filtros-titulo">Filtros</h2>
-          <p class="ws-texto-suave">Situação atual de cada livro. "Dias na etapa atual" conta desde que o livro entrou na etapa (trocas de mesa não zeram) e só existe para livros em andamento ou extraviados. Livro concluído ou cancelado aparece como "Concluído" ou "Cancelado" na etapa, e é achado por essas duas opções do filtro (não pela etapa onde terminou); a Mesa dele é a última, marcada como "(concluído)" ou "(cancelado)".</p>
+          <p class="ws-texto-suave">Situação atual de cada livro. "Dias na etapa atual" conta desde que o livro entrou na etapa (trocas de mesa não zeram) e só existe para livros em andamento. Livro concluído ou cancelado aparece como "Concluído" ou "Cancelado" na etapa, e é achado por essas duas opções do filtro (não pela etapa onde terminou); a Mesa dele é a última, marcada como "(concluído)" ou "(cancelado)".</p>
           <form class="ws-filtros" method="get">
             <div class="ws-campo">
               <label class="ws-campo__rotulo" for="filtro_etapa">Etapa</label>

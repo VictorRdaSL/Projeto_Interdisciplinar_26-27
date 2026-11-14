@@ -121,9 +121,6 @@ function relatorioVazio(string $titulo, string $texto = ''): void
 function htmlStatusLivroRelatorio(string $rotulo): string
 {
     $r = escaparHtml($rotulo);
-    if ($rotulo === ROTULOS_STATUS_LIVRO['extraviado']) {
-        return '<span class="ws-status ws-status--extraviado">' . $r . '</span>';
-    }
     if ($rotulo === ROTULOS_STATUS_LIVRO['concluido'] || $rotulo === ROTULOS_STATUS_LIVRO['cancelado']) {
         return '<span class="ws-tag ws-tag--neutra">' . $r . '</span>';
     }

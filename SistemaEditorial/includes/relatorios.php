@@ -13,7 +13,6 @@ const LIMITE_LINHAS_TELA = 500;
 const ROTULOS_STATUS_LIVRO = [
     'em_andamento' => 'Em andamento',
     'concluido'    => 'Concluído',
-    'extraviado'   => 'Extraviado',
     'cancelado'    => 'Cancelado',
 ];
 
@@ -23,7 +22,6 @@ const ROTULOS_TIPO_MOVIMENTACAO = [
     'pulo_opcional'     => 'Pulo (opcional)',
     'retrocesso'        => 'Retrocesso',
     'troca_responsavel' => 'Troca de responsável',
-    'resgate'           => 'Resgate',
 ];
 
 function exigirPermissaoRelatorios(): void
@@ -106,7 +104,7 @@ function queryFiltros(array $filtros, array $extra = []): string
  * Permanências (estadias) de livros em etapas, no período.
  *
  * Uma "permanência" é o tempo contínuo do livro numa etapa: começa numa
- * movimentação de avanço/repetição/retrocesso/resgate e segue enquanto vierem
+ * movimentação de avanço/repetição/retrocesso e segue enquanto vierem
  * trocas de responsável (mesma etapa). Trocar de mesa NÃO é uma passagem nova —
  * contar cada linha de movimentação separada inflaria "passagens" e encurtaria
  * a média. Pulos de etapa opcional têm duração zero e não são permanência.

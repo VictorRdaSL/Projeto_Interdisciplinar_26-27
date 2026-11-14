@@ -83,12 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errosMov) {
         try {
-            // Ações que pedem confirmação: resgate, cancelamento e qualquer movimentação que abra rodada excedente.
+            // Ações que pedem confirmação: cancelamento e qualquer movimentação que abra rodada excedente.
             // Sem o campo de confirmação nada é gravado: volta para a página com o aviso.
             $exigeConfirmacao = false;
-            if ($acaoPost === 'iniciar_resgate') {
-                $exigeConfirmacao = true;
-            } elseif ($acaoPost === 'cancelar') {
+            if ($acaoPost === 'cancelar') {
                 $exigeConfirmacao = usuarioTemPermissao('livros.cancelar'); // sem permissão, a mensagem de permissão vem primeiro
             } elseif ($acaoPost === 'avancar' || $acaoPost === 'voltar') {
                 $destino = rodadaDoDestino($conn, $livroId, (int)($_POST['etapa_destino_id'] ?? 0));
@@ -128,11 +126,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $novoResponsavelId = (int)($_POST['novo_responsavel_id'] ?? 0);
                 $resultado = passarParaOutraMesa($conn, $livroId, $novoResponsavelId, $usuarioId, $observacaoPost);
                 $mensagem = 'Livro passado para a mesa de ' . nomeUsuario($conn, $novoResponsavelId) . '.';
-            } elseif ($acaoPost === 'iniciar_resgate') {
-                iniciarResgate($conn, $livroId, $usuarioId);
-                $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Resgate iniciado. O livro foi marcado como extraviado.'];
-                header('Location: resgate.php?id=' . $livroId);
-                exit;
             } elseif ($acaoPost === 'cancelar') {
                 if (!usuarioTemPermissao('livros.cancelar')) {
                     throw new InvalidArgumentException('Você não tem permissão para cancelar livros.');
@@ -235,7 +228,6 @@ $mesaMarcada = fn(string $form): int => ($postMov !== null && $postMov['form'] =
 const NOMES_STATUS_LIVRO_DET = [
     'em_andamento' => 'Em andamento',
     'concluido'    => 'Concluído',
-    'extraviado'   => 'Extraviado',
     'cancelado'    => 'Cancelado',
 ];
 const NOMES_TIPO_MOV = [
@@ -244,7 +236,6 @@ const NOMES_TIPO_MOV = [
     'pulo_opcional'    => 'Pulo de opcional',
     'retrocesso'       => 'Retrocesso',
     'troca_responsavel'=> 'Troca de mesa',
-    'resgate'          => 'Resgate',
 ];
 // Ícone Lucide de cada tipo de movimentação (o tipo vem no ícone e no texto, sem cor de status).
 const ICONE_TIPO_MOV = [
@@ -253,7 +244,6 @@ const ICONE_TIPO_MOV = [
     'pulo_opcional'    => 'skip-forward',
     'retrocesso'       => 'undo-2',
     'troca_responsavel'=> 'arrow-left-right',
-    'resgate'          => 'search',
 ];
 // Sufixo da classe ws-evento--* de cada tipo.
 const CLASSE_TIPO_MOV = [
@@ -262,7 +252,6 @@ const CLASSE_TIPO_MOV = [
     'pulo_opcional'    => 'pulo',
     'retrocesso'       => 'retrocesso',
     'troca_responsavel'=> 'troca',
-    'resgate'          => 'resgate',
 ];
 
 // Calculado em PHP (DateTime::diff), não com DATEDIFF/NOW() do MySQL, pela
@@ -392,7 +381,7 @@ if ($movimentacoes && $etapaAtual) {
     $diasComMesaAtual = (new DateTime())->diff(new DateTime($movAtual['data_entrada']))->days;
 }
 $limiteEtapaAtual = ($etapaAtual && $etapaAtual['rodadas_incluidas'] !== null) ? (int)$etapaAtual['rodadas_incluidas'] : null;
-$livroAberto = in_array($livro['status'], ['em_andamento', 'extraviado'], true);
+$livroAberto = $livro['status'] === 'em_andamento';
 
 // Concluído e cancelado não estão em etapa nenhuma (Passo 20.11): "Etapa atual" mostra o status (com a data), mesa e rodada
 // ficam em "—" e o Fluxo não marca etapa atual. No banco etapa_atual_id continua sendo a última etapa: é o histórico, e só
@@ -504,15 +493,7 @@ require __DIR__ . '/includes/cabecalho.php';
       </header>
 
       <div class="ws-conteudo">
-<?php if ($livro['status'] === 'extraviado'): ?>
-        <div class="ws-alerta ws-alerta--cobrado" role="status">
-          <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
-          <div class="ws-alerta__corpo">
-            <p class="ws-alerta__titulo">Livro <?= escaparHtml($codigo) ?> está extraviado.</p>
-            <p>Nenhuma movimentação é aceita até o resgate ser concluído. <a href="resgate.php?id=<?= $livroId ?>">Ver resgate em andamento</a></p>
-          </div>
-        </div>
-<?php elseif ($livro['status'] === 'em_andamento' && $limiteEtapaAtual !== null && $rodadaAtual !== null): ?>
+<?php if ($livro['status'] === 'em_andamento' && $limiteEtapaAtual !== null && $rodadaAtual !== null): ?>
 <?php if ($rodadaAtualExcedente): ?>
         <div class="ws-alerta ws-alerta--cobrado" role="status">
           <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
@@ -595,8 +576,6 @@ require __DIR__ . '/includes/cabecalho.php';
                   <span class="ws-kpi__valor ws-kpi__valor--texto">
 <?php if ($livro['status'] === 'concluido' || $livro['status'] === 'cancelado'): ?>
                     <span class="ws-tag ws-tag--neutra"><?= escaparHtml(NOMES_STATUS_LIVRO_DET[$livro['status']]) ?></span>
-<?php elseif ($livro['status'] === 'extraviado'): ?>
-                    <span class="ws-status ws-status--extraviado">Extraviado</span>
 <?php elseif ($diasParado !== null): ?>
                     <span class="ws-status ws-status--parado">Parado <span class="ws-status__detalhe">· <?= escaparHtml(qtdTexto($diasParado, 'dia', 'dias')) ?></span></span>
 <?php else: ?>
@@ -838,7 +817,6 @@ require __DIR__ . '/includes/cabecalho.php';
         case 'retrocesso':        $titulo = 'Voltou para ' . $etapaNomeMov; break;
         case 'pulo_opcional':     $titulo = 'Pulou ' . $etapaNomeMov . ' (opcional)'; break;
         case 'troca_responsavel': $titulo = 'Passou da mesa de ' . ($anterior['responsavel_nome'] ?? '—') . ' para a de ' . ($m['responsavel_nome'] ?: '—'); break;
-        case 'resgate':           $titulo = 'Resgate concluído: livro reencontrado em ' . $etapaNomeMov; break;
         default:                  $titulo = $etapaNomeMov;
     }
     $partesMeta = [NOMES_TIPO_MOV[$tipo] ?? $tipo];
@@ -905,9 +883,7 @@ require __DIR__ . '/includes/cabecalho.php';
     if ($paradaAqui) {
         $detalhe = 'Parou aqui · cancelado em ' . date('d/m', strtotime($dataFimLivro));
     } elseif ($ehAtual) {
-        if ($livro['status'] === 'extraviado') {
-            $detalhe = 'Extraviado · Última mesa: ' . ($livro['responsavel_nome'] ?: '—');
-        } elseif ($movAtual) {
+        if ($movAtual) {
             $detalhe = 'Desde ' . date('d/m', strtotime($movAtual['data_entrada'])) . ' · Mesa: ' . ($livro['responsavel_nome'] ?: '—');
         }
     } elseif ($estado === 'is-pulada') {
@@ -941,15 +917,12 @@ require __DIR__ . '/includes/cabecalho.php';
               </dl>
             </section>
 
-<?php if ($podeGerenciar && $livro['status'] === 'em_andamento' && $etapaAtual): ?>
+<?php if ($podeGerenciar && $podeCancelar && $livro['status'] === 'em_andamento' && $etapaAtual): ?>
             <section class="ws-card" aria-labelledby="outras-titulo">
               <h2 id="outras-titulo">Outras ações</h2>
-              <p class="ws-texto-suave">Use só quando o livro sumiu do fluxo<?= $podeCancelar ? ' ou saiu da produção' : '' ?>.</p>
+              <p class="ws-texto-suave">Use só quando o livro saiu da produção.</p>
               <div class="ws-btn-grupo">
-                <button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-ws-modal-abrir="modal-resgate"><i data-lucide="search"></i>Iniciar resgate</button>
-<?php if ($podeCancelar): ?>
                 <button class="ws-btn ws-btn--secundario ws-btn--peq" type="button" data-ws-modal-abrir="modal-cancelar"><i data-lucide="ban"></i>Cancelar livro</button>
-<?php endif; ?>
               </div>
             </section>
 <?php endif; ?>
@@ -1024,29 +997,6 @@ require __DIR__ . '/includes/cabecalho.php';
       </dialog>
 
 <?php endif; ?>
-      <!-- Modal: iniciar resgate -->
-      <dialog class="ws-modal" id="modal-resgate" aria-labelledby="modal-resgate-titulo">
-        <form class="ws-modal__caixa" method="post">
-          <?= csrfCampo() ?>
-          <input type="hidden" name="acao" value="iniciar_resgate">
-          <input type="hidden" name="confirmacao" value="">
-          <header class="ws-modal__cabecalho">
-            <h2 id="modal-resgate-titulo">Iniciar resgate do livro <?= escaparHtml($codigo) ?>?</h2>
-            <button class="ws-fechar" type="button" data-ws-modal-fechar aria-label="Fechar"><i data-lucide="x"></i></button>
-          </header>
-          <div class="ws-modal__corpo">
-            <p>O livro fica marcado como extraviado e nenhuma movimentação é aceita até o resgate ser concluído.</p>
-<?php if ($movAtual): ?>
-            <p class="ws-texto-suave">Última posição conhecida: <?= escaparHtml($etapaAtual['nome']) ?><?= $rodadaAtualTexto !== '' ? ', ' . escaparHtml($rodadaAtualTexto) : '' ?>, mesa de <?= escaparHtml($livro['responsavel_nome'] ?: '—') ?>, desde <?= escaparHtml(date('d/m', strtotime($movAtual['data_entrada']))) ?>.</p>
-<?php endif; ?>
-          </div>
-          <footer class="ws-modal__rodape">
-            <button class="ws-btn ws-btn--secundario" type="button" data-ws-modal-fechar>Voltar</button>
-            <button class="ws-btn ws-btn--primario" type="submit" data-confirmar-campo>Iniciar resgate</button>
-          </footer>
-        </form>
-      </dialog>
-
 <?php if ($podeCancelar): ?>
       <!-- Modal: cancelar livro -->
       <dialog class="ws-modal" id="modal-cancelar" aria-labelledby="modal-cancelar-titulo">

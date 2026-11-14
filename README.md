@@ -28,9 +28,8 @@ Pensado para uma equipe pequena (cerca de 5 pessoas), em que todos movimentam li
 - Leva o livro pelas etapas do fluxo (avançar, repetir, voltar, concluir) e passa o livro de uma mesa para outra, com um recado opcional para quem recebe.
 - Guarda o **histórico completo** de cada livro: nada é apagado nem sobrescrito.
 - Conta as **rodadas** de Diagramação e Revisão e avisa quando uma rodada passa do limite incluído.
-- Localiza livros extraviados pelo **resgate**, a partir da última movimentação conhecida.
 - Alerta sobre livros **parados** há muito tempo na mesma etapa.
-- Mostra um painel e **cinco relatórios** (livros, movimentações, rodadas excedentes, tempo por etapa e resgates), todos com exportação em CSV.
+- Mostra um painel e **quatro relatórios** (livros, movimentações, rodadas excedentes e tempo por etapa), todos com exportação em CSV.
 - Registra um **log de alterações** (quem fez o quê e quando).
 - Busca por título, pessoa ou ISBN, e tema claro ou escuro por usuário.
 
@@ -75,7 +74,7 @@ Há três perfis. Todos veem o painel, Livros, Minha mesa, Pessoas e os relatór
 
 | Ação | Usuário | Gerente | Administrador |
 |---|:-:|:-:|:-:|
-| Cadastrar livros e pessoas, editar pessoas, iniciar e concluir resgate | sim | sim | sim |
+| Cadastrar livros e pessoas, editar pessoas | sim | sim | sim |
 | Movimentar e editar livros da própria mesa (inclusive passar para outra mesa) | sim | sim | sim |
 | Movimentar e editar livros de outra mesa | não | sim | sim |
 | Ver relatórios e exportar CSV | sim | sim | sim |

@@ -187,16 +187,15 @@ function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0, array $v =
 // oculto "confirmacao", que apenas o botão de confirmar do modal preenche (IV-8).
 const MSG_PRECISA_CONFIRMAR = 'Esta ação precisa de confirmação. Use o botão de confirmar na janela que se abre; nada foi gravado.';
 
-// Quantos registros apontam para o usuário: livros em qualquer status (mesa), movimentações (mesa e quem registrou), resgates
+// Quantos registros apontam para o usuário: livros em qualquer status (mesa), movimentações (mesa e quem registrou)
 // e log como autor da ação. Zero = nunca usou o sistema e pode ser APAGADO; senão a linha fica (as FKs são RESTRICT) para o
 // nome continuar nos históricos, e a remoção só tira o acesso (usuarios.ativo = 0).
 function usoDoUsuario(mysqli $conn, int $usuarioId): int
 {
     $stmt = $conn->prepare('SELECT (SELECT COUNT(*) FROM livros WHERE responsavel_atual_id = ?)
         + (SELECT COUNT(*) FROM movimentacoes WHERE responsavel_id = ? OR registrado_por_id = ?)
-        + (SELECT COUNT(*) FROM resgates WHERE registrado_por_id = ?)
         + (SELECT COUNT(*) FROM log_alteracoes WHERE usuario_id = ?)');
-    $stmt->bind_param('iiiii', $usuarioId, $usuarioId, $usuarioId, $usuarioId, $usuarioId);
+    $stmt->bind_param('iiii', $usuarioId, $usuarioId, $usuarioId, $usuarioId);
     $stmt->execute();
     return (int)$stmt->get_result()->fetch_row()[0];
 }
@@ -227,7 +226,7 @@ function motivoBloqueioRemocaoUsuario(mysqli $conn, array $alvo, int $atorId, bo
     return null;
 }
 
-// Livros que ficariam "presos" na etapa: concluídos e cancelados não contam; extraviados contam (ainda estão fisicamente ali).
+// Livros que ficariam "presos" na etapa: concluídos e cancelados não contam.
 function livrosNaEtapa(mysqli $conn, int $etapaId): int
 {
     $stmt = $conn->prepare("SELECT COUNT(*) FROM livros WHERE etapa_atual_id = ? AND status NOT IN ('concluido', 'cancelado')");
@@ -960,7 +959,7 @@ if ($podeGerenciarEtapas || $podeExcluirEtapa) {
     while ($row = $re->fetch_assoc()) $etapas[] = $row;
 
     // Livros que ficariam "presos" numa etapa desativada ou reordenada —
-    // extraviados contam (ainda estão fisicamente ali), concluídos/cancelados não.
+    // concluídos e cancelados não contam.
     $rc = $conn->query("SELECT etapa_atual_id, COUNT(*) total FROM livros WHERE status NOT IN ('concluido', 'cancelado') GROUP BY etapa_atual_id");
     while ($row = $rc->fetch_assoc()) $contagemPorEtapa[(int)$row['etapa_atual_id']] = (int)$row['total'];
 

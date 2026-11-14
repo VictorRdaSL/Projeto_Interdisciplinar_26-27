@@ -607,7 +607,7 @@
    Mapeamento no WareSys:
    - --ok        no prazo / em andamento
    - --limite    rodadas no limite · livro parado
-   - --cobrado   acima do limite (cobrável) · extraviado
+   - --cobrado   acima do limite (cobrável)
    Concluído e cancelado NÃO usam cor de status: use .ws-tag--neutra.
    ========================================================================== */
 .ws-status {
@@ -643,8 +643,7 @@
   --ws-status-texto: var(--ws-limite-texto);
 }
 
-.ws-status--cobrado,
-.ws-status--extraviado {
+.ws-status--cobrado {
   --ws-status-ponto: var(--ws-cobrado-ponto);
   --ws-status-texto: var(--ws-cobrado-texto);
 }
@@ -1408,8 +1407,8 @@ a.ws-kpi:hover {
    11. Linha do tempo (histórico do livro)
    --------------------------------------------------------------------------
    Um item por movimentação, do mais recente para o mais antigo. O tipo
-   (avanço, repetição, retrocesso, pulo de opcional, troca de mesa,
-   resgate) vem no ícone e no texto — sem cor de status. Rodada cobrável
+   (avanço, repetição, retrocesso, pulo de opcional e troca de mesa)
+   vem no ícone e no texto — sem cor de status. Rodada cobrável
    ganha um .ws-status--cobrado ao lado.
    <ol class="ws-linha-tempo">
      <li class="ws-evento ws-evento--retrocesso">
@@ -1517,9 +1516,8 @@ a.ws-kpi:hover {
   color: var(--ws-cor-texto-sobre-acao);
 }
 
-/* Resgate e retrocesso: marcador tracejado (diferença por forma, não cor) */
-.ws-evento--retrocesso .ws-evento__icone,
-.ws-evento--resgate .ws-evento__icone {
+/* Retrocesso: marcador tracejado (diferença por forma, não cor) */
+.ws-evento--retrocesso .ws-evento__icone {
   border-style: dashed;
 }
 

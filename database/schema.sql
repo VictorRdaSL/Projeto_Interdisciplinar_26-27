@@ -82,7 +82,7 @@ CREATE TABLE configuracoes (
 -- Entidade central
 -- ------------------------------------------------------------
 
--- status: em_andamento | concluido | extraviado | cancelado.
+-- status: em_andamento | concluido | cancelado.
 -- responsavel_atual_id = a "mesa" do livro.
 CREATE TABLE livros (
     id                    INT NOT NULL AUTO_INCREMENT,
@@ -114,7 +114,7 @@ CREATE TABLE contribuicoes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Histórico de etapas/mesas do livro — nunca apagado nem sobrescrito.
--- tipo: avanco | repeticao | retrocesso | pulo_opcional | troca_responsavel | resgate.
+-- tipo: avanco | repeticao | retrocesso | pulo_opcional | troca_responsavel.
 -- responsavel_id = mesa; registrado_por_id = quem fez a ação.
 -- data_saida NULL = movimentação aberta (no máximo uma por livro).
 CREATE TABLE movimentacoes (
@@ -138,21 +138,6 @@ CREATE TABLE movimentacoes (
     CONSTRAINT fk_mov_etapa FOREIGN KEY (etapa_id) REFERENCES etapas (id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_mov_responsavel FOREIGN KEY (responsavel_id) REFERENCES usuarios (id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_mov_registrado_por FOREIGN KEY (registrado_por_id) REFERENCES usuarios (id) ON UPDATE CASCADE ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Procedimento de localizar um livro perdido; parte da última movimentação conhecida.
-CREATE TABLE resgates (
-    id                          INT NOT NULL AUTO_INCREMENT,
-    livro_id                    INT NOT NULL,
-    movimentacao_referencia_id  INT NOT NULL,
-    data_abertura               DATETIME NOT NULL,
-    data_conclusao              DATETIME NULL,
-    local_encontrado            VARCHAR(255) NULL,
-    registrado_por_id           INT NOT NULL,
-    PRIMARY KEY (id),
-    CONSTRAINT fk_resgate_livro FOREIGN KEY (livro_id) REFERENCES livros (id) ON UPDATE CASCADE ON DELETE RESTRICT,
-    CONSTRAINT fk_resgate_movimentacao FOREIGN KEY (movimentacao_referencia_id) REFERENCES movimentacoes (id) ON UPDATE CASCADE ON DELETE RESTRICT,
-    CONSTRAINT fk_resgate_registrado_por FOREIGN KEY (registrado_por_id) REFERENCES usuarios (id) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Auditoria. entidade_tipo + entidade_id apontam para livro, pessoa, usuario, etapa,

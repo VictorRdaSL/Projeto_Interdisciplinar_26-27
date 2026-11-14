@@ -21,7 +21,6 @@ $sql = "
            v.etapa_nome, v.mesa_nome AS responsavel_nome,
            v.rodada, v.rodadas_incluidas, v.excedente,
            c.pessoas_nomes,
-           EXISTS(SELECT 1 FROM resgates r WHERE r.livro_id = v.livro_id) AS ja_teve_resgate,
            v.etapa_desde
     FROM vw_livros_situacao_atual v
     LEFT JOIN vw_livros_contribuidores c ON c.livro_id = v.livro_id
@@ -38,7 +37,6 @@ foreach (buscarLivrosParados($conn) as $lp) $diasParado[(int)$lp['id']] = (int)$
 const NOMES_STATUS_LIVRO = [
     'em_andamento' => 'Em andamento',
     'concluido'    => 'Concluído',
-    'extraviado'   => 'Extraviado',
     'cancelado'    => 'Cancelado',
 ];
 function nomeStatusLivro(string $status): string
@@ -132,8 +130,6 @@ require __DIR__ . '/includes/cabecalho.php';
                   <td data-rotulo="Status">
 <?php if ($l['status'] === 'concluido' || $l['status'] === 'cancelado'): ?>
                     <span class="ws-tag ws-tag--neutra"><?= escaparHtml(nomeStatusLivro($l['status'])) ?></span>
-<?php elseif ($l['status'] === 'extraviado'): ?>
-                    <span class="ws-status ws-status--extraviado">Extraviado</span>
 <?php else:
     // Em andamento: duas dimensões (livro: parado; rodada: no limite/cobrado). Sem nenhuma delas, "No prazo".
     $statusLivro = isset($diasParado[$id]) ? $diasParado[$id] : null;
@@ -150,9 +146,6 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php if ($statusLivro === null && !$statusRodada): ?>
                     <span class="ws-status ws-status--ok">No prazo</span>
 <?php endif; ?>
-<?php endif; ?>
-<?php if ((int)$l['ja_teve_resgate'] === 1): ?>
-                    <span class="ws-tag ws-tag--neutra ws-tag--peq" title="Já passou por um resgate">Já resgatado</span>
 <?php endif; ?>
                   </td>
                 </tr>

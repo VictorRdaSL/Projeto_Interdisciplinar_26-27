@@ -14,8 +14,8 @@ if (!$erroPeriodo) {
     $tipos = '';
     $condicoes = condicaoPeriodo('m', $de, $ate, $parametros, $tipos, 'data_entrada');
     // Só as linhas que de fato abriram a rodada (avanço/repetição/retrocesso).
-    // Troca de mesa copia rodada/excedente da movimentação anterior e resgate
-    // mantém a rodada — incluí-las contaria a mesma cobrança duas vezes.
+    // Troca de mesa copia rodada/excedente da movimentação anterior — incluí-la
+    // contaria a mesma cobrança duas vezes.
     $condicoes[] = 'm.excedente = 1';
     $condicoes[] = "m.tipo IN ('avanco', 'repeticao', 'retrocesso')";
     $whereSql = 'WHERE ' . implode(' AND ', $condicoes);

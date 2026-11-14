@@ -12,7 +12,6 @@ $relatorios = [
     ['relatorio_movimentacoes.php', 'repeat', 'Movimentações por período', 'Histórico de movimentações entre etapas e mesas: livro, etapa, rodada, tipo, responsável, entrada, saída e se foi excedente.'],
     ['relatorio_excedentes.php', 'circle-dollar-sign', 'Rodadas excedentes por período', 'Rodadas cobráveis com livro, pessoas vinculadas, etapa, número da rodada, limite e data — base para a cobrança, feita fora do sistema.'],
     ['relatorio_tempo_etapa.php', 'timer', 'Tempo por etapa', 'Tempo médio que os livros ficaram em cada etapa num intervalo de datas, para achar gargalos. Cada etapa expande para mostrar os livros.'],
-    ['relatorio_resgates.php', 'life-buoy', 'Resgates por período', 'Livros extraviados e resgatados: última etapa e mesa conhecidas, quanto tempo levou e onde o livro foi encontrado.'],
 ];
 
 relatorioAbrir('Relatórios', 'Fluxo editorial', true);

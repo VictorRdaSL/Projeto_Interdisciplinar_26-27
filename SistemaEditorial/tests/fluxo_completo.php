@@ -304,61 +304,6 @@ checar('Livro 1: status virou concluido', $statusFinal === 'concluido');
 $abertasLivro1 = (int)consulta($conn, "SELECT COUNT(*) total FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro1])->fetch_assoc()['total'];
 checar('Livro 1: nenhuma movimentação aberta depois de concluir', $abertasLivro1 === 0);
 
-echo "\n=== (g) Resgate: iniciar, bloquear movimentações, concluir sem abrir rodada nova ===\n";
-$res = iniciarResgate($conn, $livro2, $usuarioId);
-checar('Livro 2 marcado como extraviado', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro2])->fetch_assoc()['status'] === 'extraviado');
-checar('Resgate referencia a movimentação aberta antes do extravio', $res['movimentacao_referencia_id'] === (int)ultimaMovimentacao($conn, $livro2)['id']);
-
-foreach ([
-    'avancarEtapa' => fn() => avancarEtapa($conn, $livro2, $idCatalogacao, $usuarioId),
-    'repetirEtapa' => fn() => repetirEtapa($conn, $livro2, $usuarioId),
-    'voltarEtapa' => fn() => voltarEtapa($conn, $livro2, $idDiagramacao, $usuarioId),
-    'passarParaOutraMesa' => fn() => passarParaOutraMesa($conn, $livro2, $mesaId, $usuarioId),
-] as $nomeAcao => $acao) {
-    try {
-        $acao();
-        checar("$nomeAcao foi bloqueado enquanto extraviado", false);
-    } catch (InvalidArgumentException $e) {
-        checar("$nomeAcao foi bloqueado enquanto extraviado: " . $e->getMessage(), true);
-    }
-}
-
-try {
-    iniciarResgate($conn, $livro2, $usuarioId);
-    checar('Iniciar um 2º resgate no mesmo livro foi REJEITADO', false);
-} catch (InvalidArgumentException $e) {
-    checar('Iniciar um 2º resgate no mesmo livro foi rejeitado: ' . $e->getMessage(), true);
-}
-
-// O resgate devolve o livro a uma etapa DIFERENTE (Diagramação) de onde ele se perdeu
-// (Revisão) — "manter a rodada atual" é relativo à etapa de destino, não à de origem.
-// Diagramação já tinha 4 entradas reais (avanco+3 repetições) do cenário (d); é esse
-// o número que o resgate deve manter, não a rodada 3 que estava em Revisão.
-$entradasDiagramacaoAntes = contarEntradasAnteriores($conn, $livro2, $idDiagramacao);
-
-$r = concluirResgate($conn, $livro2, $idDiagramacao, $mesaId, 'Na mesa errada, na sala ao lado', $usuarioId);
-checar('Resgate concluído: livro voltou a em_andamento', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro2])->fetch_assoc()['status'] === 'em_andamento');
-checar('Resgate concluído: etapa_atual_id atualizado para a etapa informada', etapaAtualDoLivro($conn, $livro2)['etapa_nome'] === 'Diagramação');
-checar('Resgate manteve a rodada já existente na etapa de destino (não abriu rodada nova)', $r['rodada'] === $entradasDiagramacaoAntes);
-checar('Resgate refletiu o excedente já acumulado em Diagramação (rodada 4 > limite 3)', $r['excedente'] === true);
-$movResgate = ultimaMovimentacao($conn, $livro2);
-checar('Última movimentação tem tipo resgate', $movResgate['tipo'] === 'resgate');
-$resgateFechado = consulta($conn, "SELECT local_encontrado, data_conclusao FROM resgates WHERE livro_id=? ORDER BY id DESC LIMIT 1", 'i', [$livro2])->fetch_assoc();
-checar('Registro de resgates foi fechado com local_encontrado preenchido', $resgateFechado['data_conclusao'] !== null && $resgateFechado['local_encontrado'] === 'Na mesa errada, na sala ao lado');
-
-// Depois de concluído, a contagem real de entradas em Diagramação continua a mesma de
-// antes (o resgate não contou como entrada) — uma nova repetição deve pegar exatamente
-// o número seguinte a essa contagem, prova de que o resgate não inflou nada.
-$rNovo = repetirEtapa($conn, $livro2, $usuarioId);
-checar('Repetir depois do resgate continua a contagem normal (não pulou nenhum número)', $rNovo['rodada'] === $entradasDiagramacaoAntes + 1);
-
-try {
-    concluirResgate($conn, $livro2, $idCatalogacao, $mesaId, 'teste', $usuarioId);
-    checar('Concluir resgate de livro que não está extraviado foi REJEITADO', false);
-} catch (InvalidArgumentException $e) {
-    checar('Concluir resgate de livro que não está extraviado foi rejeitado: ' . $e->getMessage(), true);
-}
-
 echo "\n=== (h) Cancelar livro: muda status e bloqueia movimentações ===\n";
 $livro3 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 3 (cancelamento)', $mesaId, $usuarioId, []);
 $livrosDeTeste[] = $livro3;
@@ -429,18 +374,6 @@ try {
     checar('Responsável inexistente continua com a mensagem própria', $e->getMessage() === 'Usuário responsável inválido.');
 }
 
-// Resgate: concluir com o Admin como "novo responsável" é recusado e o livro continua extraviado.
-iniciarResgate($conn, $livro4, $usuarioId);
-try {
-    concluirResgate($conn, $livro4, $idDiagramacao, $usuarioId, 'Gaveta 3', $usuarioId);
-    checar('Concluir resgate com o Administrador como responsável foi REJEITADO', false);
-} catch (InvalidArgumentException $e) {
-    checar('Concluir resgate com o Administrador como responsável rejeitado com a mensagem clara', $e->getMessage() === MSG_ADMIN_NAO_E_MESA);
-}
-checar('...e o livro continua extraviado, com o resgate em aberto', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro4])->fetch_assoc()['status'] === 'extraviado' && buscarResgateAbertoPorLivro($conn, $livro4) !== null);
-concluirResgate($conn, $livro4, $idDiagramacao, $mesaId, 'Gaveta 3', $usuarioId);
-checar('Concluir resgate com um responsável válido (registrado pelo Admin) funciona', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro4])->fetch_assoc()['status'] === 'em_andamento');
-
 // Livro de ANTES da regra, com um Administrador como mesa (gravado direto no banco): nada é alterado sozinho,
 // mas movimentar sem escolher responsável é recusado e escolhendo um válido a mesa é corrigida.
 $livro5 = criarLivroTeste($conn, 'TESTE FLUXO - Livro 5 (mesa Admin antiga)', $usuarioId, $usuarioId, []);
@@ -459,7 +392,7 @@ $livrosDeTeste[] = $livro6;
 cancelarLivro($conn, $livro6, $usuarioId);
 checar('Cancelar livro que está com o Admin como mesa continua possível', consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro6])->fetch_assoc()['status'] === 'cancelado');
 
-// Trava de promoção a Admin: livros em andamento/extraviados sob a responsabilidade do usuário.
+// Trava de promoção a Admin: livros em andamento sob a responsabilidade do usuário.
 $titulosSob = array_column(livrosSobResponsabilidade($conn, $mesaId), 'id');
 checar('livrosSobResponsabilidade lista os livros em andamento do usuário (livro 4 e 5)', in_array((string)$livro4, array_map('strval', $titulosSob), true) && in_array((string)$livro5, array_map('strval', $titulosSob), true));
 checar('livrosSobResponsabilidade não lista livros cancelados (livro 3)', !in_array((string)$livro3, array_map('strval', $titulosSob), true));
@@ -522,20 +455,6 @@ checar('...e nada foi gravado (mesma contagem de movimentações, mesma etapa, u
     && etapaAtualDoLivro($conn, $livro6)['etapa_nome'] === $etapaAntes
     && (int)consulta($conn, "SELECT COUNT(*) c FROM movimentacoes WHERE livro_id=? AND data_saida IS NULL", 'i', [$livro6])->fetch_assoc()['c'] === 1);
 
-// Resgate: concluir grava a observação na linha do tipo 'resgate'.
-iniciarResgate($conn, $livro6, $usuarioId);
-concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta do diretor', $usuarioId, 'Achado na gaveta; conferir o arquivo final.');
-checar('Concluir resgate grava a observação na movimentação de resgate', $obsDaUltima($livro6) === 'Achado na gaveta; conferir o arquivo final.' && ultimaMovimentacao($conn, $livro6)['tipo'] === 'resgate');
-try {
-    iniciarResgate($conn, $livro6, $usuarioId);
-    concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta', $usuarioId, $mil1);
-    checar('Concluir resgate com 1.001 caracteres foi REJEITADO', false);
-} catch (InvalidArgumentException $e) {
-    checar('Concluir resgate com 1.001 caracteres rejeitado e o livro segue extraviado', (string)consulta($conn, "SELECT status FROM livros WHERE id=?", 'i', [$livro6])->fetch_assoc()['status'] === 'extraviado');
-    concluirResgate($conn, $livro6, $idDiagramacao, $mesaId, 'Gaveta', $usuarioId);
-}
-checar('Resgate concluído sem observação grava NULL', $obsDaUltima($livro6) === null);
-
 $outrosLivros = array_values(array_diff($livrosDeTeste, [$livro6]));
 $comObs = (int)consulta($conn, 'SELECT COUNT(*) c FROM movimentacoes WHERE livro_id <> ? AND observacao IS NOT NULL AND livro_id IN (' . marcadoresIn(count($outrosLivros)) . ')', str_repeat('i', 1 + max(count($outrosLivros), 1)), [$livro6, ...($outrosLivros ?: [0])])->fetch_assoc()['c'];
 checar('Os outros livros de teste (cenários anteriores) não ganharam observação', $comObs === 0);
@@ -545,7 +464,6 @@ echo "\n=== (k) Excluir livro cadastrado por engano (Passo 20.10) ===\n";
 $contaLinhas = fn(string $tabela, int $livroId): int => (int)consulta($conn, match ($tabela) {
     'movimentacoes' => 'SELECT COUNT(*) c FROM movimentacoes WHERE livro_id = ?',
     'contribuicoes' => 'SELECT COUNT(*) c FROM contribuicoes WHERE livro_id = ?',
-    'resgates' => 'SELECT COUNT(*) c FROM resgates WHERE livro_id = ?',
 }, 'i', [$livroId])->fetch_assoc()['c'];
 $idPapelAutor = papelIdPorNome($conn, 'Autor');
 $pessoaK = criarPessoaTeste($conn, 'TESTE FLUXO - Pessoa K');
@@ -557,18 +475,17 @@ $tentarExcluir = function (int $livroId, ?string $justificativa = null) use ($co
 
 // Regra pura (sem banco)
 $umLivro = fn(string $status) => ['status' => $status];
-checar('regra: em andamento com só a movimentação inicial pode', motivoBloqueioExclusaoLivro($umLivro('em_andamento'), 1, 0) === null);
-checar('regra: cancelado com só a movimentação inicial pode', motivoBloqueioExclusaoLivro($umLivro('cancelado'), 1, 0) === null);
-checar('regra: em andamento com 8 movimentações → "Cancele em vez de excluir."', motivoBloqueioExclusaoLivro($umLivro('em_andamento'), 8, 0) === 'Este livro tem 8 movimentações no histórico. Cancele em vez de excluir.');
-checar('regra: cancelado com histórico não sugere cancelar de novo', motivoBloqueioExclusaoLivro($umLivro('cancelado'), 3, 0) === 'Este livro tem 3 movimentações no histórico. Ele já foi cancelado.');
-checar('regra: com resgate não pode', str_contains((string)motivoBloqueioExclusaoLivro($umLivro('extraviado'), 1, 1), '1 resgate'));
-checar('regra: concluído não pode', str_contains((string)motivoBloqueioExclusaoLivro($umLivro('concluido'), 14, 0), 'concluído'));
+checar('regra: em andamento com só a movimentação inicial pode', motivoBloqueioExclusaoLivro($umLivro('em_andamento'), 1) === null);
+checar('regra: cancelado com só a movimentação inicial pode', motivoBloqueioExclusaoLivro($umLivro('cancelado'), 1) === null);
+checar('regra: em andamento com 8 movimentações → "Cancele em vez de excluir."', motivoBloqueioExclusaoLivro($umLivro('em_andamento'), 8) === 'Este livro tem 8 movimentações no histórico. Cancele em vez de excluir.');
+checar('regra: cancelado com histórico não sugere cancelar de novo', motivoBloqueioExclusaoLivro($umLivro('cancelado'), 3) === 'Este livro tem 3 movimentações no histórico. Ele já foi cancelado.');
+checar('regra: concluído não pode', str_contains((string)motivoBloqueioExclusaoLivro($umLivro('concluido'), 14), 'concluído'));
 
 // Livro recém-cadastrado: some o livro, as contribuições e a movimentação inicial; a pessoa fica; o log registra
 $livroK1 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K1 (engano)', $mesaId, $usuarioId, [['pessoa_id' => $pessoaK, 'papel_id' => $idPapelAutor]]);
 $livrosDeTeste[] = $livroK1;
 consulta($conn, "UPDATE livros SET isbn='9788532530806' WHERE id=?", 'i', [$livroK1]);
-checar('livro novo tem 1 movimentação, 1 vínculo e nenhum resgate', usoDoLivro($conn, $livroK1) === ['movs' => 1, 'resgates' => 0, 'contribuicoes' => 1]);
+checar('livro novo tem 1 movimentação e 1 vínculo', usoDoLivro($conn, $livroK1) === ['movs' => 1, 'contribuicoes' => 1]);
 $r = excluirLivro($conn, $livroK1, $usuarioId, null);
 checar('excluir livro recém-cadastrado: devolve código, título e nº de vínculos', $r['codigo'] === codigoLivro($livroK1) && $r['titulo'] === 'TESTE FLUXO - Livro K1 (engano)' && $r['contribuicoes'] === 1);
 checar('...o livro, as movimentações e as contribuições sumiram', !$existeLivro($livroK1) && $contaLinhas('movimentacoes', $livroK1) === 0 && $contaLinhas('contribuicoes', $livroK1) === 0);
@@ -608,10 +525,6 @@ $livroK5 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K5 (troca de mesa)', $mes
 $livrosDeTeste[] = $livroK5;
 passarParaOutraMesa($conn, $livroK5, $mesaId, $usuarioId);
 checar('só uma troca de mesa já conta como histórico (2 movimentações): recusado', str_contains((string)$tentarExcluir($livroK5), '2 movimentações') && $existeLivro($livroK5));
-$livroK6 = criarLivroTeste($conn, 'TESTE FLUXO - Livro K6 (resgate)', $mesaId, $usuarioId, []);
-$livrosDeTeste[] = $livroK6;
-iniciarResgate($conn, $livroK6, $usuarioId);
-checar('livro extraviado (1 movimentação, com resgate): recusado', str_contains((string)$tentarExcluir($livroK6), 'resgate') && $existeLivro($livroK6) && $contaLinhas('resgates', $livroK6) === 1);
 checar('livro concluído (Livro 1 deste teste): recusado', str_contains((string)$tentarExcluir($livro1), 'concluído') && $existeLivro($livro1));
 
 // Cancelado logo depois do cadastro: pode, mas exige justificativa
@@ -653,7 +566,7 @@ try {
     checar('Pular uma etapa obrigatória foi rejeitado: ' . $e->getMessage(), true);
 }
 try {
-    // Livro 2 está em Diagramação (ordem 7, após o resgate); tentar "avançar" direto para
+    // Livro 2 está em Revisão (ordem 8); tentar "avançar" direto para
     // o Depósito legal (ordem 15) pulando etapas obrigatórias nunca concluídas
     // (Catalogação, Fechamento, etc.) sem marcá-las.
     avancarEtapa($conn, $livro2, $idDepositoLegal, $usuarioId);
@@ -664,7 +577,6 @@ try {
 
 echo "\n=== Limpeza ===\n";
 foreach ($livrosDeTeste as $lid) {
-    consulta($conn, "DELETE FROM resgates WHERE livro_id=?", 'i', [$lid]);
     consulta($conn, "DELETE FROM movimentacoes WHERE livro_id=?", 'i', [$lid]);
     consulta($conn, "DELETE FROM contribuicoes WHERE livro_id=?", 'i', [$lid]);
     consulta($conn, "DELETE FROM log_alteracoes WHERE entidade_tipo='livro' AND entidade_id=?", 'i', [$lid]);

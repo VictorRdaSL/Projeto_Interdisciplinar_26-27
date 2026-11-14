@@ -41,8 +41,6 @@ const NOMES_ACOES_LOG = [
     'movimentacao.voltar'        => 'Voltou etapa',
     'movimentacao.concluir'      => 'Concluiu livro',
     'movimentacao.trocar_responsavel' => 'Trocou responsável (mesa)',
-    'resgate.iniciar'             => 'Iniciou resgate',
-    'resgate.concluir'            => 'Concluiu resgate',
     // Chaves preparadas para quando existir tela de gerenciar etapas/papéis
     // (fora de escopo no Passo 8.5 — nada ainda emite estas ações).
     'etapa.criar'                 => 'Criou etapa',

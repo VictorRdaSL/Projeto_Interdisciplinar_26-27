@@ -44,7 +44,7 @@ if ($editando) {
         exit;
     }
     // Livro concluído (já está na Biblioteca Nacional) não é mais alterado (Passo 20.12): nem abrir o formulário, nem
-    // salvar, nem excluir. Vale para qualquer perfil e antes de qualquer POST; cancelado e extraviado continuam editáveis.
+    // salvar, nem excluir. Vale para qualquer perfil e antes de qualquer POST; cancelado continua editável.
     if ($livroAtual['status'] === 'concluido') {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Livro concluído não pode ser alterado.'];
         header('Location: livro_detalhes.php?id=' . $livroId);
@@ -390,7 +390,7 @@ $motivoExcluirLivro = null;
 $usoLivro = null;
 if ($editando) {
     $usoLivro = usoDoLivro($conn, $livroId);
-    $motivoExcluirLivro = motivoBloqueioExclusaoLivro($livroAtual, $usoLivro['movs'], $usoLivro['resgates']);
+    $motivoExcluirLivro = motivoBloqueioExclusaoLivro($livroAtual, $usoLivro['movs']);
     $modoExcluirLivro = !$podeExcluirLivro ? 'sem_permissao' : ($motivoExcluirLivro !== null ? 'bloqueado' : 'pode');
 }
 $justificativaObrigatoria = $editando && $livroAtual['status'] === 'cancelado';

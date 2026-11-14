@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/permissoes.php';
 require_once __DIR__ . '/includes/alertas.php';
 
 // Painel inicial pós-pivô editorial — Passo 11 refez o dashboard por completo:
-// livros por etapa, parados, extraviados/resgate, rodada excedente em aberto,
+// livros por etapa, parados, rodada excedente em aberto,
 // concluídos no mês, atalho pra Minha mesa e busca (que delega pra livros.php).
 // O flash da sessão é lido, exibido e apagado pelo includes/rodape.php (toast).
 
@@ -25,8 +25,8 @@ $stmtMes->bind_param('ss', $inicioMes, $inicioProximoMes);
 $stmtMes->execute();
 $livrosConcluidosNoMes = (int)$stmtMes->get_result()->fetch_assoc()['total'];
 
-// Livros por etapa, na ordem do fluxo — só livros em andamento (extraviados
-// aparecem na seção própria, concluídos/cancelados não "estão" em etapa nenhuma).
+// Livros por etapa, na ordem do fluxo — só livros em andamento (concluídos e
+// cancelados não "estão" em etapa nenhuma).
 $livrosPorEtapa = [];
 $maxPorEtapa = 1;
 $r = $conn->query("
@@ -41,23 +41,6 @@ while ($row = $r->fetch_assoc()) {
     $row['total'] = (int)$row['total'];
     $livrosPorEtapa[] = $row;
     if ($row['total'] > $maxPorEtapa) $maxPorEtapa = $row['total'];
-}
-
-// Livros extraviados, com resgate em aberto.
-$livrosExtraviados = [];
-$r = $conn->query("
-    SELECT l.id, l.titulo, e.nome AS ultima_etapa_nome, r.data_abertura
-    FROM livros l
-    JOIN resgates r ON r.livro_id = l.id AND r.data_conclusao IS NULL
-    LEFT JOIN movimentacoes m ON m.id = r.movimentacao_referencia_id
-    LEFT JOIN etapas e ON e.id = m.etapa_id
-    WHERE l.status = 'extraviado'
-    ORDER BY r.data_abertura ASC
-");
-$agora = new DateTime();
-while ($row = $r->fetch_assoc()) {
-    $row['dias_perdido'] = $agora->diff(new DateTime($row['data_abertura']))->days;
-    $livrosExtraviados[] = $row;
 }
 
 // Livros com rodada excedente em aberto — cobráveis agora (só Diagramação/
@@ -104,17 +87,6 @@ require __DIR__ . '/includes/cabecalho.php';
 
       <div class="ws-conteudo">
 
-<?php if ($livrosExtraviados): $maisAntigo = $livrosExtraviados[0]; ?>
-        <!-- Alerta: livros em resgate (extraviados) -->
-        <div class="ws-alerta ws-alerta--cobrado" role="status">
-          <i class="ws-alerta__icone" data-lucide="circle-alert"></i>
-          <div class="ws-alerta__corpo">
-            <p class="ws-alerta__titulo"><?= escaparHtml(count($livrosExtraviados) === 1 ? 'Livro em resgate desde ' . date('d/m', strtotime($maisAntigo['data_abertura'])) . '.' : qtdTexto(count($livrosExtraviados), 'livro', 'livros') . ' em resgate; o mais antigo desde ' . date('d/m', strtotime($maisAntigo['data_abertura'])) . '.') ?></p>
-            <p><?= escaparHtml($maisAntigo['titulo']) ?> · última etapa conhecida: <?= escaparHtml($maisAntigo['ultima_etapa_nome'] ?: '—') ?>.</p>
-            <div class="ws-alerta__acoes"><a href="#livros-extraviados">Ver livros em resgate</a></div>
-          </div>
-        </div>
-<?php endif; ?>
 <?php if ($livrosExcedentes): ?>
         <!-- Alerta: rodada acima do limite (cobrada) -->
         <div class="ws-alerta ws-alerta--cobrado" role="status">
@@ -174,42 +146,6 @@ require __DIR__ . '/includes/cabecalho.php';
             </div>
           </div>
         </section>
-
-<?php if ($livrosExtraviados): ?>
-        <!-- Extraviados / em resgate -->
-        <section class="ws-secao" id="livros-extraviados" aria-labelledby="extraviados-titulo">
-          <div class="ws-secao__cabecalho">
-            <div>
-              <h2 id="extraviados-titulo">Livros em resgate</h2>
-              <p>Livros com resgate em aberto, a partir da última movimentação conhecida.</p>
-            </div>
-          </div>
-          <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="extraviados-titulo">
-            <table class="ws-tabela ws-tabela--empilhar">
-              <thead>
-                <tr>
-                  <th scope="col">Livro</th>
-                  <th scope="col">Última etapa conhecida</th>
-                  <th scope="col">Em resgate desde</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-<?php foreach ($livrosExtraviados as $le): ?>
-                <tr>
-                  <td class="ws-tabela__titulo" data-rotulo="Livro"><a href="livro_detalhes.php?id=<?= (int)$le['id'] ?>"><?= escaparHtml($le['titulo']) ?></a></td>
-                  <td data-rotulo="Última etapa"><?= escaparHtml($le['ultima_etapa_nome'] ?: '—') ?></td>
-                  <td data-rotulo="Desde"><?= escaparHtml(date('d/m/Y', strtotime($le['data_abertura']))) ?></td>
-                  <td data-rotulo="Status"><span class="ws-status ws-status--extraviado">Extraviado <span class="ws-status__detalhe">· <?= escaparHtml(qtdTexto((int)$le['dias_perdido'], 'dia', 'dias')) ?></span></span></td>
-                  <td class="ws-tabela__acoes"><a class="ws-btn ws-btn--secundario ws-btn--peq" href="resgate.php?id=<?= (int)$le['id'] ?>">Ver resgate</a></td>
-                </tr>
-<?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-        </section>
-<?php endif; ?>
 
 <?php if ($livrosExcedentes): ?>
         <!-- Rodada excedente em aberto (cobrada) -->

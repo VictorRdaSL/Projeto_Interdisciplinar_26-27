@@ -53,11 +53,11 @@ function validarResponsavelMesa(mysqli $conn, int $usuarioId): void
     }
 }
 
-/** Livros que estão hoje sob a responsabilidade do usuário (em andamento ou extraviados): [['id', 'titulo'], ...]. */
+/** Livros que estão hoje sob a responsabilidade do usuário (em andamento): [['id', 'titulo'], ...]. */
 function livrosSobResponsabilidade(mysqli $conn, int $usuarioId, bool $travar = false): array
 {
     // $travar (só dentro de uma transação): FOR UPDATE nas linhas dos livros, para a conferência valer até o commit.
-    $stmt = $conn->prepare("SELECT id, titulo FROM livros WHERE responsavel_atual_id = ? AND status IN ('em_andamento', 'extraviado') ORDER BY titulo" . ($travar ? ' FOR UPDATE' : ''));
+    $stmt = $conn->prepare("SELECT id, titulo FROM livros WHERE responsavel_atual_id = ? AND status = 'em_andamento' ORDER BY titulo" . ($travar ? ' FOR UPDATE' : ''));
     $stmt->bind_param('i', $usuarioId);
     $stmt->execute();
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);

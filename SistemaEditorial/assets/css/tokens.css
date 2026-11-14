@@ -53,7 +53,7 @@
   --ws-ok-texto:       #15803D;
   --ws-limite-ponto:   #F59E0B; /* rodadas no limite · livro parado */
   --ws-limite-texto:   #B45309;
-  --ws-cobrado-ponto:  #EF4444; /* acima do limite · cobrado · extraviado */
+  --ws-cobrado-ponto:  #EF4444; /* acima do limite · cobrado */
   --ws-cobrado-texto:  #B91C1C;
 
   /* ------------------------------------------------------------------------
