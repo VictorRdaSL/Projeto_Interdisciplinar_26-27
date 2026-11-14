@@ -33,21 +33,6 @@ Pensado para uma equipe pequena (cerca de 5 pessoas), em que todos movimentam li
 - Registra um **log de alterações** (quem fez o quê e quando).
 - Busca por título, pessoa ou ISBN, e tema claro ou escuro por usuário.
 
----
-
-## 🗂️ Estrutura
-
-```
-database/            schema.sql, seed.sql, views.sql e procedures.sql (instalação do banco)
-ferramentas/         criar_admin.php (cria o primeiro Administrador; só linha de comando; não vai para o servidor)
-SistemaEditorial/    o sistema (cada página é um .php; sem framework e sem build)
-  config/            config.example.php (modelo) e database.php (conexão)
-  includes/          funções compartilhadas: configuração, sessão, permissões, CSRF, validação, login, movimentações, relatórios...
-  assets/            CSS, JS, fontes e símbolo da marca (img/logo) do design system
-  favicon.svg / favicon.ico / apple-touch-icon.png   ícones da aba e da tela inicial
-  tests/             scripts de teste, só pela linha de comando
-  logs/              app.log (erros em produção, quando o config não define outro lugar)
-```
 
 ---
 
