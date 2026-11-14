@@ -3,29 +3,47 @@ require_once __DIR__ . '/auth_check.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/relatorios.php';
 require_once __DIR__ . '/includes/relatorios_layout.php';
+require_once __DIR__ . '/includes/paginacao.php';
 
 exigirPermissaoRelatorios();
 
 [$de, $ate, $erroPeriodo] = lerPeriodoGet();
 
+$exportandoCsv = ($_GET['export'] ?? '') === 'csv';
 $linhas = [];
+$pg = dadosPaginacao(0, 1);
 if (!$erroPeriodo) {
     $parametros = [];
     $tipos = '';
     $condicoes = condicaoPeriodo('m', $de, $ate, $parametros, $tipos, 'data_entrada');
     $whereSql = $condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '';
-
-    $stmt = $conn->prepare("
-        SELECT l.titulo, e.nome AS etapa_nome, m.rodada, m.tipo, u.nome AS responsavel_nome,
-               m.data_entrada, m.data_saida, m.excedente
+    $juncoes = '
         FROM movimentacoes m
         JOIN livros l ON l.id = m.livro_id
         JOIN etapas e ON e.id = m.etapa_id
         JOIN usuarios u ON u.id = m.responsavel_id
+    ';
+
+    // Tela: 10 por página (COUNT + LIMIT/OFFSET). CSV: tudo que o filtro retorna, sem paginação.
+    $sql = "
+        SELECT l.titulo, e.nome AS etapa_nome, m.rodada, m.tipo, u.nome AS responsavel_nome,
+               m.data_entrada, m.data_saida, m.excedente
+        $juncoes
         $whereSql
         ORDER BY m.data_entrada DESC, m.id DESC
-    ");
-    if ($parametros) $stmt->bind_param($tipos, ...$parametros);
+    ";
+    $stmtTotal = $conn->prepare("SELECT COUNT(*) AS total $juncoes $whereSql");
+    if ($parametros) $stmtTotal->bind_param($tipos, ...$parametros);
+    $stmtTotal->execute();
+    $pg = dadosPaginacao((int)$stmtTotal->get_result()->fetch_assoc()['total'], paginaSolicitada());
+
+    if ($exportandoCsv) {
+        $stmt = $conn->prepare($sql);
+        if ($parametros) $stmt->bind_param($tipos, ...$parametros);
+    } else {
+        $stmt = $conn->prepare($sql . ' LIMIT ? OFFSET ?');
+        $stmt->bind_param($tipos . 'ii', ...[...$parametros, $pg['limite'], $pg['offset']]);
+    }
     $stmt->execute();
     foreach ($stmt->get_result() as $m) {
         $linhas[] = [
@@ -41,7 +59,7 @@ if (!$erroPeriodo) {
     }
 }
 
-if (!$erroPeriodo && ($_GET['export'] ?? '') === 'csv') {
+if (!$erroPeriodo && $exportandoCsv) {
     exportarCsv(
         nomeArquivoCsv('relatorio_movimentacoes', $de, $ate),
         ['Livro', 'Etapa', 'Rodada', 'Tipo', 'Responsável', 'Entrada', 'Saída', 'Excedente'],
@@ -68,7 +86,7 @@ relatorioAbrir('Movimentações por período', 'Relatórios');
           <div class="ws-secao__cabecalho">
             <div>
               <h2 id="resultado-titulo">Resultado</h2>
-              <p><?= escaparHtml(count($linhas) . ' movimentação(ões)' . (count($linhas) > LIMITE_LINHAS_TELA ? ' — mostrando as ' . LIMITE_LINHAS_TELA . ' mais recentes; o CSV leva todas' : '')) ?>.</p>
+              <p><?= escaparHtml($pg['total'] . ' movimentação(ões)') ?>. O CSV leva todas.</p>
             </div>
             <?php relatorioExportar('relatorio_movimentacoes.php', queryFiltros(['filtro_de' => $de, 'filtro_ate' => $ate])); ?>
           </div>
@@ -91,7 +109,7 @@ relatorioAbrir('Movimentações por período', 'Relatórios');
                 </tr>
               </thead>
               <tbody>
-<?php foreach (array_slice($linhas, 0, LIMITE_LINHAS_TELA) as $ln): ?>
+<?php foreach ($linhas as $ln): ?>
                 <tr>
                   <td class="ws-tabela__titulo" data-rotulo="Livro"><?= escaparHtml($ln['livro']) ?></td>
                   <td data-rotulo="Etapa"><?= escaparHtml($ln['etapa']) ?></td>
@@ -106,6 +124,7 @@ relatorioAbrir('Movimentações por período', 'Relatórios');
               </tbody>
             </table>
           </div>
+<?= htmlRodapePaginacao($pg, 'relatorio_movimentacoes.php', ['filtro_de' => $de, 'filtro_ate' => $ate]) ?>
 <?php endif; ?>
 <?php endif; ?>
         </section>

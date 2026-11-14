@@ -80,7 +80,7 @@ require __DIR__ . '/includes/cabecalho.php';
         <section class="ws-secao" aria-labelledby="filtros-titulo" id="livros">
           <h2 class="ws-sr-only" id="filtros-titulo">Busca</h2>
           <!-- A busca filtra a lista na própria página (com atraso de 300 ms ao digitar); o Enter mantém o termo na URL (?busca=). -->
-          <form class="ws-filtros" method="get" action="livros.php" role="search">
+          <form class="ws-filtros ws-filtros--busca" method="get" action="livros.php" role="search">
             <div class="ws-campo">
               <label class="ws-campo__rotulo" for="busca">Buscar</label>
               <div class="ws-busca">
@@ -95,7 +95,10 @@ require __DIR__ . '/includes/cabecalho.php';
           <h2 class="ws-sr-only" id="lista-titulo">Livros cadastrados</h2>
           <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
           <div class="ws-tabela-wrap" id="livros-tabela-wrap" tabindex="0" role="region" aria-labelledby="lista-titulo">
-            <table class="ws-tabela ws-tabela--empilhar" id="tabela-livros">
+            <table class="ws-tabela ws-tabela--fixa ws-tabela--livros ws-tabela--empilhar" id="tabela-livros">
+              <colgroup>
+                <col class="ws-col--cod"><col><col class="ws-col--isbn"><col class="ws-col--etapa"><col class="ws-col--data"><col class="ws-col--mesa"><col class="ws-col--rodadas"><col class="ws-col--copia"><col class="ws-col--status">
+              </colgroup>
               <thead>
                 <tr>
                   <th scope="col">Livro</th>

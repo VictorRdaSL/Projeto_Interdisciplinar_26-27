@@ -169,7 +169,7 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php else: ?>
         <section class="ws-secao" aria-labelledby="busca-titulo">
           <h2 class="ws-sr-only" id="busca-titulo">Busca</h2>
-          <div class="ws-filtros">
+          <div class="ws-filtros ws-filtros--busca">
             <div class="ws-campo">
               <label class="ws-campo__rotulo" for="busca">Buscar</label>
               <div class="ws-busca">
@@ -189,7 +189,13 @@ require __DIR__ . '/includes/cabecalho.php';
           </div>
           <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
           <div class="ws-tabela-wrap" id="pessoas-tabela-wrap" tabindex="0" role="region" aria-labelledby="lista-titulo">
-            <table class="ws-tabela ws-tabela--empilhar" id="tabela-pessoas">
+            <table class="ws-tabela ws-tabela--fixa ws-tabela--pessoas ws-tabela--empilhar" id="tabela-pessoas">
+              <colgroup>
+                <col><col class="ws-col--email"><col class="ws-col--telefone"><col class="ws-col--cadastro">
+<?php if ($podeGerenciar): ?>
+                <col class="ws-col--acoes">
+<?php endif; ?>
+              </colgroup>
               <thead>
                 <tr>
                   <th scope="col">Nome</th>

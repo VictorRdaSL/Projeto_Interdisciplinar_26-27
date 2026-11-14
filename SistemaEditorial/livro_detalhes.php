@@ -10,6 +10,7 @@ require_once __DIR__ . '/includes/campos.php';
 require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/alertas.php';
 require_once __DIR__ . '/includes/movimentacoes.php';
+require_once __DIR__ . '/includes/paginacao.php';
 
 $livroId = idDaUrl($_GET, 'id');
 if ($livroId <= 0) {
@@ -804,8 +805,14 @@ require __DIR__ . '/includes/cabecalho.php';
                 <h3 class="ws-h2">Nenhuma movimentação registrada.</h3>
               </div>
 <?php else: ?>
+<?php
+    // Só as 10 movimentações mais recentes; "Mostrar histórico completo" (?historico=completo) mostra todas. Os cálculos da
+    // página (rodadas, fluxo, etapa anterior) seguem usando a lista inteira: só a exibição é cortada.
+    $historicoCompleto = entradaTexto($_GET, 'historico') === 'completo';
+    $movsVisiveis = $historicoCompleto ? $movimentacoes : array_slice($movimentacoes, 0, ITENS_POR_PAGINA, true);
+?>
               <ol class="ws-linha-tempo">
-<?php foreach ($movimentacoes as $i => $m):
+<?php foreach ($movsVisiveis as $i => $m):
     $tipo = $m['tipo'];
     $etapaNomeMov = $m['etapa_nome'] ?: 'etapa removida';
     $limiteMov = $m['etapa_rodadas_incluidas'] !== null ? (int)$m['etapa_rodadas_incluidas'] : null;
@@ -851,6 +858,16 @@ require __DIR__ . '/includes/cabecalho.php';
                 </li>
 <?php endforeach; ?>
               </ol>
+<?php if (count($movimentacoes) > ITENS_POR_PAGINA): ?>
+              <div class="ws-tabela-rodape">
+                <span><?= escaparHtml($historicoCompleto ? 'Mostrando as ' . count($movimentacoes) . ' movimentações' : 'Mostrando as ' . ITENS_POR_PAGINA . ' mais recentes de ' . count($movimentacoes)) ?></span>
+<?php if ($historicoCompleto): ?>
+                <a class="ws-btn ws-btn--secundario ws-btn--peq" href="livro_detalhes.php?id=<?= $livroId ?>#historico">Mostrar só as <?= ITENS_POR_PAGINA ?> mais recentes</a>
+<?php else: ?>
+                <a class="ws-btn ws-btn--secundario ws-btn--peq" href="livro_detalhes.php?id=<?= $livroId ?>&amp;historico=completo#historico">Mostrar histórico completo</a>
+<?php endif; ?>
+              </div>
+<?php endif; ?>
 <?php endif; ?>
             </section>
           </div>

@@ -957,6 +957,52 @@ a.ws-kpi:hover {
   text-align: center;
 }
 
+/* Colunas de largura fixa (listas filtradas no navegador, como livros e pessoas): a largura de cada coluna vem do
+   <colgroup> e não do conteúdo, então não muda quando a busca esconde linhas ou quando um campo vem vazio ("—").
+   O <col> sem classe de largura (o título/nome) fica com o que sobra. Só de 640px para cima: abaixo disso a tabela empilha em
+   cartões (.ws-tabela--empilhar). Se a janela for estreita, a tabela mantém o mínimo e rola dentro do wrap.
+   <table class="ws-tabela ws-tabela--fixa ws-tabela--livros ws-tabela--empilhar">
+     <colgroup><col class="ws-col--cod"><col><col class="ws-col--isbn">…</colgroup> */
+@media (min-width: 640px) {
+  .ws-tabela--fixa {
+    table-layout: fixed;
+    min-width: var(--ws-tabela-largura-min, 900px);
+  }
+
+  .ws-tabela--livros  { --ws-tabela-largura-min: 1020px; }
+  .ws-tabela--pessoas { --ws-tabela-largura-min: 880px; }
+
+  /* Cabeçalho e datas podem quebrar linha dentro da coluna; o ISBN (um <span>) continua em uma linha só */
+  .ws-tabela--fixa th,
+  .ws-tabela--fixa td.ws-tabela__codigo {
+    white-space: normal;
+  }
+
+  .ws-tabela--fixa td {
+    overflow-wrap: anywhere;
+  }
+
+  /* Larguras (px) */
+  .ws-col--cod      { width: 72px; }
+  .ws-col--isbn     { width: 150px; }
+  .ws-col--etapa    { width: 124px; }
+  .ws-col--data     { width: 104px; }
+  .ws-col--mesa     { width: 100px; }
+  .ws-col--rodadas  { width: 88px; }
+  .ws-col--copia    { width: 68px; }
+  .ws-col--status   { width: 116px; }
+  .ws-col--email    { width: 260px; }
+  .ws-col--telefone { width: 150px; }
+  .ws-col--cadastro { width: 130px; }
+  .ws-col--acoes    { width: 120px; }
+}
+
+@media (max-width: 639px) {
+  .ws-tabela--fixa colgroup {
+    display: none;
+  }
+}
+
 /* Rodapé da tabela: contagem + paginação */
 .ws-tabela-rodape {
   display: flex;
@@ -1914,19 +1960,38 @@ a.ws-kpi:hover {
 
 
 /* ==========================================================================
-   18. Barra de filtros (lista de livros)
+   18. Barra de filtros
    --------------------------------------------------------------------------
-   Formulário GET: busca + selects + Filtrar / Limpar. Os filtros ativos
-   aparecem como etiquetas logo abaixo.
+   Formulário GET: campos + Filtrar / Limpar. Todo campo (texto, select e data)
+   tem a MESMA largura (200px), com ou sem valor, na ordem em que aparecem; o
+   que não cabe na linha desce para a próxima. No celular cada campo ocupa a
+   linha toda.
+   <form class="ws-filtros" method="get">
+     <div class="ws-campo">…</div> <div class="ws-campo">…</div>
+     <div class="ws-filtros__acoes">…</div>
+   </form>
+   Variante com busca (livros e pessoas): <form class="ws-filtros ws-filtros--busca">
+   — o campo de busca é mais largo (até 420px), porque guarda um termo.
    ========================================================================== */
 .ws-filtros {
-  display: grid;
-  grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(140px, 1fr)) auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--ws-esp-3);
-  align-items: end;
+  align-items: flex-end;
   padding: var(--ws-esp-4);
   border: var(--ws-borda);
   background: var(--ws-cor-superficie);
+}
+
+.ws-filtros > .ws-campo {
+  flex: 0 0 200px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ws-filtros--busca > .ws-campo {
+  flex: 1 1 280px;
+  max-width: 420px;
 }
 
 .ws-filtros__acoes {
@@ -1936,23 +2001,13 @@ a.ws-kpi:hover {
   min-height: var(--ws-controle-altura);
 }
 
-/* Com a sidebar de 240px, 5 colunas só cabem a partir de ~1200px de janela: abaixo disso, 2 colunas */
-@media (max-width: 1199px) {
-  .ws-filtros {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ws-filtros > :first-child {
-    grid-column: 1 / -1;
-  }
-}
-
 @media (max-width: 479px) {
-  .ws-filtros {
-    grid-template-columns: minmax(0, 1fr);
+  .ws-filtros > .ws-campo,
+  .ws-filtros--busca > .ws-campo {
+    flex: 1 1 100%;
+    max-width: 100%;
   }
 }
-
 
 /* ==========================================================================
    19. Login

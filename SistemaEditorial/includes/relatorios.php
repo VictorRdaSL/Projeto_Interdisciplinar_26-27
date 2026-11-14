@@ -7,8 +7,6 @@ require_once __DIR__ . '/periodo.php';
 require_once __DIR__ . '/csv.php';
 require_once __DIR__ . '/validacao.php';
 
-// Quantas linhas aparecem na tela; o CSV sempre leva todas.
-const LIMITE_LINHAS_TELA = 500;
 
 const ROTULOS_STATUS_LIVRO = [
     'em_andamento' => 'Em andamento',

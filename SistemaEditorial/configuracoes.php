@@ -10,6 +10,7 @@ require_once __DIR__ . '/includes/formatacao.php';
 require_once __DIR__ . '/includes/campos.php';
 require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/login_tentativas.php';
+require_once __DIR__ . '/includes/paginacao.php';
 
 // Formulários de cadastro novo só valem uma vez por exibição (duplo clique / reenvio / "voltar").
 // Se um flash do primeiro envio ainda não foi mostrado, ele é preservado.
@@ -1015,14 +1016,22 @@ $sqlLog = "
     LEFT JOIN etapas et ON l.entidade_tipo='etapa' AND et.id = l.entidade_id
     LEFT JOIN papeis pa ON l.entidade_tipo='papel' AND pa.id = l.entidade_id
     $whereSql
-    ORDER BY l.criado_em DESC
-    LIMIT 100
+    ORDER BY l.criado_em DESC, l.id DESC
+    LIMIT ? OFFSET ?
 ";
-// Tentativas de login recusadas (Passo 21), só para quem vê o log: as 50 mais recentes que não foram sucesso.
+// Contagem para a paginação (10 por página), com os mesmos filtros e as mesmas junções da lista.
+$sqlLogTotal = "SELECT COUNT(*) AS total FROM log_alteracoes l JOIN usuarios ator ON ator.id = l.usuario_id $whereSql";
+$pgLog = dadosPaginacao(0, 1);
+// Tentativas de login recusadas (Passo 21), só para quem vê o log: as 10 mais recentes que não foram sucesso;
+// "Mostrar todas" (?tentativas=todas) leva até as 50 mais recentes.
+$verTodasTentativas = entradaTexto($_GET, 'tentativas') === 'todas';
 $tentativasLogin = [];
+$totalTentativas = 0;
 if ($podeVerLog) {
     $rt = $conn->query("SELECT email, ip, resultado, criado_em FROM login_tentativas WHERE resultado <> 'sucesso' ORDER BY id DESC LIMIT 50");
     while ($row = $rt->fetch_assoc()) $tentativasLogin[] = $row;
+    $totalTentativas = count($tentativasLogin);
+    if (!$verTodasTentativas) $tentativasLogin = array_slice($tentativasLogin, 0, ITENS_POR_PAGINA);
 }
 const ROTULOS_RESULTADO_LOGIN = [
     'falha' => 'Falha no login',
@@ -1031,12 +1040,29 @@ const ROTULOS_RESULTADO_LOGIN = [
     'bloqueio_ip' => 'Bloqueio do IP',
 ];
 if ($podeVerLog) {
+    $stmtTotalLog = $conn->prepare($sqlLogTotal);
+    if ($parametros) $stmtTotalLog->bind_param($tipos, ...$parametros);
+    $stmtTotalLog->execute();
+    $pgLog = dadosPaginacao((int)$stmtTotalLog->get_result()->fetch_assoc()['total'], paginaSolicitada('pagina_log'));
+
     $stmtLog = $conn->prepare($sqlLog);
-    if ($parametros) $stmtLog->bind_param($tipos, ...$parametros);
+    $stmtLog->bind_param($tipos . 'ii', ...[...$parametros, $pgLog['limite'], $pgLog['offset']]);
     $stmtLog->execute();
     $rl = $stmtLog->get_result();
     while ($row = $rl->fetch_assoc()) $logs[] = $row;
 }
+
+// Filtros do log na URL (para os links de página e do "Mostrar todas" das tentativas de login manterem tudo).
+$filtrosLogBase = array_filter([
+    'filtro_usuario' => $filtroUsuario,
+    'filtro_acao' => $filtroAcao,
+    'filtro_de' => $filtroDe,
+    'filtro_ate' => $filtroAte,
+    'pagina_log' => $pgLog['pagina'] > 1 ? $pgLog['pagina'] : '',
+], fn($v) => $v !== '' && $v !== 0 && $v !== null);
+$filtrosLogUrl = array_diff_key($filtrosLogBase, ['pagina_log' => 1]) + ($verTodasTentativas ? ['tentativas' => 'todas'] : []);
+$hrefTentativasTodas = 'configuracoes.php?' . http_build_query($filtrosLogBase + ['tentativas' => 'todas']) . '#tentativas-login';
+$hrefTentativasResumo = 'configuracoes.php' . ($filtrosLogBase ? '?' . http_build_query($filtrosLogBase) : '') . '#tentativas-login';
 
 // O flash da sessão é lido, exibido e apagado pelo includes/rodape.php (toast).
 $temaAtual = ($_SESSION['usuario_tema'] ?? 'claro') === 'escuro' ? 'escuro' : 'claro';
@@ -1499,7 +1525,7 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php endif; ?>
 
 <?php if ($podeVerLog): ?>
-        <!-- Tentativas de login recusadas (Passo 21): as 50 mais recentes. Gerente e Admin, como o log. -->
+        <!-- Tentativas de login recusadas (Passo 21): as 10 mais recentes, com "Mostrar todas" (até 50). Gerente e Admin, como o log. -->
         <section class="ws-secao" id="tentativas-login" aria-labelledby="tentativas-titulo">
           <div class="ws-secao__cabecalho">
             <div>
@@ -1535,6 +1561,16 @@ require __DIR__ . '/includes/cabecalho.php';
               </tbody>
             </table>
           </div>
+<?php if ($totalTentativas > ITENS_POR_PAGINA): ?>
+          <div class="ws-tabela-rodape">
+            <span><?= escaparHtml($verTodasTentativas ? 'Mostrando as ' . $totalTentativas . ' mais recentes' : 'Mostrando as ' . ITENS_POR_PAGINA . ' mais recentes de ' . $totalTentativas) ?></span>
+<?php if ($verTodasTentativas): ?>
+            <a class="ws-btn ws-btn--secundario ws-btn--peq" href="<?= escaparHtml($hrefTentativasResumo) ?>">Mostrar só as <?= ITENS_POR_PAGINA ?> mais recentes</a>
+<?php else: ?>
+            <a class="ws-btn ws-btn--secundario ws-btn--peq" href="<?= escaparHtml($hrefTentativasTodas) ?>">Mostrar todas (<?= $totalTentativas ?>)</a>
+<?php endif; ?>
+          </div>
+<?php endif; ?>
 <?php endif; ?>
         </section>
 <?php endif; ?>
@@ -1595,9 +1631,6 @@ require __DIR__ . '/includes/cabecalho.php';
 <?php endif; ?>
           </div>
 <?php else: ?>
-<?php if (count($logs) >= 100): ?>
-          <p class="ws-texto-suave">Mostrando os 100 registros mais recentes. Use os filtros para ver outros.</p>
-<?php endif; ?>
           <!-- No celular as linhas viram cartões (.ws-tabela--empilhar + data-rotulo) -->
           <div class="ws-tabela-wrap" tabindex="0" role="region" aria-labelledby="log-titulo">
             <table class="ws-tabela ws-tabela--empilhar">
@@ -1625,6 +1658,7 @@ require __DIR__ . '/includes/cabecalho.php';
               </tbody>
             </table>
           </div>
+<?= htmlRodapePaginacao($pgLog, 'configuracoes.php', $filtrosLogUrl, 'pagina_log', 'log') ?>
 <?php endif; ?>
         </section>
 <?php endif; ?>

@@ -6,6 +6,7 @@ require_once __DIR__ . '/includes/mesa.php';
 require_once __DIR__ . '/includes/isbn.php';
 require_once __DIR__ . '/includes/formatacao.php';
 require_once __DIR__ . '/includes/relatorios_layout.php';
+require_once __DIR__ . '/includes/paginacao.php';
 
 exigirPermissaoRelatorios();
 
@@ -29,16 +30,32 @@ if ($filtroStatus !== '') { $condicoes[] = 'v.status = ?'; $parametros[] = $filt
 if ($filtroMesa > 0) { $condicoes[] = 'v.mesa_id = ?'; $parametros[] = $filtroMesa; $tipos .= 'i'; }
 $whereSql = $condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '';
 
-$stmt = $conn->prepare("
+$exportandoCsv = ($_GET['export'] ?? '') === 'csv';
+$juncoes = '
+    FROM vw_livros_situacao_atual v
+    LEFT JOIN vw_livros_contribuidores c ON c.livro_id = v.livro_id
+';
+// Tela: 10 por página (COUNT + LIMIT/OFFSET). CSV: todos os livros do filtro, sem paginação.
+$sql = "
     SELECT v.livro_id AS id, v.titulo, v.isbn, v.tem_copia, v.status, v.observacoes,
            v.etapa_nome, v.rodadas_incluidas, v.mesa_nome,
            c.pessoas_papeis
-    FROM vw_livros_situacao_atual v
-    LEFT JOIN vw_livros_contribuidores c ON c.livro_id = v.livro_id
+    $juncoes
     $whereSql
     ORDER BY v.titulo, v.livro_id
-");
-if ($parametros) $stmt->bind_param($tipos, ...$parametros);
+";
+$stmtTotal = $conn->prepare("SELECT COUNT(*) AS total $juncoes $whereSql");
+if ($parametros) $stmtTotal->bind_param($tipos, ...$parametros);
+$stmtTotal->execute();
+$pg = dadosPaginacao((int)$stmtTotal->get_result()->fetch_assoc()['total'], paginaSolicitada());
+
+if ($exportandoCsv) {
+    $stmt = $conn->prepare($sql);
+    if ($parametros) $stmt->bind_param($tipos, ...$parametros);
+} else {
+    $stmt = $conn->prepare($sql . ' LIMIT ? OFFSET ?');
+    $stmt->bind_param($tipos . 'ii', ...[...$parametros, $pg['limite'], $pg['offset']]);
+}
 $stmt->execute();
 $livros = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -76,7 +93,7 @@ foreach ($livros as $l) {
 
 $filtrosAtivos = ['filtro_etapa' => $filtroEtapaStatus !== '' ? $filtroEtapaStatus : $filtroEtapa, 'filtro_status' => $filtroStatus, 'filtro_mesa' => $filtroMesa];
 
-if (($_GET['export'] ?? '') === 'csv') {
+if ($exportandoCsv) {
     exportarCsv(
         'relatorio_livros.csv',
         ['Título', 'Pessoas e papéis', 'ISBN', 'Tem cópia', 'Etapa atual', 'Rodada', 'Mesa', 'Status', 'Dias na etapa atual', 'Observações'],
@@ -131,7 +148,7 @@ relatorioAbrir('Relatório de livros', 'Relatórios');
           <div class="ws-secao__cabecalho">
             <div>
               <h2 id="resultado-titulo">Resultado</h2>
-              <p><?= escaparHtml(count($linhas) . ' livro(s)' . (count($linhas) > LIMITE_LINHAS_TELA ? ' — mostrando os primeiros ' . LIMITE_LINHAS_TELA . '; o CSV leva todos' : '')) ?>.</p>
+              <p><?= escaparHtml($pg['total'] . ' livro(s)') ?>. O CSV leva todos.</p>
             </div>
             <?php relatorioExportar('relatorio_livros.php', queryFiltros($filtrosAtivos)); ?>
           </div>
@@ -156,7 +173,7 @@ relatorioAbrir('Relatório de livros', 'Relatórios');
                 </tr>
               </thead>
               <tbody>
-<?php foreach (array_slice($linhas, 0, LIMITE_LINHAS_TELA) as $ln):
+<?php foreach ($linhas as $ln):
     $cobrado = str_contains($ln['rodada'], ' (cobrável)');
     $rodadaTela = str_replace(' (cobrável)', '', $ln['rodada']);
 ?>
@@ -176,6 +193,7 @@ relatorioAbrir('Relatório de livros', 'Relatórios');
               </tbody>
             </table>
           </div>
+<?= htmlRodapePaginacao($pg, 'relatorio_livros.php', $filtrosAtivos) ?>
 <?php endif; ?>
         </section>
 <?php relatorioFechar();
