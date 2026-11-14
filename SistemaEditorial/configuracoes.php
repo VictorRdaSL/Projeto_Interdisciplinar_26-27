@@ -164,9 +164,9 @@ function camposFormEtapa(string $p, bool $edicao, int $ordemNova = 0, array $v =
                   </div>
                   <div class="ws-campo<?= classeCampoErro($eDias) ?>">
                     <label class="ws-campo__rotulo" for="<?= $p ?>_dias">Dias limite <span class="ws-campo__opcional">(opcional)</span></label>
-                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_dias" name="dias_limite" value="<?= escaparHtml((string)($v['dias'] ?? '')) ?>" min="1" max="<?= LIMITE_DIAS_MAX ?>"<?= atributosCampo($p . '_dias', $eDias, $p . '_dias_ajuda') ?>>
+                    <input class="ws-input ws-input--codigo" type="number" id="<?= $p ?>_dias" name="dias_limite" value="<?= escaparHtml((string)($v['dias'] ?? '')) ?>" min="<?= LIMITE_DIAS_MIN ?>" max="<?= LIMITE_DIAS_MAX ?>"<?= atributosCampo($p . '_dias', $eDias, $p . '_dias_ajuda') ?>>
                     <?= htmlErroCampo($p . '_dias', $eDias) ?>
-                    <p class="ws-campo__ajuda" id="<?= $p ?>_dias_ajuda">Vazio = usa o padrão global</p>
+                    <p class="ws-campo__ajuda" id="<?= $p ?>_dias_ajuda">De <?= LIMITE_DIAS_MIN ?> a <?= LIMITE_DIAS_MAX ?> dias. Vazio = usa o padrão global</p>
                   </div>
                 </div>
               </fieldset>
@@ -404,13 +404,16 @@ if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POS
     if (!csrfValidar($_POST['csrf_token'] ?? null)) {
         $_SESSION['flash'] = ['type' => 'erro', 'message' => 'Sessão expirada. Tente novamente.'];
     } else {
+        // Valor fora da faixa não é recusado: o PHP ajusta para 1 (vazio, zero, negativo) ou 60 (acima) e avisa.
+        // Só texto que não é número inteiro volta com erro no campo.
         $diasPostStr = entradaTexto($_POST, 'dias_limite_livro_parado');
-        $novoDiasLimite = inteiroPositivo($diasPostStr, LIMITE_DIAS_MAX);
-        if ($novoDiasLimite === null) {
-            $errosDias['dias_limite_livro_parado'] = $diasPostStr === '' ? 'Informe os dias-limite padrão.' : 'Informe um número inteiro de dias entre 1 e ' . LIMITE_DIAS_MAX . '.';
+        $diasAjustado = ajustarDiasLimite($diasPostStr);
+        if ($diasAjustado === null) {
+            $errosDias['dias_limite_livro_parado'] = 'Informe um número inteiro de dias entre ' . LIMITE_DIAS_MIN . ' e ' . LIMITE_DIAS_MAX . '.';
             $valorDiasPost = $diasPostStr;
         } else {
-            $diasLimiteAntigo = (string)buscarDiasLimiteGlobal($conn);
+            $novoDiasLimite = $diasAjustado['valor'];
+            $diasLimiteAntigo = (string)(lerDiasLimiteGlobalGravado($conn) ?? '');
             $stmt = $conn->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'dias_limite_livro_parado'");
             $novoDiasLimiteStr = (string)$novoDiasLimite;
             $stmt->bind_param('s', $novoDiasLimiteStr);
@@ -418,7 +421,9 @@ if ($podeConfigurarDiasLimite && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POS
             if ($novoDiasLimiteStr !== $diasLimiteAntigo) {
                 registrarLog($conn, (int)$_SESSION['usuario_id'], 'config.editar_dias_limite', 'configuracao', 0, $diasLimiteAntigo, $novoDiasLimiteStr);
             }
-            $_SESSION['flash'] = ['type' => 'sucesso', 'message' => 'Limite padrão de dias atualizado com sucesso.'];
+            $_SESSION['flash'] = $diasAjustado['ajuste'] === null
+                ? ['type' => 'sucesso', 'message' => 'Limite padrão de dias atualizado com sucesso.']
+                : ['type' => 'info', 'message' => 'Limite padrão de dias atualizado. O valor foi ajustado para ' . $novoDiasLimite . ', ' . ($diasAjustado['ajuste'] === 'max' ? 'o máximo' : 'o mínimo') . ' permitido.'];
         }
     }
     if (!$errosDias) {
@@ -1146,9 +1151,9 @@ require __DIR__ . '/includes/cabecalho.php';
             <input type="hidden" name="acao" value="alterar_dias_limite">
             <div class="ws-campo<?= classeCampoErro($errosDias['dias_limite_livro_parado'] ?? null) ?>">
               <label class="ws-campo__rotulo" for="dias_limite_livro_parado">Dias-limite padrão</label>
-              <input class="ws-input ws-input--codigo" type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="1" max="<?= LIMITE_DIAS_MAX ?>" value="<?= $valorDiasPost !== null ? escaparHtml($valorDiasPost) : (int)$diasLimiteAtual ?>" required<?= atributosCampo('dias_limite_livro_parado', $errosDias['dias_limite_livro_parado'] ?? null, 'dias-ajuda') ?> style="max-width:160px">
+              <input class="ws-input ws-input--codigo" type="number" id="dias_limite_livro_parado" name="dias_limite_livro_parado" min="<?= LIMITE_DIAS_MIN ?>" max="<?= LIMITE_DIAS_MAX ?>" value="<?= $valorDiasPost !== null ? escaparHtml($valorDiasPost) : (int)$diasLimiteAtual ?>" required<?= atributosCampo('dias_limite_livro_parado', $errosDias['dias_limite_livro_parado'] ?? null, 'dias-ajuda') ?> style="max-width:160px">
               <?= htmlErroCampo('dias_limite_livro_parado', $errosDias['dias_limite_livro_parado'] ?? null) ?>
-              <p class="ws-campo__ajuda" id="dias-ajuda">Número inteiro de 1 a <?= LIMITE_DIAS_MAX ?>.</p>
+              <p class="ws-campo__ajuda" id="dias-ajuda">De <?= LIMITE_DIAS_MIN ?> a <?= LIMITE_DIAS_MAX ?> dias.</p>
             </div>
             <div class="ws-form__acoes">
               <button class="ws-btn ws-btn--primario" type="submit">Salvar</button>

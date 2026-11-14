@@ -95,7 +95,8 @@ function entradaBruta(array $origem, string $chave): string
     return is_string($valor) ? $valor : '';
 }
 
-const LIMITE_DIAS_MAX = 3650;   // dias-limite (livro parado): 10 anos já é "sem limite" na prática
+const LIMITE_DIAS_MIN = 1;      // dias-limite (livro parado): padrão global e por etapa vão de 1 a 60 dias
+const LIMITE_DIAS_MAX = 60;
 const LIMITE_RODADAS_MAX = 99;  // rodadas incluídas numa etapa
 
 /**
@@ -109,6 +110,32 @@ function inteiroPositivo(string $texto, int $max): ?int
     }
     $n = (int)$texto;
     return ($n >= 1 && $n <= $max) ? $n : null;
+}
+
+/**
+ * Dias-limite PADRÃO de livro parado (Configurações): em vez de recusar, ajusta o que veio ao intervalo permitido.
+ * Vazio, zero ou negativo viram LIMITE_DIAS_MIN; acima de LIMITE_DIAS_MAX vira LIMITE_DIAS_MAX (inclusive número gigante).
+ * Devolve ['valor' => int, 'ajuste' => null|'min'|'max'] ('ajuste' diz que o valor digitado foi mudado), ou null quando
+ * não é um número inteiro (texto, decimal, notação científica): aí a tela mostra o erro do campo.
+ */
+function ajustarDiasLimite(string $texto): ?array
+{
+    $texto = trim($texto);
+    if ($texto === '') {
+        return ['valor' => LIMITE_DIAS_MIN, 'ajuste' => 'min'];
+    }
+    if (!preg_match('/^-?\d+$/', $texto)) {
+        return null;
+    }
+    $digitos = ltrim(ltrim($texto, '-'), '0');
+    if ($texto[0] === '-' || $digitos === '') {
+        return ['valor' => LIMITE_DIAS_MIN, 'ajuste' => 'min']; // negativo ou zero
+    }
+    if (strlen($digitos) > 3 || (int)$digitos > LIMITE_DIAS_MAX) {
+        return ['valor' => LIMITE_DIAS_MAX, 'ajuste' => 'max'];
+    }
+    $n = (int)$digitos;
+    return $n < LIMITE_DIAS_MIN ? ['valor' => LIMITE_DIAS_MIN, 'ajuste' => 'min'] : ['valor' => $n, 'ajuste' => null];
 }
 
 /** Id numérico de ?id=... (só dígitos); devolve 0 se faltar, vier em branco, negativo ou em formato de lista. */

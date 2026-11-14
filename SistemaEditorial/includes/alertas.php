@@ -5,12 +5,22 @@
  * limite é NULL, do que o padrão global (configuracoes.dias_limite_livro_parado).
  */
 
-function buscarDiasLimiteGlobal(mysqli $conn): int
+require_once __DIR__ . '/validacao.php';
+
+/** Valor do padrão global exatamente como está gravado em `configuracoes` (null se a linha não existir). */
+function lerDiasLimiteGlobalGravado(mysqli $conn): ?string
 {
     $stmt = $conn->prepare("SELECT valor FROM configuracoes WHERE chave = 'dias_limite_livro_parado'");
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
-    return $row ? (int)$row['valor'] : 15;
+    return $row ? (string)$row['valor'] : null;
+}
+
+/** Padrão global em uso: sempre dentro de LIMITE_DIAS_MIN..LIMITE_DIAS_MAX, mesmo que o banco guarde outro valor. */
+function buscarDiasLimiteGlobal(mysqli $conn): int
+{
+    $gravado = lerDiasLimiteGlobalGravado($conn);
+    return $gravado === null ? 15 : min(LIMITE_DIAS_MAX, max(LIMITE_DIAS_MIN, (int)$gravado));
 }
 
 function buscarLivrosParados(mysqli $conn): array
